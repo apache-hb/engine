@@ -1,20 +1,54 @@
-#include "input.h"
 #include "rebind.h"
 #include "window.h"
+
+#include <atomic>
+#include <thread>
+#include <string>
+#include <sstream>
+#include <stop_token>
 
 struct MainWindow final : WindowHandle 
 {
     using WindowHandle::WindowHandle;
 
+    MainWindow(HINSTANCE instance, int show)
+        : WindowHandle(instance, show, TEXT("window"), 800, 600)
+    { }
+
     virtual void onCreate() override
     {
-        MessageBox(get(), TEXT("created"), TEXT("event"), 0);
+        renderThread = new std::jthread(renderTask, this);
     }
 
     virtual void onDestroy() override
     {
-        MessageBox(get(), TEXT("destroyed"), TEXT("event"), 0);
+        delete renderThread;
     }
+
+    virtual void onKeyPress(int key) override
+    {
+        
+    }
+
+    virtual void onKeyRelease(int key) override
+    {
+        
+    }
+
+    virtual void repaint() override
+    {
+        
+    }
+
+    static void renderTask(std::stop_token stop, MainWindow* window)
+    {
+        while (!stop.stop_requested())
+        {
+            MessageBeep(MB_OK);
+        }
+    }
+
+    std::jthread *renderThread;
 };
 
 int WINAPI wWinMain(
@@ -24,12 +58,7 @@ int WINAPI wWinMain(
     int nCmdShow
 )
 {
-    MainWindow window { 
-        hInstance, 
-        nCmdShow, 
-        TEXT("window"), 
-        800, 600 
-    };
+    MainWindow window(hInstance, nCmdShow);
 
-    window.run();    
+    window.run();
 }

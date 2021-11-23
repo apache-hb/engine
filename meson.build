@@ -1,4 +1,8 @@
-project('engine', [ 'c', 'cpp' ])
+project('engine', [ 'c', 'cpp' ],
+    default_options : [
+        'cpp_std=c++latest'
+    ]
+)
 
 src = [ 
     'src/main.cpp', 

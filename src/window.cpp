@@ -2,7 +2,7 @@
 
 namespace 
 {
-    HRESULT CALLBACK WindowHandleCallback(
+    LRESULT CALLBACK WindowHandleCallback(
         HWND hwnd,
         UINT msg,
         WPARAM wparam,
@@ -17,29 +17,38 @@ namespace
         case WM_CREATE:
             create = reinterpret_cast<LPCREATESTRUCT>(lparam);
             SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-            self->onCreate();
+            return 0;
+
+        case WM_KEYDOWN:
+            self->onKeyPress(static_cast<int>(wparam));
+            return 0;
+
+        case WM_KEYUP:
+            self->onKeyRelease(static_cast<int>(wparam));
+            return 0;
+
+        case WM_PAINT:
+            self->repaint();
             return 0;
 
         case WM_DESTROY:
             self->onDestroy();
-            return 0;
-
-        case WM_QUIT:
             PostQuitMessage(0);
             return 0;
+
+        default:
+            return DefWindowProc(hwnd, msg, wparam, lparam);
         }
-        return DefWindowProc(hwnd, msg, wparam, lparam);
     }
 }
 
 WindowHandle::WindowHandle(
     HINSTANCE instance,
     int show,
-    LPTSTR title,
+    LPCTSTR title,
     LONG width,
     LONG height
-) : instance(instance)
-  , name(title)
+) : instance(instance), name(title)
 {
     WNDCLASSEX wc = {
         .cbSize = sizeof(WNDCLASSEX),
@@ -79,6 +88,8 @@ WindowHandle::~WindowHandle()
 
 void WindowHandle::run()
 {
+    onCreate();
+
     MSG msg = { };
     while (msg.message != WM_QUIT)
     {

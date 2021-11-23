@@ -1,5 +1,7 @@
 #pragma once
 
+#define UNICODE 1
+
 #include <windows.h>
 
 struct WindowHandle 
@@ -11,7 +13,7 @@ struct WindowHandle
     WindowHandle(
         HINSTANCE instance,
         int show,
-        LPTSTR title, 
+        LPCTSTR title, 
         LONG width, 
         LONG height
     );
@@ -22,9 +24,14 @@ struct WindowHandle
     virtual void onCreate() { }
     virtual void onDestroy() { }
 
+    virtual void onKeyPress(int key) { }
+    virtual void onKeyRelease(int key) { }
+
+    virtual void repaint() { }
+
     HWND get() const { return handle; }
 private:
     HINSTANCE instance;
-    LPTSTR name;
+    LPCTSTR name;
     HWND handle;
 };
