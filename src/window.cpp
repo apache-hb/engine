@@ -1,5 +1,7 @@
 #include "window.h"
 
+#include "utils.h"
+
 namespace 
 {
     LRESULT CALLBACK WindowHandleCallback(
@@ -50,6 +52,10 @@ WindowHandle::WindowHandle(
     LONG height
 ) : instance(instance), name(title)
 {
+    ASSERT(title != nullptr);
+    ASSERT(width >= 0);
+    ASSERT(height >= 0);
+
     WNDCLASSEX wc = {
         .cbSize = sizeof(WNDCLASSEX),
         .style = CS_HREDRAW | CS_VREDRAW,
@@ -80,14 +86,12 @@ WindowHandle::WindowHandle(
     ShowWindow(handle, show);
 }
 
-WindowHandle::~WindowHandle()
-{
+WindowHandle::~WindowHandle() {
     DestroyWindow(handle);
     UnregisterClass(name, instance);
 }
 
-void WindowHandle::run()
-{
+void WindowHandle::run() {
     onCreate();
 
     MSG msg = { };

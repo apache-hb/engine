@@ -1,10 +1,8 @@
 #pragma once
 
-#define UNICODE 1
-
 #include <windows.h>
 
-struct WindowHandle 
+struct WindowHandle
 {
     WindowHandle() = delete;
     WindowHandle(const WindowHandle&) = delete;
