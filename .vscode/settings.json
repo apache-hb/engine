@@ -25,6 +25,14 @@
         "xtr1common": "cpp",
         "xutility": "cpp",
         "thread": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "xlocale": "cpp",
+        "array": "cpp",
+        "format": "cpp",
+        "memory": "cpp",
+        "xlocmes": "cpp",
+        "xlocmon": "cpp",
+        "xlocnum": "cpp",
+        "xloctime": "cpp"
     }
 }

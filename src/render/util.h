@@ -36,9 +36,22 @@ namespace render {
         T *get() { return self; }
 
         ULONG release() { return self->Release(); }
-        void drop() { 
+        
+        void tryRelease() {
+            if (valid()) {
+                release();
+            }
+        }
+
+        void drop(const char *name = "") { 
             if (ULONG refs = release(); refs != 0) {
-                fprintf(stderr, "render: release() = %u\n", refs);
+                fprintf(stderr, "render: release(%s) = %u\n", name, refs);
+            }
+        }
+
+        void tryDrop(const char *name = "") {
+            if (valid()) {
+                drop(name);
             }
         }
 

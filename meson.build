@@ -12,7 +12,7 @@ src = [
 ]
 
 executable('engine', src,
-    link_args : [ 'd3d12.lib', 'dxgi.lib', 'd3dcompiler.lib' ],
+    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib' ],
     cpp_args : [ '-DUNICODE=1' ],
     win_subsystem : 'console'
 )

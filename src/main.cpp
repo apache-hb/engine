@@ -18,9 +18,15 @@ struct MainWindow final : WindowHandle {
             fprintf(stderr, "window: context.create = 0x%x\n", hr);
             return;
         }
+
+        if (HRESULT hr = context.attach(this, 2); FAILED(hr)) {
+            fprintf(stderr, "window: context.attach = 0x%x\n", hr);
+            return;
+        }
     }
 
     virtual void onDestroy() override {
+        context.detach();
         context.destroy();
         instance.destroy();
     }
