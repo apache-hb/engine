@@ -5,9 +5,9 @@ project('engine', [ 'c', 'cpp' ],
 )
 
 src = [ 
-    'src/main.cpp',
+    'src/render/context.cpp',
     'src/utils.cpp',
-    'src/dx12.cpp',
+    'src/main.cpp',
     'src/window.cpp'
 ]
 

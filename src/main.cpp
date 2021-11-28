@@ -1,10 +1,5 @@
 #include "window.h"
-#include "dx12.h"
-
-extern "C" { 
-    __declspec(dllexport) extern const UINT D3D12SDKVersion = 4;
-    __declspec(dllexport) extern const auto* D3D12SDKPath = u8".\\D3D12\\"; 
-}
+#include "render/context.h"
 
 struct MainWindow final : WindowHandle {
     using WindowHandle::WindowHandle;
@@ -14,17 +9,20 @@ struct MainWindow final : WindowHandle {
     { }
 
     virtual void onCreate() override {
-        factory.create(true);
-        context.create(&factory, 0);
-        context.attach(this, 2);
-        context.load();
+        if (HRESULT hr = instance.create(); FAILED(hr)) {
+            fprintf(stderr, "window: instance.create = 0x%x\n", hr);
+            return;
+        }
+
+        if (HRESULT hr = context.create(instance, 0); FAILED(hr)) {
+            fprintf(stderr, "window: context.create = 0x%x\n", hr);
+            return;
+        }
     }
 
     virtual void onDestroy() override {
-        context.unload();
-        context.detach();
         context.destroy();
-        factory.destroy();
+        instance.destroy();
     }
 
     virtual void onKeyPress(int key) override {
@@ -36,12 +34,20 @@ struct MainWindow final : WindowHandle {
     }
 
     virtual void repaint() override {
-        context.present();
+        
     }
 
-    render::Factory factory;
+    render::Instance instance;
     render::Context context;
 };
+
+int commonMain(HINSTANCE instance, int show) {
+    MainWindow window(instance, show);
+
+    window.run();
+
+    return 0;
+}
 
 int WINAPI wWinMain(
     HINSTANCE hInstance,
@@ -50,13 +56,9 @@ int WINAPI wWinMain(
     int nCmdShow
 )
 {
-    MainWindow window(hInstance, nCmdShow);
-
-    window.run();
+    return commonMain(hInstance, nCmdShow);
 }
 
 int main(int argc, const char **argv) {
-    MainWindow window(GetModuleHandle(nullptr), SW_SHOW);
-
-    window.run();
+    return commonMain(GetModuleHandle(nullptr), SW_SHOW);
 }

@@ -179,7 +179,7 @@ namespace render {
         ENSURE(D3DX12SerializeVersionedRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1_0, signature.addr(), error.addr()));
         ENSURE(device->CreateRootSignature(0, 
             signature->GetBufferPointer(), 
-            signature->GetBufferSize(), 
+            signature->GetBufferSize(),
             IID_PPV_ARGS(&rootSignature)
         ));
 
