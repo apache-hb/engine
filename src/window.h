@@ -1,9 +1,12 @@
 #pragma once
 
 #include <windows.h>
+#include <tuple>
 
 struct WindowHandle
 {
+    using Size = std::tuple<LONG, LONG>;
+
     WindowHandle() = delete;
     WindowHandle(const WindowHandle&) = delete;
     WindowHandle(WindowHandle&&) = delete;
@@ -27,7 +30,9 @@ struct WindowHandle
 
     virtual void repaint() { }
 
-    HWND get() const { return handle; }
+    HWND getHandle() const { return handle; }
+    RECT getClientRect() const;
+    Size getClientSize() const;
 private:
     HINSTANCE instance;
     LPCTSTR name;

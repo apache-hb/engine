@@ -104,3 +104,14 @@ void WindowHandle::run() {
         }
     }
 }
+
+RECT WindowHandle::getClientRect() const {
+    RECT rect;
+    GetClientRect(handle, &rect);
+    return rect;
+}
+
+WindowHandle::Size WindowHandle::getClientSize() const {
+    RECT rect = getClientRect();
+    return WindowHandle::Size(rect.right - rect.left, rect.bottom - rect.top);
+}
