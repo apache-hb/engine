@@ -2,7 +2,7 @@
 
 #include "utils.h"
 
-namespace 
+namespace
 {
     LRESULT CALLBACK WindowHandleCallback(
         HWND hwnd,

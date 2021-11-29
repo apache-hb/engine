@@ -40,7 +40,7 @@ struct MainWindow final : WindowHandle {
     }
 
     virtual void repaint() override {
-        
+        context.present();
     }
 
     render::Instance instance;

@@ -256,11 +256,11 @@ namespace render {
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
         ENSURE(device->CreateCommittedResource(
-            &upload, 
-            D3D12_HEAP_FLAG_NONE, 
-            &buffer, 
-            D3D12_RESOURCE_STATE_GENERIC_READ, 
-            nullptr, 
+            &upload,
+            D3D12_HEAP_FLAG_NONE,
+            &buffer,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
             IID_PPV_ARGS(&vertexBuffer)
         ));
 

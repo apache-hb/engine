@@ -14,8 +14,8 @@ struct WindowHandle
     WindowHandle(
         HINSTANCE instance,
         int show,
-        LPCTSTR title, 
-        LONG width, 
+        LPCTSTR title,
+        LONG width,
         LONG height
     );
     virtual ~WindowHandle();
