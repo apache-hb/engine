@@ -1,10 +1,36 @@
 #include "util.h"
 
-#include <format>
+#include "logging/log.h"
+#include "util/strings.h"
 
 namespace engine::render {
-    void ensure(HRESULT result, std::string message) {
-        if (FAILED(result)) { throw new Error(result, message); }
+    engine::logging::Channel *render = new engine::logging::ConsoleChannel("d3d12", stdout);
+
+    namespace debug {
+        d3d12::Debug debugger;
+        UINT flags = 0;
+
+        void start() {
+            render->info("enabling debugger");
+            ensure(D3D12GetDebugInterface(IID_PPV_ARGS(&debugger)), "d3d12-get-debug-interface");
+            debugger->EnableDebugLayer();
+            flags = DXGI_CREATE_FACTORY_DEBUG;
+        }
+
+        void end() {
+            render->info("disabling debugger");
+            debugger.drop("debugger");
+        }
+    }
+
+    void ensure(HRESULT result, std::string_view message) {
+        render->ensure(SUCCEEDED(result), message, [&] {
+            throw Error(result, std::string(message));
+        });
+    }
+
+    std::string Error::string() const {
+        return strings::cformat("(hresult: 0x%x, message: %s)", hresult(), msg().data());
     }
 
     Adapter::Name Adapter::ID::name() const {
@@ -31,7 +57,7 @@ namespace engine::render {
     Adapter::ID Adapter::luid() const { return Adapter::ID(desc.AdapterLuid); }
 
     Factory::Factory() {
-        ensure(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "create-dxgi-factory");
+        ensure(CreateDXGIFactory2(debug::flags, IID_PPV_ARGS(&factory)), "create-dxgi-factory");
         
         dxgi::Adapter1 adapter;
         

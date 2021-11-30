@@ -15,7 +15,7 @@
 namespace engine::logging {
     void Channel::log(Level report, std::string_view message) {
         if (report < level) { return; }
-        send(report, message);    
+        send(report, message);
     }
 
     namespace {
@@ -38,9 +38,12 @@ namespace engine::logging {
     void ConsoleChannel::init() {
         DWORD mode = 0;
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        bug->check(hConsole != nullptr, "get-std-handle");
 
-        GetConsoleMode(hConsole, &mode);
+        bug->check(GetConsoleMode(hConsole, &mode) != 0, "get-console-mode");
         mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        SetConsoleMode(hConsole, mode);
+        bug->check(SetConsoleMode(hConsole, mode) != 0, "set-console-mode");
     }
+
+    Channel *bug = new ConsoleChannel("bugcheck", stdout);
 }

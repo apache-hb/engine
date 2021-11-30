@@ -7,4 +7,5 @@
 
 namespace strings {
     std::string join(std::span<std::string> parts, std::string_view sep);
+    std::string cformat(const char *fmt, ...);
 }

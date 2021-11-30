@@ -1,6 +1,7 @@
 #include "window.h"
 
 #include <format>
+#include "logging/log.h"
 
 namespace {
     LRESULT CALLBACK WindowHandleCallback(
@@ -13,8 +14,7 @@ namespace {
         auto *self = reinterpret_cast<engine::WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
         LPCREATESTRUCT create;
 
-        switch (msg)
-        {
+        switch (msg) {
         case WM_CREATE:
             create = reinterpret_cast<LPCREATESTRUCT>(lparam);
             SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
@@ -55,6 +55,10 @@ namespace engine {
         LONG width,
         LONG height
     ) : instance(instance), name(title) {
+        logging::bug->check(instance != nullptr, Error("instance != nullptr"))
+                     ->check(width >= 0, Error("width >= 0"))
+                     ->check(height >= 0, Error("height >= 0"));
+
         WNDCLASSEX wc = {
             .cbSize = sizeof(WNDCLASSEX),
             .style = CS_HREDRAW | CS_VREDRAW,

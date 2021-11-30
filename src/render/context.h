@@ -37,9 +37,19 @@ namespace engine::render {
 
         Factory getFactory() { return factory; }
         std::span<Adapter> adapters() { return factory.adapters(); }
+        Adapter currentAdapter() { return adapters()[adapterIndex]; }
+
+        void selectAdapter(size_t index);
     
     private:
+        /// root factory
         Factory factory;
+        size_t adapterIndex;
+
+        /// our current logical device
+        d3d12::Device1 device;
+
+        /// our rendergraph
         std::vector<nodes::Node*> data;
     };
 }

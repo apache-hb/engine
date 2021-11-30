@@ -22,6 +22,8 @@ struct MainWindow final : WindowHandle {
                 adapter.luid().name()
             );
         }
+
+        context.selectAdapter(0);
     }
 
     virtual void onDestroy() override {
@@ -46,15 +48,17 @@ struct MainWindow final : WindowHandle {
 
 int commonMain(HINSTANCE instance, int show) {
     logging::ConsoleChannel channel("main", stdout);
-    
+
     try {
         logging::ConsoleChannel::init();
+        render::debug::start();
 
         MainWindow window(instance, show);
 
         window.run();
+        render::debug::end();
     } catch (const Error &error) {
-        channel.fatal("{}", error.msg());
+        channel.fatal("bugcheck {}", error.string());
     }
 
     return 0;

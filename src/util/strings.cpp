@@ -1,5 +1,7 @@
 #include "strings.h"
 
+#include <stdarg.h>
+
 #include <sstream>
 
 namespace strings {
@@ -10,5 +12,23 @@ namespace strings {
             ss << parts[i];
         }
         return ss.str();
+    }
+
+    std::string cformat(const char *fmt, ...) {
+        va_list args;
+        va_list again;
+        va_start(args, fmt);
+        va_copy(again, args);
+
+        auto len = vsnprintf(nullptr, 0, fmt, args) + 1;
+
+        std::string result(len, '\0');
+
+        vsnprintf(result.data(), len, fmt, again);
+
+        va_end(again);
+        va_end(args);
+
+        return result;
     }
 }

@@ -6,12 +6,16 @@
 
 #include "util/error.h"
 #include "util/units.h"
+#include "logging/log.h"
 
 #include <dxgi1_6.h>
 #include "d3dx12.h"
+#include <d3d12sdklayers.h>
 
 namespace engine::render {
-    void ensure(HRESULT result, std::string message);
+    extern engine::logging::Channel *render;
+
+    void ensure(HRESULT result, std::string_view message);
 
     struct Error : engine::Error {
         using Super = engine::Error;
@@ -23,6 +27,8 @@ namespace engine::render {
 
         HRESULT hresult() const { return error; }
     
+        virtual std::string string() const override;
+
     private:
         HRESULT error;
     };
@@ -41,6 +47,15 @@ namespace engine::render {
         T *get() { return self; }
         T **addr() { return &self; }
 
+        ULONG release() {
+            return self->Release();
+        }
+
+        void drop(std::string_view name = "") {
+            auto refs = release();
+            render->check(refs == 0, engine::Error(std::format("object {} still has {} references", name, refs)));
+        }
+
     private:
         T *self;
     };
@@ -52,6 +67,7 @@ namespace engine::render {
     }
 
     namespace d3d12 {
+        using Debug = Com<ID3D12Debug>;
         using Device1 = Com<ID3D12Device1>;
     }
 
@@ -71,6 +87,8 @@ namespace engine::render {
         MemorySize shared() const;
         ID luid() const;
 
+        auto get() { return adapter.get(); }
+
     private:
         dxgi::Adapter1 adapter;
         dxgi::AdapterDesc1 desc;
@@ -85,4 +103,9 @@ namespace engine::render {
         std::vector<Adapter> all;
         dxgi::Factory4 factory;
     };
+
+    namespace debug {
+        void start();
+        void end();
+    }
 }

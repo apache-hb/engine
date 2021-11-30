@@ -3,6 +3,8 @@
 #include <string_view>
 #include <format>
 
+#define check(expr, err) ensure((expr), (#expr), [&]{ throw (err); })
+
 namespace engine::logging {
     enum Level {
         INFO,
@@ -15,6 +17,15 @@ namespace engine::logging {
         virtual ~Channel() { }
 
         void log(Level report, std::string_view message);
+        
+        template<typename F>
+        Channel *ensure(bool success, std::string_view message, F &&func) {
+            if (!success) { 
+                fatal("assert: {}", message);
+                func();
+            }
+            return this;
+        }
 
         template<typename... A>
         void info(std::string_view message, A&&... args) {
@@ -53,4 +64,6 @@ namespace engine::logging {
     private:
         FILE *file;
     };
+
+    extern Channel *bug;
 }
