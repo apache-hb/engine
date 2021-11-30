@@ -1,8 +1,9 @@
 #pragma once
 
+#include <string_view>
 #include <format>
 
-namespace logging {
+namespace engine::logging {
     enum Level {
         INFO,
         WARN,
@@ -10,43 +11,43 @@ namespace logging {
     };
 
     struct Channel {
-        Channel(std::string name) : name(name) { }
+        Channel(std::string_view name) : name(name) { }
         virtual ~Channel() { }
 
-        void log(Level report, const std::string &message);
+        void log(Level report, std::string_view message);
 
         template<typename... A>
-        void info(const std::string &message, A&&... args) {
+        void info(std::string_view message, A&&... args) {
             log(INFO, std::vformat(message, std::make_format_args(args...)));
         }
 
         template<typename... A>
-        void warn(const std::string &message, A&&... args) {
+        void warn(std::string_view message, A&&... args) {
             log(WARN, std::vformat(message, std::make_format_args(args...)));
         }
 
         template<typename... A>
-        void fatal(const std::string &message, A&&... args) {
+        void fatal(std::string_view message, A&&... args) {
             log(FATAL, std::vformat(message, std::make_format_args(args...)));
         }
 
-        virtual void send(Level report, const std::string &message) = 0;
+        virtual void send(Level report, std::string_view message) = 0;
     
     protected:
-        const std::string &channel() const { return name; }
+        std::string_view channel() const { return name; }
 
     private:
-        std::string name;
+        std::string_view name;
         Level level = INFO;
     };
 
     struct ConsoleChannel : Channel {
-        ConsoleChannel(std::string name, FILE *file) 
+        ConsoleChannel(std::string_view name, FILE *file) 
             : Channel(name)
             , file(file) 
         { }
 
-        virtual void send(Level report, const std::string &message) override;
+        virtual void send(Level report, std::string_view message) override;
 
         static void init();
     private:

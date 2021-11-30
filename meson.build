@@ -11,7 +11,6 @@ src = [
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/logging/log.cpp',
-    'src/utils.cpp',
     'src/main.cpp',
     'src/window.cpp'
 ]

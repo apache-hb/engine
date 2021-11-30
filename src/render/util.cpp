@@ -2,12 +2,12 @@
 
 #include <format>
 
-namespace render {
+namespace engine::render {
     void ensure(HRESULT result, std::string message) {
         if (FAILED(result)) { throw new Error(result, message); }
     }
 
-    std::string Adapter::ID::name() const {
+    Adapter::Name Adapter::ID::name() const {
         return std::format("(low: {}, high: {})", LowPart, HighPart);
     }
 
@@ -32,16 +32,13 @@ namespace render {
 
     Factory::Factory() {
         ensure(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "create-dxgi-factory");
-    }
-
-    std::vector<Adapter> Factory::adapters() {
-        std::vector<Adapter> result;
+        
         dxgi::Adapter1 adapter;
         
         for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
-            result.push_back(Adapter(adapter));
+            all.push_back(Adapter(adapter));
         }
-
-        return result;
     }
+
+    std::span<Adapter> Factory::adapters() { return all; }
 }

@@ -2,27 +2,29 @@
 
 #include <vector>
 #include <string>
+#include <span>
 
+#include "util/error.h"
 #include "util/units.h"
 
 #include <dxgi1_6.h>
 #include "d3dx12.h"
 
-namespace render {
+namespace engine::render {
     void ensure(HRESULT result, std::string message);
 
-    struct Error {
+    struct Error : engine::Error {
+        using Super = engine::Error;
+
         Error(HRESULT error, std::string message)
-            : error(error)
-            , message(message)
+            : Super(message)
+            , error(error)
         { }
 
-        HRESULT err() const { return error; }
-        const std::string &msg() const { return message; }
-
+        HRESULT hresult() const { return error; }
+    
     private:
         HRESULT error;
-        std::string message;
     };
 
     template<typename T>
@@ -58,7 +60,7 @@ namespace render {
         using MemorySize = units::Memory;
 
         struct ID : LUID {
-            std::string name() const;
+            Name name() const;
         };
 
         Adapter(dxgi::Adapter1 adapter);
@@ -77,9 +79,10 @@ namespace render {
     struct Factory {
         Factory();
 
-        std::vector<Adapter> adapters();
+        std::span<Adapter> adapters();
 
     private:
+        std::vector<Adapter> all;
         dxgi::Factory4 factory;
     };
 }

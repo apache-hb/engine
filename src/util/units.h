@@ -20,12 +20,12 @@ namespace units {
 
         static constexpr size_t sizes[LIMIT] = { byte, kilobyte, megabyte, gigabyte };
 
-        Memory(size_t bytes) : bytes(bytes) { }
+        constexpr Memory(size_t memory, Unit unit = BYTES) : bytes(memory * sizes[unit]) { }
 
-        size_t b() const { return bytes; }
-        size_t kb() const { return bytes / kilobyte; }
-        size_t mb() const { return bytes / megabyte; }
-        size_t gb() const { return bytes / gigabyte; }
+        constexpr size_t b() const { return bytes; }
+        constexpr size_t kb() const { return bytes / kilobyte; }
+        constexpr size_t mb() const { return bytes / megabyte; }
+        constexpr size_t gb() const { return bytes / gigabyte; }
     
         std::string string() const;
     private:

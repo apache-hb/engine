@@ -1,7 +1,6 @@
 #include "log.h"
 
 #include <windows.h>
-#include <string_view>
 
 #define RESET "\x1b[0m"
 #define BLACK "\x1b[0;30m"
@@ -13,8 +12,8 @@
 #define CYAN "\x1b[0;36m"
 #define WHITE "\x1b[0;37m"
 
-namespace logging {
-    void Channel::log(Level report, const std::string &message) {
+namespace engine::logging {
+    void Channel::log(Level report, std::string_view message) {
         if (report < level) { return; }
         send(report, message);    
     }
@@ -30,7 +29,7 @@ namespace logging {
         }
     }
 
-    void ConsoleChannel::send(Level report, const std::string &message) {
+    void ConsoleChannel::send(Level report, std::string_view message) {
         auto view = level_string(report);
         const std::string full = std::format("{}[{}]: {}", channel(), view, message);
         fprintf(file, "%s\n", full.c_str());

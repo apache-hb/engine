@@ -2,12 +2,14 @@
 #include "render/context.h"
 #include "logging/log.h"
 
+using namespace engine;
+
 struct MainWindow final : WindowHandle {
     using WindowHandle::WindowHandle;
 
     MainWindow(HINSTANCE instance, int show)
         : WindowHandle(instance, show, TEXT("hello world"), 800, 600)
-        , channel("main", stdout)
+        , channel("main-window", stdout)
     { }
 
     virtual void onCreate() override {
@@ -43,11 +45,17 @@ struct MainWindow final : WindowHandle {
 };
 
 int commonMain(HINSTANCE instance, int show) {
-    logging::ConsoleChannel::init();
+    logging::ConsoleChannel channel("main", stdout);
     
-    MainWindow window(instance, show);
+    try {
+        logging::ConsoleChannel::init();
 
-    window.run();
+        MainWindow window(instance, show);
+
+        window.run();
+    } catch (const Error &error) {
+        channel.fatal("{}", error.msg());
+    }
 
     return 0;
 }

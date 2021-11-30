@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-namespace render {
+namespace engine::render {
     struct Context;
 
     namespace nodes {
@@ -21,36 +21,12 @@ namespace render {
             virtual void destroy() = 0;
 
         private:
+            friend Context;
+
             std::vector<Index> depends; /// all nodes that this node depends on
             Index index; /// the index of this node
             Context *ctx; /// the context this node is created from
         };
-
-#if 0
-        struct DeviceNode : Node {
-            virtual void create() {
-                auto adapter = ctx->currentAdapter();
-                ensure(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)), "create-device");
-            }
-
-            virtual void destroy() {
-                device.drop();
-            }
-
-        private:
-            d3d12::Device1 device;
-        };
-
-        struct RootNode : Node {
-            virtual void create() { }
-            virtual void destroy() { }
-
-            virtual void render() {
-                auto swapchain = ctx->getSwapchain();
-                ensure(swapchain->Present(1, 0), "swapchain-present");
-            }
-        };
-#endif
     }
 
     struct Context {
@@ -60,10 +36,10 @@ namespace render {
         void present(nodes::Node *root);
 
         Factory getFactory() { return factory; }
-        std::vector<Adapter> adapters() { return factory.adapters(); }
+        std::span<Adapter> adapters() { return factory.adapters(); }
     
     private:
         Factory factory;
-        std::vector<nodes::Node*> nodes;
+        std::vector<nodes::Node*> data;
     };
 }

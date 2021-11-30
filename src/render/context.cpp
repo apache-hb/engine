@@ -1,6 +1,6 @@
 #include "context.h"
 
-namespace render {
+namespace engine::render {
     Context::Context() {
 
     }

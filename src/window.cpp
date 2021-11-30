@@ -1,9 +1,8 @@
 #include "window.h"
 
-#include "utils.h"
+#include <format>
 
-namespace
-{
+namespace {
     LRESULT CALLBACK WindowHandleCallback(
         HWND hwnd,
         UINT msg,
@@ -11,7 +10,7 @@ namespace
         LPARAM lparam
     )
     {
-        WindowHandle *self = reinterpret_cast<WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        auto *self = reinterpret_cast<engine::WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
         LPCREATESTRUCT create;
 
         switch (msg)
@@ -44,74 +43,85 @@ namespace
     }
 }
 
-WindowHandle::WindowHandle(
-    HINSTANCE instance,
-    int show,
-    LPCTSTR title,
-    LONG width,
-    LONG height
-) : instance(instance), name(title)
-{
-    ASSERT(title != nullptr);
-    ASSERT(width >= 0);
-    ASSERT(height >= 0);
+namespace engine {
+    Win32Error::Win32Error(std::string_view message) 
+        : Error(std::format("(win32: 0x{:x}, msg: {})", GetLastError(), message))
+    { }
 
-    WNDCLASSEX wc = {
-        .cbSize = sizeof(WNDCLASSEX),
-        .style = CS_HREDRAW | CS_VREDRAW,
-        .lpfnWndProc = WindowHandleCallback,
-        .hInstance = instance,
-        .hCursor = LoadCursor(NULL, IDC_ARROW),
-        .lpszClassName = name
-    };
+    WindowHandle::WindowHandle(
+        HINSTANCE instance,
+        int show,
+        LPCTSTR title,
+        LONG width,
+        LONG height
+    ) : instance(instance), name(title) {
+        WNDCLASSEX wc = {
+            .cbSize = sizeof(WNDCLASSEX),
+            .style = CS_HREDRAW | CS_VREDRAW,
+            .lpfnWndProc = WindowHandleCallback,
+            .hInstance = instance,
+            .hCursor = LoadCursor(NULL, IDC_ARROW),
+            .lpszClassName = name
+        };
 
-    RegisterClassEx(&wc);
+        if (RegisterClassEx(&wc) == 0) {
+            throw Win32Error("register-class");
+        }
 
-    RECT rect = {
-        .right = width,
-        .bottom = height
-    };
+        RECT rect = {
+            .right = width,
+            .bottom = height
+        };
 
-    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
+        if (!AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false)) {
+            throw Win32Error("adjust-window-rect");
+        }
 
-    handle = CreateWindow(
-        name, name, 
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT,
-        width, height,
-        nullptr, nullptr,
-        instance, this
-    );
+        handle = CreateWindow(
+            name, name, 
+            WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CW_USEDEFAULT,
+            width, height,
+            nullptr, nullptr,
+            instance, this
+        );
 
-    ShowWindow(handle, show);
-}
+        if (handle == nullptr) {
+            throw Win32Error("create-window");
+        }
 
-WindowHandle::~WindowHandle() {
-    DestroyWindow(handle);
-    UnregisterClass(name, instance);
-}
-
-void WindowHandle::run() {
-    onCreate();
-
-    MSG msg = { };
-    while (msg.message != WM_QUIT)
-    {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+        if (ShowWindow(handle, show) != 0) {
+            throw Win32Error("show-window");
         }
     }
-}
 
-RECT WindowHandle::getClientRect() const {
-    RECT rect;
-    GetClientRect(handle, &rect);
-    return rect;
-}
+    WindowHandle::~WindowHandle() {
+        DestroyWindow(handle);
+        UnregisterClass(name, instance);
+    }
 
-WindowHandle::Size WindowHandle::getClientSize() const {
-    RECT rect = getClientRect();
-    return WindowHandle::Size(rect.right - rect.left, rect.bottom - rect.top);
+    void WindowHandle::run() {
+        onCreate();
+
+        MSG msg = { };
+        while (msg.message != WM_QUIT) {
+            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+    }
+
+    RECT WindowHandle::getClientRect() const {
+        RECT rect;
+        if (!GetClientRect(handle, &rect)) {
+            throw Win32Error("get-client-rect");
+        }
+        return rect;
+    }
+
+    WindowHandle::Size WindowHandle::getClientSize() const {
+        RECT rect = getClientRect();
+        return WindowHandle::Size(rect.right - rect.left, rect.bottom - rect.top);
+    }
 }

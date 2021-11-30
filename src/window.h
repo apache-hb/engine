@@ -2,39 +2,51 @@
 
 #include <windows.h>
 #include <tuple>
+#include "util/error.h"
 
-struct WindowHandle
-{
-    using Size = std::tuple<LONG, LONG>;
+namespace engine {
+    struct Win32Error : Error {
+        Win32Error(std::string_view message);
 
-    WindowHandle() = delete;
-    WindowHandle(const WindowHandle&) = delete;
-    WindowHandle(WindowHandle&&) = delete;
+        DWORD err() const { return error; }
 
-    WindowHandle(
-        HINSTANCE instance,
-        int show,
-        LPCTSTR title,
-        LONG width,
-        LONG height
-    );
-    virtual ~WindowHandle();
+    private:
+        DWORD error;
+    };
 
-    void run();
+    struct WindowHandle {
+        using Size = std::tuple<LONG, LONG>;
 
-    virtual void onCreate() { }
-    virtual void onDestroy() { }
+        WindowHandle() = delete;
+        WindowHandle(const WindowHandle&) = delete;
+        WindowHandle(WindowHandle&&) = delete;
 
-    virtual void onKeyPress(int key) { }
-    virtual void onKeyRelease(int key) { }
+        WindowHandle(
+            HINSTANCE instance,
+            int show,
+            LPCTSTR title,
+            LONG width,
+            LONG height
+        );
+        virtual ~WindowHandle();
 
-    virtual void repaint() { }
+        void run();
 
-    HWND getHandle() const { return handle; }
-    RECT getClientRect() const;
-    Size getClientSize() const;
-private:
-    HINSTANCE instance;
-    LPCTSTR name;
-    HWND handle;
-};
+        virtual void onCreate() { }
+        virtual void onDestroy() { }
+
+        virtual void onKeyPress(int key) { }
+        virtual void onKeyRelease(int key) { }
+
+        virtual void repaint() { }
+
+        HWND getHandle() const { return handle; }
+        RECT getClientRect() const;
+        Size getClientSize() const;
+
+    private:
+        HINSTANCE instance;
+        LPCTSTR name;
+        HWND handle;
+    };
+}

@@ -2,7 +2,9 @@
 
 #include <vector>
 #include <string>
+#include <string_view>
+#include <span>
 
 namespace strings {
-    std::string join(const std::vector<std::string> &parts, const std::string &sep);
+    std::string join(std::span<std::string> parts, std::string_view sep);
 }
