@@ -1,0 +1,7 @@
+#define WIN32_MEAN_AND_LEAN 1
+#include <windows.h>
+
+extern "C" { 
+    __declspec(dllexport) extern const UINT D3D12SDKVersion = 4;
+    __declspec(dllexport) extern const auto* D3D12SDKPath = u8".\\D3D12\\"; 
+}

@@ -1,34 +1,29 @@
 #include "window.h"
 #include "render/context.h"
+#include "logging/log.h"
 
 struct MainWindow final : WindowHandle {
     using WindowHandle::WindowHandle;
 
     MainWindow(HINSTANCE instance, int show)
         : WindowHandle(instance, show, TEXT("hello world"), 800, 600)
+        , channel("main", stdout)
     { }
 
     virtual void onCreate() override {
-        if (HRESULT hr = instance.create(); FAILED(hr)) {
-            fprintf(stderr, "window: instance.create = 0x%x\n", hr);
-            return;
-        }
-
-        if (HRESULT hr = context.create(instance, 0); FAILED(hr)) {
-            fprintf(stderr, "window: context.create = 0x%x\n", hr);
-            return;
-        }
-
-        if (HRESULT hr = context.attach(this, 2); FAILED(hr)) {
-            fprintf(stderr, "window: context.attach = 0x%x\n", hr);
-            return;
+        for (const auto &adapter : context.adapters()) {
+            channel.info("(name: {}, video-memory: {}, shared-memory: {}, system-memory: {}, luid: {})",
+                adapter.name(), 
+                adapter.video().string(),
+                adapter.shared().string(),
+                adapter.system().string(),
+                adapter.luid().name()
+            );
         }
     }
 
     virtual void onDestroy() override {
-        context.detach();
-        context.destroy();
-        instance.destroy();
+        
     }
 
     virtual void onKeyPress(int key) override {
@@ -40,14 +35,16 @@ struct MainWindow final : WindowHandle {
     }
 
     virtual void repaint() override {
-        context.present();
+        
     }
 
-    render::Instance instance;
+    logging::ConsoleChannel channel;
     render::Context context;
 };
 
 int commonMain(HINSTANCE instance, int show) {
+    logging::ConsoleChannel::init();
+    
     MainWindow window(instance, show);
 
     window.run();
