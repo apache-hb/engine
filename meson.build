@@ -10,6 +10,8 @@ src = [
     'src/render/util.cpp',
     'src/util/strings.cpp',
     'src/util/units.cpp',
+    'src/util/win32.cpp',
+    'src/system/system.cpp',
     'src/logging/log.cpp',
     'src/main.cpp',
     'src/window.cpp'

@@ -2,6 +2,7 @@
 
 #include <format>
 #include "logging/log.h"
+#include "util/win32.h"
 
 namespace {
     LRESULT CALLBACK WindowHandleCallback(
@@ -44,10 +45,6 @@ namespace {
 }
 
 namespace engine {
-    Win32Error::Win32Error(std::string_view message) 
-        : Error(std::format("(win32: 0x{:x}, msg: {})", GetLastError(), message))
-    { }
-
     WindowHandle::WindowHandle(
         HINSTANCE instance,
         int show,
@@ -68,18 +65,20 @@ namespace engine {
             .lpszClassName = name
         };
 
-        if (RegisterClassEx(&wc) == 0) {
-            throw Win32Error("register-class");
-        }
+        logging::bug->check(
+            RegisterClassEx(&wc) != 0, 
+            win32::Win32Error("register-class")
+        );
 
         RECT rect = {
             .right = width,
             .bottom = height
         };
 
-        if (!AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false)) {
-            throw Win32Error("adjust-window-rect");
-        }
+        logging::bug->check(
+            AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false) != 0,
+            win32::Win32Error("adjust-window-rect")
+        );
 
         handle = CreateWindow(
             name, name, 
@@ -90,13 +89,15 @@ namespace engine {
             instance, this
         );
 
-        if (handle == nullptr) {
-            throw Win32Error("create-window");
-        }
+        logging::bug->check(
+            handle != nullptr,
+            win32::Win32Error("create-window")
+        );
 
-        if (ShowWindow(handle, show) != 0) {
-            throw Win32Error("show-window");
-        }
+        logging::bug->check(
+            ShowWindow(handle, show) == 0,
+            win32::Win32Error("show-window")
+        );
     }
 
     WindowHandle::~WindowHandle() {
@@ -118,9 +119,10 @@ namespace engine {
 
     RECT WindowHandle::getClientRect() const {
         RECT rect;
-        if (!GetClientRect(handle, &rect)) {
-            throw Win32Error("get-client-rect");
-        }
+        logging::bug->check(
+            GetClientRect(handle, &rect) == 0,
+            win32::Win32Error("get-client-rect")
+        );
         return rect;
     }
 

@@ -1,6 +1,7 @@
 #include "window.h"
 #include "render/context.h"
 #include "logging/log.h"
+#include "system/system.h"
 
 using namespace engine;
 
@@ -52,6 +53,15 @@ int commonMain(HINSTANCE instance, int show) {
     try {
         logging::ConsoleChannel::init();
         render::debug::start();
+        system::Stats stats;
+
+        channel.info("(name: {}, total-physical: {}, avail-physical: {}, total-virtual: {}, avail-virtual: {})",
+            stats.name(),
+            stats.totalPhysical().string(),
+            stats.availPhysical().string(),
+            stats.totalVirtual().string(),
+            stats.availVirtual().string()
+        );
 
         MainWindow window(instance, show);
 

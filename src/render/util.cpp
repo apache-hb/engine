@@ -1,6 +1,5 @@
 #include "util.h"
 
-#include "logging/log.h"
 #include "util/strings.h"
 
 namespace engine::render {
@@ -12,14 +11,17 @@ namespace engine::render {
 
         void start() {
             render->info("enabling debugger");
-            ensure(D3D12GetDebugInterface(IID_PPV_ARGS(&debugger)), "d3d12-get-debug-interface");
-            debugger->EnableDebugLayer();
-            flags = DXGI_CREATE_FACTORY_DEBUG;
+            if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugger)); FAILED(hr)) {
+                render->warn("failed to enable debug layer");
+            } else {
+                debugger->EnableDebugLayer();
+                flags = DXGI_CREATE_FACTORY_DEBUG;
+            }
         }
 
         void end() {
             render->info("disabling debugger");
-            debugger.drop("debugger");
+            debugger.tryDrop("debugger");
         }
     }
 

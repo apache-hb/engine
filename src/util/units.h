@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <string>
 
-namespace units {
+namespace engine::units {
     struct Memory {
         enum Unit {
             BYTES,

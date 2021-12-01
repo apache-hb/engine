@@ -6,6 +6,7 @@
 
 #include "util/error.h"
 #include "util/units.h"
+#include "util/win32.h"
 #include "logging/log.h"
 
 #include <dxgi1_6.h>
@@ -41,7 +42,7 @@ namespace engine::render {
         T *operator*() { return get(); }
         T **operator&() { return addr(); }
 
-        bool valid() const { return get() != nullptr; }
+        bool valid() const { return self != nullptr; }
         operator bool() const { return valid(); }
 
         T *get() { return self; }
@@ -53,7 +54,11 @@ namespace engine::render {
 
         void drop(std::string_view name = "") {
             auto refs = release();
-            render->check(refs == 0, engine::Error(std::format("object {} still has {} references", name, refs)));
+            render->check(refs == 0, engine::Error(std::format("cannot drop {} because it still has {} references", name, refs)));
+        }
+
+        void tryDrop(std::string_view name = "") {
+            if (valid()) { drop(name); }
         }
 
     private:

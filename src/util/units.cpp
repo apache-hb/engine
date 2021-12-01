@@ -3,7 +3,7 @@
 #include <format>
 #include "strings.h"
 
-namespace units {
+namespace engine::units {
     namespace {
         std::string format_memory(size_t bytes, Memory::Unit most) {
             size_t gb = SIZE_MAX, mb = SIZE_MAX, kb = SIZE_MAX;

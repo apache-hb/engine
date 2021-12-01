@@ -1,7 +1,5 @@
 #include "context.h"
 
-#include "logging/log.h"
-
 namespace engine::render {
     Context::Context() {
 

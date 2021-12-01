@@ -5,15 +5,6 @@
 #include "util/error.h"
 
 namespace engine {
-    struct Win32Error : Error {
-        Win32Error(std::string_view message);
-
-        DWORD err() const { return error; }
-
-    private:
-        DWORD error;
-    };
-
     struct WindowHandle {
         using Size = std::tuple<LONG, LONG>;
 
