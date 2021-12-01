@@ -1,0 +1,5 @@
+option('agility-sdk',
+    description : 'enable use of the agility sdk',
+    type : 'feature',
+    value : 'enabled'
+)

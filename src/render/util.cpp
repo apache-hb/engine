@@ -2,6 +2,8 @@
 
 #include "util/strings.h"
 
+#include <comdef.h>
+
 namespace engine::render {
     engine::logging::Channel *render = new engine::logging::ConsoleChannel("d3d12", stdout);
 
@@ -10,9 +12,10 @@ namespace engine::render {
         UINT flags = 0;
 
         void start() {
-            render->info("enabling debugger");
+            render->info("enabling debug layer");
             if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugger)); FAILED(hr)) {
                 render->warn("failed to enable debug layer");
+                render->warn("{}", name(hr));
             } else {
                 debugger->EnableDebugLayer();
                 flags = DXGI_CREATE_FACTORY_DEBUG;
@@ -20,7 +23,7 @@ namespace engine::render {
         }
 
         void end() {
-            render->info("disabling debugger");
+            render->info("disabling debug layer");
             debugger.tryDrop("debugger");
         }
     }
@@ -29,6 +32,22 @@ namespace engine::render {
         render->ensure(SUCCEEDED(result), message, [&] {
             throw Error(result, std::string(message));
         });
+    }
+
+    namespace {
+        std::string error(HRESULT hresult) {
+            _com_error err(hresult);
+            auto msg = err.ErrorMessage();
+            auto len = wcslen(msg);
+            std::string result(len, '\0');
+            auto used = wcstombs(result.data(), msg, len);
+            result.resize(used);
+            return result;
+        }
+    }
+
+    std::string name(HRESULT hresult) {
+        return strings::cformat("hresult(0x%x): %s", hresult, error(hresult).c_str());
     }
 
     std::string Error::string() const {

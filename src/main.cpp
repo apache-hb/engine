@@ -1,11 +1,11 @@
-#include "window.h"
 #include "render/context.h"
 #include "logging/log.h"
 #include "system/system.h"
+#include "system/window.h"
 
 using namespace engine;
 
-struct MainWindow final : WindowHandle {
+struct MainWindow final : win32::WindowHandle {
     using WindowHandle::WindowHandle;
 
     MainWindow(HINSTANCE instance, int show)
@@ -24,6 +24,7 @@ struct MainWindow final : WindowHandle {
             );
         }
 
+        context.setWindow(this);
         context.selectAdapter(0);
     }
 

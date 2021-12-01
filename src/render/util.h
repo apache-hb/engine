@@ -17,6 +17,7 @@ namespace engine::render {
     extern engine::logging::Channel *render;
 
     void ensure(HRESULT result, std::string_view message);
+    std::string name(HRESULT hresult);
 
     struct Error : engine::Error {
         using Super = engine::Error;
@@ -69,11 +70,15 @@ namespace engine::render {
         using Factory4 = Com<IDXGIFactory4>;
         using Adapter1 = Com<IDXGIAdapter1>;
         using AdapterDesc1 = DXGI_ADAPTER_DESC1;
+    
+        using SwapChain1 = Com<IDXGISwapChain1>;
     }
 
     namespace d3d12 {
         using Debug = Com<ID3D12Debug>;
         using Device1 = Com<ID3D12Device1>;
+        using CommandList = Com<ID3D12CommandList>;
+        using CommandQueue = Com<ID3D12CommandQueue>;
     }
 
     struct Adapter {
@@ -103,6 +108,7 @@ namespace engine::render {
         Factory();
 
         std::span<Adapter> adapters();
+        auto operator->() { return factory.get(); }
 
     private:
         std::vector<Adapter> all;

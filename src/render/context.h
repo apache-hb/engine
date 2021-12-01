@@ -1,6 +1,7 @@
 #pragma once
 
 #include "util.h"
+#include "system/window.h"
 
 namespace engine::render {
     struct Context;
@@ -30,7 +31,7 @@ namespace engine::render {
     }
 
     struct Context {
-        Context();
+        Context(win32::WindowHandle *window = nullptr, UINT frames = 2);
         ~Context();
 
         void present(nodes::Node *root);
@@ -39,15 +40,24 @@ namespace engine::render {
         std::span<Adapter> adapters() { return factory.adapters(); }
         Adapter currentAdapter() { return adapters()[adapterIndex]; }
 
+        void setWindow(win32::WindowHandle *handle);
+        void setFrameBuffering(UINT frames);
         void selectAdapter(size_t index);
-    
+
     private:
         /// root factory
         Factory factory;
-        size_t adapterIndex;
+        size_t adapterIndex = SIZE_MAX;
+
+        win32::WindowHandle *window;
+        UINT frameCount;
+
+        void createDevice();
+        void destroyDevice();
 
         /// our current logical device
         d3d12::Device1 device;
+        d3d12::CommandQueue commandQueue;
 
         /// our rendergraph
         std::vector<nodes::Node*> data;

@@ -12,7 +12,7 @@ namespace {
         LPARAM lparam
     )
     {
-        auto *self = reinterpret_cast<engine::WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        auto *self = reinterpret_cast<engine::win32::WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
         LPCREATESTRUCT create;
 
         switch (msg) {
@@ -44,7 +44,7 @@ namespace {
     }
 }
 
-namespace engine {
+namespace engine::win32 {
     WindowHandle::WindowHandle(
         HINSTANCE instance,
         int show,

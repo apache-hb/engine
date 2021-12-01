@@ -6,16 +6,19 @@ project('engine', [ 'c', 'cpp' ],
 
 src = [ 
     'src/render/context.cpp',
-    'src/render/agility.cpp',
     'src/render/util.cpp',
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/win32.cpp',
+    'src/system/window.cpp',
     'src/system/system.cpp',
     'src/logging/log.cpp',
-    'src/main.cpp',
-    'src/window.cpp'
+    'src/main.cpp'
 ]
+
+if get_option('agility-sdk').enabled()
+    src += [ 'src/render/agility.cpp' ]
+endif
 
 executable('engine', src,
     include_directories : 'src',

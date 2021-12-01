@@ -4,7 +4,7 @@
 #include <tuple>
 #include "util/error.h"
 
-namespace engine {
+namespace engine::win32 {
     struct WindowHandle {
         using Size = std::tuple<LONG, LONG>;
 

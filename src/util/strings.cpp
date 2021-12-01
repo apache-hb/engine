@@ -24,7 +24,9 @@ namespace strings {
 
         std::string result(len, '\0');
 
-        vsnprintf(result.data(), len, fmt, again);
+        auto used = vsnprintf(result.data(), len, fmt, again);
+
+        result.resize(used);
 
         va_end(again);
         va_end(args);
