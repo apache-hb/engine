@@ -13,7 +13,10 @@ namespace engine::logging {
     };
 
     struct Channel {
-        Channel(std::string_view name) : name(name) { }
+        Channel(std::string_view name) 
+            : name(name) 
+        { }
+
         virtual ~Channel() { }
 
         void log(Level report, std::string_view message);

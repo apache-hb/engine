@@ -120,7 +120,7 @@ namespace engine::win32 {
     RECT WindowHandle::getClientRect() const {
         RECT rect;
         logging::bug->check(
-            GetClientRect(handle, &rect) == 0,
+            GetClientRect(handle, &rect) != 0,
             win32::Win32Error("get-client-rect")
         );
         return rect;

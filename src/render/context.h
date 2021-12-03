@@ -55,9 +55,21 @@ namespace engine::render {
         void createDevice();
         void destroyDevice();
 
+        struct FrameData {
+            d3d12::Resource renderTarget;
+            d3d12::CommandAllocator commandAllocator;
+        };
+
         /// our current logical device
         d3d12::Device1 device;
         d3d12::CommandQueue commandQueue;
+        dxgi::SwapChain3 swapchain;
+        UINT currentFrame;
+
+        d3d12::DescriptorHeap rtvHeap;
+        UINT rtvHeapIncrement;
+
+        FrameData *frameData;
 
         /// our rendergraph
         std::vector<nodes::Node*> data;

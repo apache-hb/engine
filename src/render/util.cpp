@@ -77,6 +77,12 @@ namespace engine::render {
     Adapter::MemorySize Adapter::shared() const { return desc.SharedSystemMemory; }
     Adapter::ID Adapter::luid() const { return Adapter::ID(desc.AdapterLuid); }
 
+    d3d12::Device1 Adapter::createDevice(d3d::FeatureLevel level) {
+        d3d12::Device1 result;
+        ensure(D3D12CreateDevice(adapter.get(), level, IID_PPV_ARGS(&result)), "d3d12-create-device");
+        return result;
+    }
+
     Factory::Factory() {
         ensure(CreateDXGIFactory2(debug::flags, IID_PPV_ARGS(&factory)), "create-dxgi-factory");
         

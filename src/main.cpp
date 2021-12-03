@@ -56,13 +56,7 @@ int commonMain(HINSTANCE instance, int show) {
         render::debug::start();
         system::Stats stats;
 
-        channel.info("(name: {}, total-physical: {}, avail-physical: {}, total-virtual: {}, avail-virtual: {})",
-            stats.name(),
-            stats.totalPhysical().string(),
-            stats.availPhysical().string(),
-            stats.totalVirtual().string(),
-            stats.availVirtual().string()
-        );
+        channel.info("name: {}", stats.name());
 
         MainWindow window(instance, show);
 

@@ -37,6 +37,8 @@ namespace engine::render {
 
     template<typename T>
     struct Com {
+        using Self = T;
+
         Com(T *self = nullptr) : self(self) { }
 
         T *operator->() { return get(); }
@@ -49,17 +51,30 @@ namespace engine::render {
         T *get() { return self; }
         T **addr() { return &self; }
 
+        template<typename O>
+        O as() {
+            using Other = typename O::Self;
+            Other *result = nullptr;
+            if (HRESULT hr = self->QueryInterface(IID_PPV_ARGS(&result)); FAILED(hr)) {
+                render->warn("failed to cast object {}", name(hr));
+            }
+            return O(result);
+        }
+
         ULONG release() {
             return self->Release();
         }
 
-        void drop(std::string_view name = "") {
+        void drop(std::string_view id = "") {
             auto refs = release();
-            render->check(refs == 0, engine::Error(std::format("cannot drop {} because it still has {} references", name, refs)));
+            render->ensure(refs == 0,
+                std::format("failed to drop {} object, {} references remain", id, refs),
+                [&] { throw engine::Error(std::format("cannot drop {} because it still has {} references", id, refs)); }
+            );
         }
 
-        void tryDrop(std::string_view name = "") {
-            if (valid()) { drop(name); }
+        void tryDrop(std::string_view id = "") {
+            if (valid()) { drop(id); }
         }
 
     private:
@@ -72,13 +87,22 @@ namespace engine::render {
         using AdapterDesc1 = DXGI_ADAPTER_DESC1;
     
         using SwapChain1 = Com<IDXGISwapChain1>;
+        using SwapChain3 = Com<IDXGISwapChain3>;
     }
 
     namespace d3d12 {
         using Debug = Com<ID3D12Debug>;
         using Device1 = Com<ID3D12Device1>;
+        using InfoQueue1 = Com<ID3D12InfoQueue1>;
         using CommandList = Com<ID3D12CommandList>;
         using CommandQueue = Com<ID3D12CommandQueue>;
+        using DescriptorHeap = Com<ID3D12DescriptorHeap>;
+        using Resource = Com<ID3D12Resource>;
+        using CommandAllocator = Com<ID3D12CommandAllocator>;
+    }
+
+    namespace d3d {
+        using FeatureLevel = D3D_FEATURE_LEVEL;
     }
 
     struct Adapter {
@@ -98,6 +122,8 @@ namespace engine::render {
         ID luid() const;
 
         auto get() { return adapter.get(); }
+
+        d3d12::Device1 createDevice(d3d::FeatureLevel level);
 
     private:
         dxgi::Adapter1 adapter;
