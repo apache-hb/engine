@@ -3,7 +3,8 @@
 #include <string_view>
 #include <format>
 
-#define check(expr, err) ensure((expr), (#expr), [&]{ throw (err); })
+#include <stdarg.h>
+#include <windows.h>
 
 namespace engine::logging {
     enum Level {
@@ -13,8 +14,9 @@ namespace engine::logging {
     };
 
     struct Channel {
-        Channel(std::string_view name) 
+        Channel(std::string_view name, bool sanitize) 
             : name(name) 
+            , sanitize(sanitize)
         { }
 
         virtual ~Channel() { }
@@ -45,28 +47,31 @@ namespace engine::logging {
             log(FATAL, std::vformat(message, std::make_format_args(args...)));
         }
 
+        void infof(const char *message, ...);
+        void warnf(const char *message, ...);
+        void fatalf(const char *message, ...);
+
         virtual void send(Level report, std::string_view message) = 0;
     
     protected:
         std::string_view channel() const { return name; }
 
     private:
+        bool sanitize;
         std::string_view name;
         Level level = INFO;
     };
 
     struct ConsoleChannel : Channel {
         ConsoleChannel(std::string_view name, FILE *file) 
-            : Channel(name)
+            : Channel(name, true)
             , file(file) 
         { }
 
         virtual void send(Level report, std::string_view message) override;
 
-        static void init();
+        static DWORD init();
     private:
         FILE *file;
     };
-
-    extern Channel *bug;
 }

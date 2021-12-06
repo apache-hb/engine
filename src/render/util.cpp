@@ -1,97 +1,85 @@
 #include "util.h"
 
-#include "util/strings.h"
-
 #include <comdef.h>
 
 namespace engine::render {
-    engine::logging::Channel *render = new engine::logging::ConsoleChannel("d3d12", stdout);
+    logging::Channel *render = new logging::ConsoleChannel("d3d12", stdout);
+
+    std::string to_string(HRESULT hr) {
+        _com_error err(hr);
+        auto str = err.ErrorMessage();
+        auto len = wcslen(str);
+        std::string out(len, ' ');
+        auto res = wcstombs(out.data(), str, len);
+        out.resize(res);
+        return out;
+    }
+
+    Result<Adapter> createAdapter(dxgi::Adapter1 adapter) {
+        dxgi::AdapterDesc1 desc;
+        
+        if (HRESULT hr = adapter->GetDesc1(&desc); FAILED(hr)) {
+            render->fatal("failed to query adapter desc\n{}", to_string(hr));
+            return fail(hr);
+        }
+
+        return pass(Adapter{ adapter, desc });
+    }
+
+#if D3D12_DEBUG
+#   define FACTORY_FLAGS DXGI_CREATE_FACTORY_DEBUG
+#else
+#   define FACTORY_FLAGS 0
+#endif
+
+    Result<Factory> createFactory() {
+        dxgi::Factory4 factory;
+        if (HRESULT hr = CreateDXGIFactory2(FACTORY_FLAGS, IID_PPV_ARGS(&factory)); FAILED(hr)) {
+            render->fatal("failed to create dxgi factory\n{}", to_string(hr));
+            return fail(hr);
+        }
+
+        std::vector<Adapter> adapters;
+        dxgi::Adapter1 adapter;
+        for (UINT i = 0; factory->EnumAdapters1(i, adapter.addr()) != DXGI_ERROR_NOT_FOUND; i++) {
+            auto result = createAdapter(adapter);
+            if (!result) { return result.forward(); }
+            adapters.push_back(result.value());
+        }
+
+        render->info("{} adapters found", adapters.size());
+
+        return pass(Factory{ factory, adapters });
+    }
 
     namespace debug {
-        d3d12::Debug debugger;
-        UINT flags = 0;
+        d3d12::Debug d3d12debug;
+        dxgi::Debug dxgidebug;
 
-        void start() {
-            render->info("enabling debug layer");
-            if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debugger)); FAILED(hr)) {
-                render->warn("failed to enable debug layer");
-                render->warn("{}", name(hr));
-            } else {
-                debugger->EnableDebugLayer();
-                flags = DXGI_CREATE_FACTORY_DEBUG;
+        HRESULT enable() {
+            if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgidebug)); FAILED(hr)) {
+                render->fatal("failed to get dxgi debug interface\n{}", to_string(hr));
+                return hr;
             }
+
+            if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&d3d12debug)); FAILED(hr)) {
+                render->fatal("failed to get d3d12 debug interface\n{}", to_string(hr));
+                return hr;
+            }
+
+            d3d12debug->EnableDebugLayer();
+            render->info("debug layer enabled");
+            return S_OK;
         }
 
-        void end() {
-            render->info("disabling debug layer");
-            debugger.tryDrop("debugger");
+        HRESULT report() {
+            render->info("reporting all live objects");
+            return dxgidebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+        }
+
+        void disable() {
+            d3d12debug.drop("debug-layer");
+            render->info("debug layer disabled");
         }
     }
-
-    void ensure(HRESULT result, std::string_view message) {
-        render->ensure(SUCCEEDED(result), message, [&] {
-            throw Error(result, std::string(message));
-        });
-    }
-
-    namespace {
-        std::string error(HRESULT hresult) {
-            _com_error err(hresult);
-            auto msg = err.ErrorMessage();
-            auto len = wcslen(msg);
-            std::string result(len, '\0');
-            auto used = wcstombs(result.data(), msg, len);
-            result.resize(used);
-            return result;
-        }
-    }
-
-    std::string name(HRESULT hresult) {
-        return strings::cformat("hresult(0x%x): %s", hresult, error(hresult).c_str());
-    }
-
-    std::string Error::string() const {
-        return strings::cformat("(hresult: 0x%x, message: %s)", hresult(), msg().data());
-    }
-
-    Adapter::Name Adapter::ID::name() const {
-        return std::format("(low: {}, high: {})", LowPart, HighPart);
-    }
-
-    Adapter::Adapter(dxgi::Adapter1 adapter) : adapter(adapter) {
-        ensure(adapter->GetDesc1(&desc), "get-desc1");
-    }
-
-    Adapter::Name Adapter::name() const { 
-        // adapter names are stored as wstrings
-        // we need a string to work with the rest 
-        // of the engine
-        Adapter::Name result;
-        auto *cursor = desc.Description;
-        while (*cursor) { result += *cursor++; }
-        return result;
-    }
-
-    Adapter::MemorySize Adapter::video() const { return desc.DedicatedVideoMemory; }
-    Adapter::MemorySize Adapter::system() const { return desc.DedicatedSystemMemory; }
-    Adapter::MemorySize Adapter::shared() const { return desc.SharedSystemMemory; }
-    Adapter::ID Adapter::luid() const { return Adapter::ID(desc.AdapterLuid); }
-
-    d3d12::Device1 Adapter::createDevice(d3d::FeatureLevel level) {
-        d3d12::Device1 result;
-        ensure(D3D12CreateDevice(adapter.get(), level, IID_PPV_ARGS(&result)), "d3d12-create-device");
-        return result;
-    }
-
-    Factory::Factory() {
-        ensure(CreateDXGIFactory2(debug::flags, IID_PPV_ARGS(&factory)), "create-dxgi-factory");
-        
-        dxgi::Adapter1 adapter;
-        
-        for (UINT i = 0; factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND; i++) {
-            all.push_back(Adapter(adapter));
-        }
-    }
-
-    std::span<Adapter> Factory::adapters() { return all; }
 }

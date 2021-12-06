@@ -1,8 +1,4 @@
-#include "window.h"
-
-#include <format>
-#include "logging/log.h"
-#include "util/win32.h"
+#include "system.h"
 
 namespace {
     LRESULT CALLBACK WindowHandleCallback(
@@ -12,14 +8,14 @@ namespace {
         LPARAM lparam
     )
     {
-        auto *self = reinterpret_cast<engine::win32::WindowHandle*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-        LPCREATESTRUCT create;
+        auto *self = reinterpret_cast<engine::system::Window::Callbacks*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
         switch (msg) {
-        case WM_CREATE:
-            create = reinterpret_cast<LPCREATESTRUCT>(lparam);
+        case WM_CREATE: {
+            LPCREATESTRUCT create = reinterpret_cast<LPCREATESTRUCT>(lparam);
             SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
             return 0;
+        }
 
         case WM_KEYDOWN:
             self->onKeyPress(static_cast<int>(wparam));
@@ -34,7 +30,6 @@ namespace {
             return 0;
 
         case WM_DESTROY:
-            self->onDestroy();
             PostQuitMessage(0);
             return 0;
 
@@ -44,18 +39,47 @@ namespace {
     }
 }
 
-namespace engine::win32 {
-    WindowHandle::WindowHandle(
-        HINSTANCE instance,
-        int show,
-        LPCTSTR title,
-        LONG width,
-        LONG height
-    ) : instance(instance), name(title) {
-        logging::bug->check(instance != nullptr, Error("instance != nullptr"))
-                     ->check(width >= 0, Error("width >= 0"))
-                     ->check(height >= 0, Error("height >= 0"));
+namespace engine::system {
+    win32::Result<RECT> Window::getClientRect() const {
+        RECT rect;
+        if (!GetClientRect(handle, &rect)) {
+            return fail(GetLastError());
+        }
+        return pass(rect);
+    }
 
+    win32::Result<Window::Size> Window::getClientSize() const {
+        auto result = getClientRect();
+        if (!result) { return result.forward(); }
+
+        auto rect = result.value();
+        auto width = rect.right - rect.left;
+        auto height = rect.bottom - rect.top;
+
+        return pass(Window::Size(width, height));
+    }
+
+    DWORD Window::run(int show) {
+        if (ShowWindow(handle, show) != 0) {
+            return GetLastError();
+        }
+
+        getCallbacks()->onCreate(this);
+    
+        MSG msg = { };
+        while (msg.message != WM_QUIT) {
+            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+
+        getCallbacks()->onDestroy();
+
+        return 0;
+    }
+
+    win32::Result<Window> createWindow(HINSTANCE instance, LPCTSTR name, Window::Size size, Window::Callbacks *callbacks) {
         WNDCLASSEX wc = {
             .cbSize = sizeof(WNDCLASSEX),
             .style = CS_HREDRAW | CS_VREDRAW,
@@ -65,69 +89,35 @@ namespace engine::win32 {
             .lpszClassName = name
         };
 
-        logging::bug->check(
-            RegisterClassEx(&wc) != 0, 
-            win32::Win32Error("register-class")
-        );
+        auto [width, height] = size;
+        RECT rect = { .right = width, .bottom = height };
+        
+        if (RegisterClassEx(&wc) == 0) {
+            return fail(GetLastError());
+        }
 
-        RECT rect = {
-            .right = width,
-            .bottom = height
-        };
+        if (AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false) == 0) {
+            return fail(GetLastError());
+        }
 
-        logging::bug->check(
-            AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false) != 0,
-            win32::Win32Error("adjust-window-rect")
-        );
-
-        handle = CreateWindow(
+        HWND handle = CreateWindow(
             name, name, 
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             width, height,
             nullptr, nullptr,
-            instance, this
+            instance, callbacks
         );
 
-        logging::bug->check(
-            handle != nullptr,
-            win32::Win32Error("create-window")
-        );
-
-        logging::bug->check(
-            ShowWindow(handle, show) == 0,
-            win32::Win32Error("show-window")
-        );
-    }
-
-    WindowHandle::~WindowHandle() {
-        DestroyWindow(handle);
-        UnregisterClass(name, instance);
-    }
-
-    void WindowHandle::run() {
-        onCreate();
-
-        MSG msg = { };
-        while (msg.message != WM_QUIT) {
-            if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
+        if (handle == nullptr) {
+            return fail(GetLastError());
         }
+
+        return pass(Window(instance, name, handle, callbacks));
     }
 
-    RECT WindowHandle::getClientRect() const {
-        RECT rect;
-        logging::bug->check(
-            GetClientRect(handle, &rect) != 0,
-            win32::Win32Error("get-client-rect")
-        );
-        return rect;
-    }
-
-    WindowHandle::Size WindowHandle::getClientSize() const {
-        RECT rect = getClientRect();
-        return WindowHandle::Size(rect.right - rect.left, rect.bottom - rect.top);
+    void destroyWindow(Window &window) {
+        DestroyWindow(window.getHandle());
+        UnregisterClass(window.getName(), window.getInstance());
     }
 }

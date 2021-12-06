@@ -3,3 +3,9 @@ option('agility-sdk',
     type : 'feature',
     value : 'enabled'
 )
+
+option('debug-d3d12',
+    description : 'enable d3d12 debugging',
+    type : 'feature',
+    value : 'enabled'
+)

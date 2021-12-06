@@ -1,70 +1,63 @@
-#include "render/context.h"
 #include "logging/log.h"
 #include "system/system.h"
-#include "system/window.h"
+#include "render/render.h"
 
 using namespace engine;
 
-struct MainWindow final : win32::WindowHandle {
-    using WindowHandle::WindowHandle;
+using WindowCallbacks = system::Window::Callbacks;
 
-    MainWindow(HINSTANCE instance, int show)
-        : WindowHandle(instance, show, TEXT("hello world"), 800, 600)
-        , channel("main-window", stdout)
-    { }
+logging::Channel *channel = new logging::ConsoleChannel("engine", stdout);
 
-    virtual void onCreate() override {
-        for (const auto &adapter : context.adapters()) {
-            channel.info("(name: {}, video-memory: {}, shared-memory: {}, system-memory: {}, luid: {})",
-                adapter.name(), 
-                adapter.video().string(),
-                adapter.shared().string(),
-                adapter.system().string(),
-                adapter.luid().name()
-            );
-        }
+struct MainWindow final : WindowCallbacks {
+    using WindowCallbacks::WindowCallbacks;
 
-        context.setWindow(this);
-        context.selectAdapter(0);
+    virtual void onCreate(system::Window *ctx) override {
+        window = ctx;
+        channel->info("on-create");
+
+        auto factory = render::createFactory();
+        context = render::createContext(factory.value(), ctx, 0, 8);
     }
 
     virtual void onDestroy() override {
-        
+        channel->info("on-destroy");
     }
 
     virtual void onKeyPress(int key) override {
-        
+        channel->info("on-key-press: {}", key);
     }
 
     virtual void onKeyRelease(int key) override {
-        
+        channel->info("on-key-release: {}", key);
     }
 
     virtual void repaint() override {
         
     }
 
-    logging::ConsoleChannel channel;
+private:
+    system::Window *window;
     render::Context context;
 };
 
 int commonMain(HINSTANCE instance, int show) {
-    logging::ConsoleChannel channel("main", stdout);
-
-    try {
-        logging::ConsoleChannel::init();
-        render::debug::start();
-        system::Stats stats;
-
-        channel.info("name: {}", stats.name());
-
-        MainWindow window(instance, show);
-
-        window.run();
-        render::debug::end();
-    } catch (const Error &error) {
-        channel.fatal("bugcheck {}", error.string());
+    channel->info("agility sdk {}", AGILITY ? "enabled" : "disabled");
+    if (render::debug::enable() != S_OK) {
+        return 99;
     }
+
+    auto stats = system::getStats();
+    if (!stats) { return stats.error(); }
+    channel->info("{}", stats.value().name);
+
+    MainWindow callbacks;
+
+    auto window = system::createWindow(instance, TEXT("Hello world"), { 800, 600 }, &callbacks);
+    if (!window) { return window.error(); }
+    window.value().run(show);
+
+    render::debug::report();
+    render::debug::disable();
 
     return 0;
 }

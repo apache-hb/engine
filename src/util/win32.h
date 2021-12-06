@@ -6,13 +6,6 @@
 #include "error.h"
 
 namespace engine::win32 {
-    struct Win32Error : Error {
-        Win32Error(std::string_view message);
-
-        DWORD err() const { return error; }
-
-    private:
-        DWORD error;
-    };
-
+    template<typename T>
+    using Result = engine::Result<T, DWORD>;
 }

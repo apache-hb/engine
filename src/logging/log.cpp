@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include "util/strings.h"
+
 #define RESET "\x1b[0m"
 #define BLACK "\x1b[0;30m"
 #define RED "\x1b[0;31m"
@@ -15,7 +17,38 @@
 namespace engine::logging {
     void Channel::log(Level report, std::string_view message) {
         if (report < level) { return; }
-        send(report, message);
+        
+        if (!sanitize) {
+            send(report, message);
+        } else {
+            for (auto part : strings::split(message, "\n")) {
+                send(report, part);
+            }
+        }
+    }
+
+    void Channel::infof(const char *message, ...) {
+        va_list args;
+        va_start(args, message);
+        auto msg = strings::cformatv(message, args);
+        va_end(args);
+        log(INFO, msg);
+    }
+
+    void Channel::warnf(const char *message, ...) {
+        va_list args;
+        va_start(args, message);
+        auto msg = strings::cformatv(message, args);
+        va_end(args);
+        log(WARN, msg);
+    }
+
+    void Channel::fatalf(const char * message, ...) {
+        va_list args;
+        va_start(args, message);
+        auto msg = strings::cformatv(message, args);
+        va_end(args);
+        log(FATAL, msg);
     }
 
     namespace {
@@ -35,15 +68,15 @@ namespace engine::logging {
         fprintf(file, "%s\n", full.c_str());
     }
 
-    void ConsoleChannel::init() {
+    DWORD ConsoleChannel::init() {
         DWORD mode = 0;
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-        bug->check(hConsole != nullptr, "get-std-handle");
+        if (hConsole == nullptr) { return GetLastError(); }
 
-        bug->check(GetConsoleMode(hConsole, &mode) != 0, "get-console-mode");
+        if (GetConsoleMode(hConsole, &mode) == 0) { return GetLastError(); }
         mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-        bug->check(SetConsoleMode(hConsole, mode) != 0, "set-console-mode");
-    }
+        if (SetConsoleMode(hConsole, mode) == 0) { return GetLastError(); }
 
-    Channel *bug = new ConsoleChannel("bugcheck", stdout);
+        return 0;
+    }
 }
