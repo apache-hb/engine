@@ -21,12 +21,18 @@ struct MainWindow final : WindowCallbacks {
         context.createCore();
         context.createAssets();
 
-        auto warns = system::detrimentalModules(system::loadedModules());
+        auto modules = system::loadedModules();
+        auto warns = system::detrimentalModules(modules);
         if (warns.size() > 0) {
             channel->warn("the following loaded dlls may intefere with the engines functionality");
             for (auto warn : warns) {
                 channel->warn("\t{}", warn);
             }
+        }
+
+        channel->info("loaded modules:");
+        for (auto mod : modules) {
+            channel->info("\t{}", mod);
         }
     }
 

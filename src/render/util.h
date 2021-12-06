@@ -125,4 +125,12 @@ namespace engine::render {
     };
 
     Result<Factory> createFactory();
+
+    struct ImGuiChannel : logging::Channel {
+        ImGuiChannel(std::string_view name)
+            : Channel(name, false)
+        { }
+
+        virtual void send(Level report, std::string_view message) override;
+    };
 }

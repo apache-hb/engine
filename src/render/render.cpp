@@ -67,11 +67,24 @@ namespace engine::render {
             };
 
             if (HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtvHeap)); FAILED(hr)) {
-                render->fatal("failed to create descriptor heap\n{}", to_string(hr));
+                render->fatal("failed to create rtv heap\n{}", to_string(hr));
                 return hr;
             }
 
             rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        }
+
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC desc = {
+                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                .NumDescriptors = 1,
+                .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+            };
+
+            if (HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&srvHeap)); FAILED(hr)) {
+                render->fatal("failed to create srv heap\n{}", to_string(hr));
+                return hr;
+            }
         }
 
         {
@@ -111,6 +124,8 @@ namespace engine::render {
             render->fatal("failed to release all render targets, {} references remaining", remaining);
         }
 
+        srvHeap.tryDrop("srv-heap");
+        rtvHeap.tryDrop("rtv-heap");
         swapchain.tryDrop("swapchain");
         commandQueue.tryDrop("command-queue");
         device.tryDrop("device");
@@ -140,16 +155,42 @@ namespace engine::render {
             return hr;
         }
 
+        ImGui::CreateContext();
+        ImGui::GetIO();
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplWin32_Init(window->getHandle());
+        ImGui_ImplDX12_Init(
+            device.get(), 
+            frameCount,
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            srvHeap.get(),
+            srvHeap->GetCPUDescriptorHandleForHeapStart(),
+            srvHeap->GetGPUDescriptorHandleForHeapStart()
+        );
+
         return S_OK;
     }
 
-    void Context::destroyAssets() {
+    void Context::destroyAssets() {  
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+
         CloseHandle(fenceEvent);
         fence.tryDrop("fence");
         commandList.tryDrop("command-list");
     }
 
     HRESULT Context::present() {
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+
         if (HRESULT hr = populate(); FAILED(hr)) {
             retry();
             return hr;
@@ -158,7 +199,7 @@ namespace engine::render {
         ID3D12CommandList *commands[] = { commandList.get() };
         commandQueue->ExecuteCommandLists(1, commands);
 
-        if (HRESULT hr = swapchain->Present(1, 0); FAILED(hr)) {
+        if (HRESULT hr = swapchain->Present(0, 0); FAILED(hr)) {
             retry();
             return hr;
         }
@@ -200,6 +241,10 @@ namespace engine::render {
 
         const float clear[] = { 0.0f, 0.2f, 0.4f, 1.0f };
         commandList->ClearRenderTargetView(handle, clear, 0, nullptr);
+        commandList->OMSetRenderTargets(1, &handle, false, nullptr);
+        commandList->SetDescriptorHeaps(1, &srvHeap);
+
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.get());
 
         commandList->ResourceBarrier(1, &toPresent);
 
@@ -243,6 +288,8 @@ namespace engine::render {
     }
 
     Context createContext(Factory factory, system::Window *window, size_t adapter, UINT frameCount) {
+        IMGUI_CHECKVERSION();
+
         return Context(factory, adapter, window, frameCount);
     }
 }

@@ -3,6 +3,10 @@
 #include "system/system.h"
 #include "util.h"
 
+#include "imgui.h"
+#include "imgui_impl_dx12.h"
+#include "imgui_impl_win32.h"
+
 namespace engine::render {
     struct Context {
         Context() = default;
@@ -34,8 +38,10 @@ namespace engine::render {
 
         void loseDevice() {
             if (auto device5 = device.as<d3d12::Device5>(); device5) {
+                auto real = device5.value();
                 render->warn("dropping device");
-                device5.value()->RemoveDevice();
+                real.release();
+                real->RemoveDevice();
             }
         }
 
@@ -45,8 +51,12 @@ namespace engine::render {
         d3d12::Device1 device;
         d3d12::CommandQueue commandQueue;
         dxgi::SwapChain3 swapchain;
+        
         d3d12::DescriptorHeap rtvHeap;
         UINT rtvDescriptorSize;
+
+        d3d12::DescriptorHeap srvHeap;
+
         d3d12::Resource *renderTargets;
         d3d12::CommandAllocator commandAllocator;
 

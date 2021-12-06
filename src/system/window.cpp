@@ -1,5 +1,9 @@
 #include "system.h"
 
+#include "backends/imgui_impl_win32.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 namespace {
     LRESULT CALLBACK WindowHandleCallback(
         HWND hwnd,
@@ -8,6 +12,9 @@ namespace {
         LPARAM lparam
     )
     {
+        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
+            return true;
+
         auto *self = reinterpret_cast<engine::system::Window::Callbacks*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
         switch (msg) {
@@ -104,9 +111,11 @@ namespace engine::system {
             return fail(GetLastError());
         }
 
+        auto style = WS_MAXIMIZE | WS_POPUP;
+
         HWND handle = CreateWindow(
             name, name, 
-            WS_OVERLAPPEDWINDOW,
+            style,
             CW_USEDEFAULT, CW_USEDEFAULT,
             width, height,
             nullptr, nullptr,

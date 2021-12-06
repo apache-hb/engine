@@ -1,6 +1,7 @@
 project('engine', [ 'c', 'cpp' ],
     default_options : [
-        'cpp_std=c++latest'
+        'cpp_std=c++latest',
+        'default_library=static'
     ]
 )
 
@@ -30,9 +31,12 @@ else
     args += [ '-DD3D12_DEBUG=0' ]
 endif
 
+deps = [ subproject('imgui').get_variable('imgui_dep') ]
+
 executable('engine', src,
     include_directories : 'src',
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib' ],
     cpp_args : args,
+    dependencies : deps,
     win_subsystem : 'console'
 )
