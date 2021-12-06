@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "util/win32.h"
 #include "util/units.h"
 
@@ -19,6 +21,8 @@ namespace engine::system {
 
         win32::Result<RECT> getClientRect() const;
         win32::Result<Size> getClientSize() const;
+
+        void popup(std::string_view title, std::string_view message);
 
         HWND getHandle() const { return handle; }
         LPCTSTR getName() const { return name; }
@@ -48,4 +52,7 @@ namespace engine::system {
     };
 
     win32::Result<Stats> getStats();
+
+    std::vector<std::string> loadedModules();
+    std::vector<std::string> detrimentalModules(const std::vector<std::string>& all);
 }

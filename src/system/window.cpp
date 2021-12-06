@@ -40,6 +40,10 @@ namespace {
 }
 
 namespace engine::system {
+    void Window::popup(std::string_view title, std::string_view message) {
+        MessageBoxA(handle, message.data(), title.data(), MB_ICONWARNING | MB_OK);
+    }
+
     win32::Result<RECT> Window::getClientRect() const {
         RECT rect;
         if (!GetClientRect(handle, &rect)) {

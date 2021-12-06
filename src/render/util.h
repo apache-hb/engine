@@ -16,6 +16,12 @@ namespace engine::render {
     using Result = engine::Result<T, HRESULT>;
 
     std::string to_string(HRESULT hr);
+    
+    namespace debug {
+        HRESULT enable();
+        HRESULT report();
+        void disable();
+    }
 
     template<typename T>
     struct Com {
@@ -37,6 +43,11 @@ namespace engine::render {
             if (refs > 0) {
                 render->fatal("failed to drop {}, {} references are still held", name, refs);
             }
+        }
+
+        void tryDrop(std::string_view name = "") {
+            if (!valid()) { return; }
+            drop(name);
         }
 
         auto release() { return self->Release(); }
@@ -72,6 +83,7 @@ namespace engine::render {
     namespace d3d12 {
         using Debug = Com<ID3D12Debug>;
         using Device1 = Com<ID3D12Device1>;
+        using Device5 = Com<ID3D12Device5>;
         using InfoQueue1 = Com<ID3D12InfoQueue1>;
         using CommandQueue = Com<ID3D12CommandQueue>;
         using DescriptorHeap = Com<ID3D12DescriptorHeap>;
@@ -113,10 +125,4 @@ namespace engine::render {
     };
 
     Result<Factory> createFactory();
-
-    namespace debug {
-        HRESULT enable();
-        HRESULT report();
-        void disable();
-    }
 }

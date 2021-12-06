@@ -4,7 +4,7 @@
 
 #include <sstream>
 
-namespace strings {
+namespace engine::strings {
     std::string join(std::span<std::string> parts, std::string_view sep) {
         std::stringstream ss;
         for (size_t i = 0; i < parts.size(); i++) {

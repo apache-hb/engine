@@ -1,6 +1,7 @@
 #include "logging/log.h"
 #include "system/system.h"
 #include "render/render.h"
+#include "util/strings.h"
 
 using namespace engine;
 
@@ -17,9 +18,21 @@ struct MainWindow final : WindowCallbacks {
 
         auto factory = render::createFactory();
         context = render::createContext(factory.value(), ctx, 0, 8);
+        context.createCore();
+        context.createAssets();
+
+        auto warns = system::detrimentalModules(system::loadedModules());
+        if (warns.size() > 0) {
+            channel->warn("the following loaded dlls may intefere with the engines functionality");
+            for (auto warn : warns) {
+                channel->warn("\t{}", warn);
+            }
+        }
     }
 
     virtual void onDestroy() override {
+        context.destroyAssets();
+        context.destroyCore();
         channel->info("on-destroy");
     }
 
@@ -32,7 +45,7 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void repaint() override {
-        
+        context.present();
     }
 
 private:
