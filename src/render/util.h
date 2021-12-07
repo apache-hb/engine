@@ -4,12 +4,19 @@
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 #include <vector>
+#include <array>
 #include "d3dx12.h"
+
+#include "imgui.h"
+
+#include <DirectXMath.h>
 
 #include "logging/log.h"
 #include "util/error.h"
 
 namespace engine::render {
+    using namespace DirectX;
+
     extern logging::Channel *render;
 
     template<typename T>
@@ -22,6 +29,11 @@ namespace engine::render {
         HRESULT report();
         void disable();
     }
+
+    struct Vertex {
+        XMFLOAT3 position;
+        XMFLOAT4 colour;
+    };
 
     template<typename T>
     struct Com {
@@ -80,6 +92,12 @@ namespace engine::render {
         using SwapChain3 = Com<IDXGISwapChain3>;
     }
 
+    namespace d3d {
+        using Blob = Com<ID3DBlob>;
+
+        HRESULT compileFromFile(LPCWSTR path, LPCSTR entry, LPCSTR shaderModel, ID3DBlob **blob);
+    }
+
     namespace d3d12 {
         using Debug = Com<ID3D12Debug>;
         using Device1 = Com<ID3D12Device1>;
@@ -90,6 +108,8 @@ namespace engine::render {
         using Resource = Com<ID3D12Resource>;
         using CommandAllocator = Com<ID3D12CommandAllocator>;
         using CommandList = Com<ID3D12GraphicsCommandList>;
+        using RootSignature = Com<ID3D12RootSignature>;
+        using PipelineState = Com<ID3D12PipelineState>;
         using Fence = Com<ID3D12Fence>;
 
         struct Viewport : D3D12_VIEWPORT {
@@ -125,12 +145,4 @@ namespace engine::render {
     };
 
     Result<Factory> createFactory();
-
-    struct ImGuiChannel : logging::Channel {
-        ImGuiChannel(std::string_view name)
-            : Channel(name, false)
-        { }
-
-        virtual void send(Level report, std::string_view message) override;
-    };
 }

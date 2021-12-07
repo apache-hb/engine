@@ -57,6 +57,8 @@
         "xiosbase": "cpp",
         "xlocbuf": "cpp",
         "xlocinfo": "cpp",
-        "xtree": "cpp"
+        "xtree": "cpp",
+        "deque": "cpp",
+        "queue": "cpp"
     }
 }

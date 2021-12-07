@@ -34,7 +34,7 @@ namespace engine::render {
         HRESULT present();
         HRESULT populate();
         HRESULT waitForFrame();
-        void retry();
+        bool retry();
 
         void loseDevice() {
             if (auto device5 = device.as<d3d12::Device5>(); device5) {
@@ -60,7 +60,19 @@ namespace engine::render {
         d3d12::Resource *renderTargets;
         d3d12::CommandAllocator commandAllocator;
 
+        d3d12::RootSignature rootSignature;
+        d3d12::PipelineState pipelineState;
         d3d12::CommandList commandList;
+
+        HRESULT createCommandList(
+            D3D12_COMMAND_LIST_TYPE type,
+            d3d12::CommandAllocator allocator,
+            d3d12::PipelineState state,
+            ID3D12GraphicsCommandList **list
+        );
+
+        d3d12::Resource vertexBuffer;
+        D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 
         d3d12::Fence fence;
         HANDLE fenceEvent;

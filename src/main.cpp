@@ -43,6 +43,7 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onKeyPress(int key) override {
+        context.loseDevice();
         channel->info("on-key-press: {}", key);
     }
 
@@ -51,7 +52,12 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void repaint() override {
-        context.present();
+        if (HRESULT hr = context.present(); FAILED(hr)) {
+            if (!context.retry()) {
+                channel->fatal("failed to recreate context");
+                ExitProcess(99);
+            }
+        }
     }
 
 private:

@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <comdef.h>
+#include <d3dcompiler.h>
 
 namespace engine::render {
     logging::Channel *render = new logging::ConsoleChannel("d3d12", stdout);
@@ -80,6 +81,25 @@ namespace engine::render {
         void disable() {
             d3d12debug.drop("debug-layer");
             render->info("debug layer disabled");
+        }
+    }
+
+#if D3D12_DEBUG
+#   define D3D_COMPILE_FLAGS D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
+#else
+#   define D3D_COMPILE_FLAGS 0
+#endif
+
+    namespace d3d {
+        HRESULT compileFromFile(LPCWSTR path, LPCSTR entry, LPCSTR shaderModel, ID3DBlob **blob) {
+            d3d::Blob error;
+            HRESULT hr = D3DCompileFromFile(path, nullptr, nullptr, entry, shaderModel, D3D_COMPILE_FLAGS, 0, blob, &error);
+
+            if (FAILED(hr)) {
+                render->fatal("failed to compile shader {}\n{}\n{}", entry, to_string(hr), !!error ? (char*)error->GetBufferPointer() : "null-error");
+            }
+
+            return hr;
         }
     }
 }

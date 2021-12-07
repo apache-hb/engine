@@ -70,6 +70,14 @@ namespace engine::system {
         return pass(Window::Size(width, height));
     }
 
+    win32::Result<float> Window::getClientAspectRatio() const {
+        auto result = getClientSize();
+        if (!result) { return result.forward(); }
+
+        auto [width, height] = result.value();
+        return pass(float(width) / float(height));
+    }
+
     DWORD Window::run(int show) {
         if (ShowWindow(handle, show) != 0) {
             return GetLastError();
@@ -111,7 +119,7 @@ namespace engine::system {
             return fail(GetLastError());
         }
 
-        auto style = WS_MAXIMIZE | WS_POPUP;
+        auto style = WS_OVERLAPPEDWINDOW; // WS_MAXIMIZE | WS_POPUP;
 
         HWND handle = CreateWindow(
             name, name, 

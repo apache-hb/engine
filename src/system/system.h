@@ -21,6 +21,7 @@ namespace engine::system {
 
         win32::Result<RECT> getClientRect() const;
         win32::Result<Size> getClientSize() const;
+        win32::Result<float> getClientAspectRatio() const;
 
         void popup(std::string_view title, std::string_view message);
 
