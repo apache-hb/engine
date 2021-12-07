@@ -31,7 +31,7 @@ namespace engine::render {
         HRESULT populate();
         HRESULT nextFrame();
         HRESULT waitForGpu();
-        bool retry();
+        bool retry(size_t attempts = 1);
 
         void loseDevice() {
             if (auto device5 = device.as<d3d12::Device5>(); device5) {
@@ -48,17 +48,21 @@ namespace engine::render {
             UINT64 fenceValue;
         };
 
+        cbuffer ConstBuffer {
+            XMFLOAT4 offset;
+        };
+
         d3d12::Viewport viewport = d3d12::Viewport(0.f, 0.f);
         d3d12::Scissor scissor = d3d12::Scissor(0, 0);
 
         d3d12::Device1 device;
         d3d12::CommandQueue commandQueue;
         dxgi::SwapChain3 swapchain;
-        
+
+        d3d12::DescriptorHeap cbvHeap;        
+        d3d12::DescriptorHeap srvHeap;
         d3d12::DescriptorHeap rtvHeap;
         UINT rtvDescriptorSize;
-
-        d3d12::DescriptorHeap srvHeap;
 
         FrameData *frameData;
 
@@ -75,6 +79,10 @@ namespace engine::render {
 
         d3d12::Resource vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+
+        d3d12::Resource constBuffer;
+        ConstBuffer constBufferData;
+        void *constBufferPtr;
 
         d3d12::Fence fence;
         HANDLE fenceEvent;

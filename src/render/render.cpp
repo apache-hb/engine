@@ -110,6 +110,19 @@ namespace engine::render {
         }
 
         {
+            D3D12_DESCRIPTOR_HEAP_DESC desc = {
+                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+                .NumDescriptors = 1,
+                .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+            };
+
+            if (HRESULT hr = device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&cbvHeap)); FAILED(hr)) {
+                render->fatal("failed to create cbv heap\n{}", to_string(hr));
+                return hr;
+            }
+        }
+
+        {
             frameData = new FrameData[frameCount];
             CD3DX12_CPU_DESCRIPTOR_HANDLE handle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -146,6 +159,7 @@ namespace engine::render {
             render->fatal("failed to release all render targets, {} references remaining", remaining);
         }
 
+        cbvHeap.tryDrop("cbv-heap");
         srvHeap.tryDrop("srv-heap");
         rtvHeap.tryDrop("rtv-heap");
         swapchain.tryDrop("swapchain");
@@ -168,15 +182,38 @@ namespace engine::render {
     }
 
     HRESULT Context::createAssets() {
-        
+        auto version = [&] {
+            D3D12_FEATURE_DATA_ROOT_SIGNATURE features = {
+                .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1
+            };
+
+            if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &features, sizeof(features)))) {
+                features.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+            }
+
+            return features.HighestVersion;
+        }();
+
         {
-            CD3DX12_ROOT_SIGNATURE_DESC desc;
-            desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+            CD3DX12_ROOT_PARAMETER1 parameters[1];
+
+            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+            parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+            auto flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+                         D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+            desc.Init_1_1(_countof(parameters), parameters, 0, nullptr, flags);
 
             d3d::Blob signature;
             d3d::Blob error;
 
-            if (HRESULT hr = D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error); FAILED(hr)) {
+            if (HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error); FAILED(hr)) {
                 render->fatal("failed to serialize root signature\n{}\n{}", to_string(hr), (char*)error->GetBufferPointer());
                 return hr;
             }
@@ -262,6 +299,35 @@ namespace engine::render {
                 .StrideInBytes = sizeof(Vertex)
             };
         }
+        
+        {
+            const UINT constBufferSize = sizeof(ConstBuffer);
+            const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(constBufferSize);
+
+            if (HRESULT hr = device->CreateCommittedResource(
+                &upload, D3D12_HEAP_FLAG_NONE,
+                &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr, IID_PPV_ARGS(&constBuffer)); FAILED(hr)) {
+                render->fatal("failed to create const buffer\n{}", to_string(hr));
+                return hr;
+            }
+
+            D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {
+                .BufferLocation = constBuffer->GetGPUVirtualAddress(),
+                .SizeInBytes = constBufferSize
+            };
+
+            device->CreateConstantBufferView(&desc, cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+            CD3DX12_RANGE readRange(0, 0);
+            if (HRESULT hr = constBuffer->Map(0, &readRange, &constBufferPtr); FAILED(hr)) {
+                render->fatal("failed to map const buffer\n{}", to_string(hr));
+                return hr;
+            }
+
+            memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
+        }
 
         if (HRESULT hr = createCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, frameData[frameIndex].commandAllocator.get(), pipelineState, &commandList); FAILED(hr)) {
             render->fatal("failed to create command list\n{}", to_string(hr));
@@ -296,6 +362,7 @@ namespace engine::render {
     void Context::destroyAssets() {  
         waitForGpu();
 
+        constBuffer.tryDrop("const-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
         pipelineState.tryDrop("pipeline-state");
         rootSignature.tryDrop("root-signature");
@@ -306,6 +373,8 @@ namespace engine::render {
     }
 
     HRESULT Context::present() {
+        memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
+
         if (HRESULT hr = populate(); FAILED(hr)) {
             return hr;
         }
@@ -313,7 +382,7 @@ namespace engine::render {
         ID3D12CommandList *commands[] = { commandList.get() };
         commandQueue->ExecuteCommandLists(_countof(commands), commands);
 
-        if (HRESULT hr = swapchain->Present(0, 0); FAILED(hr)) {
+        if (HRESULT hr = swapchain->Present(1, 0); FAILED(hr)) {
             return hr;
         }
 
@@ -361,7 +430,8 @@ namespace engine::render {
         const float clear[] = { 0.0f, 0.2f, 0.4f, 1.0f };
         commandList->ClearRenderTargetView(handle, clear, 0, nullptr);
         commandList->OMSetRenderTargets(1, &handle, false, nullptr);
-        commandList->SetDescriptorHeaps(1, &srvHeap);
+        commandList->SetDescriptorHeaps(1, &cbvHeap);
+        commandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
@@ -419,9 +489,8 @@ namespace engine::render {
         return S_OK;
     }
 
-    bool Context::retry() {
-        // retry 3 times total
-        for (UINT i = 0; i < 3; i++) {
+    bool Context::retry(size_t attempts) {
+        for (size_t i = 0; i < attempts; i++) {
             destroyAssets();
             destroyCore();
             if (SUCCEEDED(createCore()) && SUCCEEDED(createAssets())) {
@@ -429,7 +498,7 @@ namespace engine::render {
             }
         }
 
-        render->fatal("failed to recreate render context\n");
+        render->fatal("failed to recreate render context after {} attempts", attempts);
         return false;
     }
 

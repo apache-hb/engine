@@ -2,6 +2,7 @@
 #include "system/system.h"
 #include "render/render.h"
 #include "util/strings.h"
+#include "util/timer.h"
 
 using namespace engine;
 
@@ -20,20 +21,8 @@ struct MainWindow final : WindowCallbacks {
         context = render::createContext(factory.value(), ctx, 0, 2);
         context.createCore();
         context.createAssets();
-
-        auto modules = system::loadedModules();
-        auto warns = system::detrimentalModules(modules);
-        if (warns.size() > 0) {
-            channel->warn("the following loaded dlls may intefere with the engines functionality");
-            for (auto warn : warns) {
-                channel->warn("\t{}", warn);
-            }
-        }
-
-        channel->info("loaded modules:");
-        for (auto mod : modules) {
-            channel->info("\t{}", mod);
-        }
+    
+        timer = util::createTimer();
     }
 
     virtual void onDestroy() override {
@@ -43,6 +32,7 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onKeyPress(int key) override {
+        context.loseDevice();
         channel->info("on-key-press: {}", key);
     }
 
@@ -51,8 +41,12 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void repaint() override {
+        total += timer.tick();
+        context.constBufferData.offset.x = cosf(total) / 2;
+        context.constBufferData.offset.y = sinf(total) / 2;
+
         if (HRESULT hr = context.present(); FAILED(hr)) {
-            if (!context.retry()) {
+            if (!context.retry(1)) {
                 channel->fatal("failed to recreate context");
                 ExitProcess(99);
             }
@@ -60,6 +54,8 @@ struct MainWindow final : WindowCallbacks {
     }
 
 private:
+    float total = 0.f;
+    util::Timer timer;
     system::Window *window;
     render::Context context;
 };

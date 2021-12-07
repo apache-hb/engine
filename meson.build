@@ -10,6 +10,7 @@ src = [
     'src/render/render.cpp',
     'src/util/strings.cpp',
     'src/util/units.cpp',
+    'src/util/timer.cpp',
     'src/system/window.cpp',
     'src/system/system.cpp',
     'src/logging/log.cpp',

@@ -40,6 +40,15 @@ namespace engine::render {
             return fail(hr);
         }
 
+        BOOL tearing = false;
+        if (auto result = factory.as<dxgi::Factory5>(); result.valid()) {
+            auto it = result.value();
+            if (HRESULT hr = it->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing)); FAILED(hr)) {
+                render->warn("failed to query tearing support\n{}", to_string(hr));
+            }
+            it.release();
+        }
+
         std::vector<Adapter> adapters;
         dxgi::Adapter1 adapter;
         for (UINT i = 0; factory->EnumAdapters1(i, adapter.addr()) != DXGI_ERROR_NOT_FOUND; i++) {
@@ -49,8 +58,9 @@ namespace engine::render {
         }
 
         render->info("{} adapters found", adapters.size());
+        render->info("tearing {}", tearing ? "supported" : "unsupported");
 
-        return pass(Factory{ factory, adapters });
+        return pass(Factory{ factory, adapters, tearing != FALSE });
     }
 
     namespace debug {

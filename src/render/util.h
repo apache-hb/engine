@@ -14,6 +14,8 @@
 #include "logging/log.h"
 #include "util/error.h"
 
+#define cbuffer struct __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
+
 namespace engine::render {
     using namespace DirectX;
 
@@ -83,6 +85,7 @@ namespace engine::render {
         using Debug = Com<IDXGIDebug>;
 
         using Factory4 = Com<IDXGIFactory4>;
+        using Factory5 = Com<IDXGIFactory5>;
         using FactoryFlags = UINT;
 
         using Adapter1 = Com<IDXGIAdapter1>;
@@ -142,6 +145,7 @@ namespace engine::render {
 
         dxgi::Factory4 factory;
         std::vector<Adapter> adapters;
+        bool tearing;
     };
 
     Result<Factory> createFactory();
