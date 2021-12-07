@@ -3,10 +3,6 @@
 #include "system/system.h"
 #include "util.h"
 
-#include "imgui.h"
-#include "imgui_impl_dx12.h"
-#include "imgui_impl_win32.h"
-
 namespace engine::render {
     struct Context {
         Context() = default;
@@ -33,7 +29,8 @@ namespace engine::render {
 
         HRESULT present();
         HRESULT populate();
-        HRESULT waitForFrame();
+        HRESULT nextFrame();
+        HRESULT waitForGpu();
         bool retry();
 
         void loseDevice() {
@@ -44,6 +41,12 @@ namespace engine::render {
                 real->RemoveDevice();
             }
         }
+
+        struct FrameData {
+            d3d12::Resource renderTarget;
+            d3d12::CommandAllocator commandAllocator;
+            UINT64 fenceValue;
+        };
 
         d3d12::Viewport viewport = d3d12::Viewport(0.f, 0.f);
         d3d12::Scissor scissor = d3d12::Scissor(0, 0);
@@ -57,8 +60,7 @@ namespace engine::render {
 
         d3d12::DescriptorHeap srvHeap;
 
-        d3d12::Resource *renderTargets;
-        d3d12::CommandAllocator commandAllocator;
+        FrameData *frameData;
 
         d3d12::RootSignature rootSignature;
         d3d12::PipelineState pipelineState;
@@ -77,7 +79,6 @@ namespace engine::render {
         d3d12::Fence fence;
         HANDLE fenceEvent;
         UINT frameIndex;
-        UINT64 fenceValue;
     };
 
     Context createContext(Factory factory, system::Window *window, size_t adapter, UINT frameCount);

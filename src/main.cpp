@@ -17,7 +17,7 @@ struct MainWindow final : WindowCallbacks {
         channel->info("on-create");
 
         auto factory = render::createFactory();
-        context = render::createContext(factory.value(), ctx, 0, 8);
+        context = render::createContext(factory.value(), ctx, 0, 2);
         context.createCore();
         context.createAssets();
 

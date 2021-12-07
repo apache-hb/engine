@@ -110,37 +110,37 @@ namespace engine::render {
         }
 
         {
-            renderTargets = new d3d12::Resource[frameCount];
+            frameData = new FrameData[frameCount];
             CD3DX12_CPU_DESCRIPTOR_HANDLE handle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
 
             for (UINT i = 0; i < frameCount; i++) {
-                if (HRESULT hr = swapchain->GetBuffer(i, IID_PPV_ARGS(&renderTargets[i])); FAILED(hr)) {
+                if (HRESULT hr = swapchain->GetBuffer(i, IID_PPV_ARGS(&frameData[i].renderTarget)); FAILED(hr)) {
                     render->fatal("failed to get buffer\n{}", to_string(hr));
                     return hr;
                 }
 
-                device->CreateRenderTargetView(renderTargets[i].get(), nullptr, handle);
+                device->CreateRenderTargetView(frameData[i].renderTarget.get(), nullptr, handle);
 
                 handle.Offset(1, rtvDescriptorSize);
-            }
-        }
 
-        if (HRESULT hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator)); FAILED(hr)) {
-            render->fatal("failed to create command allocator\n{}", to_string(hr));
-            return hr;
+                if (HRESULT hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frameData[i].commandAllocator)); FAILED(hr)) {
+                    render->fatal("failed to create frame allocator {}\n{}", i, to_string(hr));
+                    return hr;
+                }
+            }
         }
 
         return S_OK;
     }
 
     void Context::destroyCore() {
-        commandAllocator.tryDrop("command-allocator");
-        
         UINT remaining = 0;
         for (UINT i = 0; i < frameCount; i++) {
-            remaining = renderTargets[i].release(); // render targets all share a reference counter
+            auto data = frameData[i];
+            data.commandAllocator.tryDrop("frame-allocator");
+            remaining = data.renderTarget.release(); // render targets all share a reference counter
         }
-        delete[] renderTargets;
+        delete[] frameData;
         
         if (remaining != 0) {
             render->fatal("failed to release all render targets, {} references remaining", remaining);
@@ -263,7 +263,7 @@ namespace engine::render {
             };
         }
 
-        if (HRESULT hr = createCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocator, pipelineState, &commandList); FAILED(hr)) {
+        if (HRESULT hr = createCommandList(D3D12_COMMAND_LIST_TYPE_DIRECT, frameData[frameIndex].commandAllocator.get(), pipelineState, &commandList); FAILED(hr)) {
             render->fatal("failed to create command list\n{}", to_string(hr));
             return hr;
         }
@@ -277,7 +277,7 @@ namespace engine::render {
             render->fatal("failed to create fence\n{}", to_string(hr));
             return hr;
         }
-        fenceValue = 1;
+        frameData[frameIndex].fenceValue = 1;
 
         fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
         if (fenceEvent == nullptr) {
@@ -286,34 +286,15 @@ namespace engine::render {
             return hr;
         }
 
-        ImGui::CreateContext();
-        ImGui::GetIO();
-        ImGui::StyleColorsDark();
-
-        if (!ImGui_ImplWin32_Init(window->getHandle())) {
-            render->fatal("failed to initialize win32 imgui\n");
-            return E_FAIL;
-        }
-
-        if (!ImGui_ImplDX12_Init(
-            device.get(), 
-            frameCount,
-            DXGI_FORMAT_R8G8B8A8_UNORM,
-            srvHeap.get(),
-            srvHeap->GetCPUDescriptorHandleForHeapStart(),
-            srvHeap->GetGPUDescriptorHandleForHeapStart()
-        )) {
-            render->fatal("failed to initialize d3d12 imgui\n");
-            return E_FAIL;
+        if (HRESULT hr = waitForGpu(); FAILED(hr)) {
+            return hr;
         }
 
         return S_OK;
     }
 
     void Context::destroyAssets() {  
-        ImGui_ImplDX12_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-        ImGui::DestroyContext();
+        waitForGpu();
 
         vertexBuffer.tryDrop("vertex-buffer");
         pipelineState.tryDrop("pipeline-state");
@@ -325,22 +306,6 @@ namespace engine::render {
     }
 
     HRESULT Context::present() {
-        ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::ShowDemoWindow();
-
-        if (ImGui::Begin("tools")) {
-            if (ImGui::Button("reset device")) {
-                loseDevice();
-            }
-        }
-
-        ImGui::End();
-
-        ImGui::Render();
-
         if (HRESULT hr = populate(); FAILED(hr)) {
             return hr;
         }
@@ -352,7 +317,7 @@ namespace engine::render {
             return hr;
         }
 
-        if (HRESULT hr = waitForFrame(); FAILED(hr)) {
+        if (HRESULT hr = nextFrame(); FAILED(hr)) {
             return hr;
         }
 
@@ -360,12 +325,13 @@ namespace engine::render {
     }
 
     HRESULT Context::populate() {
-        if (HRESULT hr = commandAllocator->Reset(); FAILED(hr)) {
+        auto allocator = frameData[frameIndex].commandAllocator;
+        if (HRESULT hr = allocator->Reset(); FAILED(hr)) {
             render->fatal("failed to reset command allocator\n{}", to_string(hr));
             return hr;
         }
 
-        if (HRESULT hr = commandList->Reset(commandAllocator.get(), pipelineState.get()); FAILED(hr)) {
+        if (HRESULT hr = commandList->Reset(allocator.get(), pipelineState.get()); FAILED(hr)) {
             render->fatal("failed to reset command list\n{}", to_string(hr));
             return hr;
         }
@@ -374,14 +340,16 @@ namespace engine::render {
         commandList->RSSetViewports(1, &viewport);
         commandList->RSSetScissorRects(1, &scissor);
 
+        auto renderTarget = frameData[frameIndex].renderTarget.get();
+
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(
-            renderTargets[frameIndex].get(),
+            renderTarget,
             D3D12_RESOURCE_STATE_PRESENT,
             D3D12_RESOURCE_STATE_RENDER_TARGET
         );
 
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-            renderTargets[frameIndex].get(),
+            renderTarget,
             D3D12_RESOURCE_STATE_RENDER_TARGET,
             D3D12_RESOURCE_STATE_PRESENT
         );
@@ -395,8 +363,6 @@ namespace engine::render {
         commandList->OMSetRenderTargets(1, &handle, false, nullptr);
         commandList->SetDescriptorHeaps(1, &srvHeap);
 
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList.get());        
-        
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
         commandList->DrawInstanced(3, 1, 0, 0);
@@ -411,23 +377,44 @@ namespace engine::render {
         return S_OK;
     }
 
-    HRESULT Context::waitForFrame() {
-        UINT64 value = fenceValue;
+    HRESULT Context::nextFrame() {
+        auto& value = frameData[frameIndex].fenceValue;
         if (HRESULT hr = commandQueue->Signal(fence.get(), value); FAILED(hr)) {
             render->fatal("failed to signal fence\n{}", to_string(hr));
             return hr;
         }
-        fenceValue += 1;
 
-        if (fence->GetCompletedValue() < value) {
+        frameIndex = swapchain->GetCurrentBackBufferIndex();
+
+        auto current = frameData[frameIndex].fenceValue;
+
+        if (fence->GetCompletedValue() < current) {
             if (HRESULT hr = fence->SetEventOnCompletion(value, fenceEvent); FAILED(hr)) {
                 render->fatal("failed to set fence event\n{}", to_string(hr));
                 return hr;
             }
-            WaitForSingleObject(fenceEvent, INFINITE);
+            WaitForSingleObjectEx(fenceEvent, INFINITE, false);
         }
 
-        frameIndex = swapchain->GetCurrentBackBufferIndex();
+        value = current + 1;
+
+        return S_OK;
+    }
+
+    HRESULT Context::waitForGpu() {
+        UINT64 &value = frameData[frameIndex].fenceValue;
+        if (HRESULT hr = commandQueue->Signal(fence.get(), value); FAILED(hr)) {
+            render->fatal("failed to signal fence\n{}", to_string(hr));
+            return hr;
+        }
+
+        if (HRESULT hr = fence->SetEventOnCompletion(value, fenceEvent); FAILED(hr)) {
+            render->fatal("failed to set fence event\n{}", to_string(hr));
+            return hr;
+        }
+        WaitForSingleObject(fenceEvent, INFINITE);
+
+        value += 1;
 
         return S_OK;
     }
@@ -447,8 +434,6 @@ namespace engine::render {
     }
 
     Context createContext(Factory factory, system::Window *window, size_t adapter, UINT frameCount) {
-        IMGUI_CHECKVERSION();
-
         return Context(factory, adapter, window, frameCount);
     }
 }
