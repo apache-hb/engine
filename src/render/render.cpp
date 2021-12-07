@@ -20,9 +20,12 @@ namespace engine::render {
                 auto it = info.value();
 
                 auto callback = [](auto category, auto severity, auto id, auto msg, auto ctx) {
+                    if (id == D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE) { return; }
+
                     auto *log = reinterpret_cast<logging::Channel*>(ctx);
                     log->info("{}", msg);
                 };
+
                 DWORD cookie = 0;
                 if (HRESULT hr = it->RegisterMessageCallback(callback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, render, &cookie); FAILED(hr)) {
                     render->fatal("failed to register message callback\n{}", to_string(hr));
@@ -229,7 +232,6 @@ namespace engine::render {
                 { { 0.f, 0.25f * ratio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
                 { { 0.25f, -0.25f * ratio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
                 { { -0.25f, -0.25f * ratio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-                { { 0.25f, 0.25f * ratio, 0.f }, { 1.f, 1.f, 1.f, 1.f } }
             };
 
             const UINT vertexBufferSize = sizeof(verts);
@@ -329,6 +331,14 @@ namespace engine::render {
 
         ImGui::ShowDemoWindow();
 
+        if (ImGui::Begin("tools")) {
+            if (ImGui::Button("reset device")) {
+                loseDevice();
+            }
+        }
+
+        ImGui::End();
+
         ImGui::Render();
 
         if (HRESULT hr = populate(); FAILED(hr)) {
@@ -389,7 +399,7 @@ namespace engine::render {
         
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-        commandList->DrawInstanced(4, 1, 0, 0);
+        commandList->DrawInstanced(3, 1, 0, 0);
 
         commandList->ResourceBarrier(1, &toPresent);
 

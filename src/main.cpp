@@ -43,7 +43,6 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onKeyPress(int key) override {
-        context.loseDevice();
         channel->info("on-key-press: {}", key);
     }
 
