@@ -52,8 +52,8 @@ namespace engine::render {
             XMFLOAT4 offset;
         };
 
-        d3d12::Viewport viewport = d3d12::Viewport(0.f, 0.f);
-        d3d12::Scissor scissor = d3d12::Scissor(0, 0);
+        d3d12::Viewport sceneViewport = d3d12::Viewport(0.f, 0.f);
+        d3d12::Scissor sceneScissor = d3d12::Scissor(0, 0);
 
         d3d12::Device1 device;
         d3d12::CommandQueue commandQueue;

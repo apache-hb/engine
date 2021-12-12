@@ -15,7 +15,6 @@ struct MainWindow final : WindowCallbacks {
 
     virtual void onCreate(system::Window *ctx) override {
         window = ctx;
-        channel->info("on-create");
 
         auto factory = render::createFactory();
         context = render::createContext(factory.value(), ctx, 0, 2);
@@ -28,16 +27,18 @@ struct MainWindow final : WindowCallbacks {
     virtual void onDestroy() override {
         context.destroyAssets();
         context.destroyCore();
-        channel->info("on-destroy");
     }
 
     virtual void onKeyPress(int key) override {
         context.loseDevice();
-        channel->info("on-key-press: {}", key);
     }
 
     virtual void onKeyRelease(int key) override {
-        channel->info("on-key-release: {}", key);
+    
+    }
+
+    virtual void onClose() override {
+        channel->info("close prompt");
     }
 
     virtual void repaint() override {
@@ -61,6 +62,8 @@ private:
 };
 
 int commonMain(HINSTANCE instance, int show) {
+    system::init();
+
     channel->info("agility sdk {}", AGILITY ? "enabled" : "disabled");
     if (render::debug::enable() != S_OK) {
         return 99;
@@ -72,8 +75,15 @@ int commonMain(HINSTANCE instance, int show) {
 
     MainWindow callbacks;
 
-    auto window = system::createWindow(instance, TEXT("Hello world"), { 800, 600 }, &callbacks);
+    system::Window::Create create = {
+        .title = TEXT("Hello world"),
+        .size = { 800, 600 },
+        .style = system::Window::Style::BORDERLESS
+    };
+
+    auto window = system::createWindow(instance, create, &callbacks);
     if (!window) { return window.error(); }
+
     window.value().run(show);
 
     render::debug::report();

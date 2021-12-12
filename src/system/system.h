@@ -7,9 +7,23 @@
 
 namespace engine::system {
     struct Window {
+        using Size = std::tuple<LONG, LONG>;
+
+        enum class Style {
+            WINDOWED,
+            BORDERLESS
+        };
+
+        struct Create {
+            LPCTSTR title;
+            Size size;
+            Style style = Style::WINDOWED;
+        };
+
         struct Callbacks {
             virtual void onCreate(Window *ctx) { }
             virtual void onDestroy() { }
+            virtual void onClose() { }
             virtual void onKeyPress(int key) { }
             virtual void onKeyRelease(int key) { }
             virtual void repaint() { }
@@ -17,13 +31,12 @@ namespace engine::system {
 
         DWORD run(int show);
 
-        using Size = std::tuple<LONG, LONG>;
-
         win32::Result<RECT> getClientRect() const;
         win32::Result<Size> getClientSize() const;
         win32::Result<float> getClientAspectRatio() const;
 
         void popup(std::string_view title, std::string_view message);
+        void center();
 
         HWND getHandle() const { return handle; }
         LPCTSTR getName() const { return name; }
@@ -45,7 +58,7 @@ namespace engine::system {
         Callbacks *callbacks;
     };
 
-    win32::Result<Window> createWindow(HINSTANCE instance, LPCTSTR name, Window::Size size, Window::Callbacks *callbacks);
+    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks);
     void destroyWindow(Window &window);
 
     struct Stats {
@@ -56,4 +69,6 @@ namespace engine::system {
 
     std::vector<std::string> loadedModules();
     std::vector<std::string> detrimentalModules(const std::vector<std::string>& all);
+
+    void init();
 }

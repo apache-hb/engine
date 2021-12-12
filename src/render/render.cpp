@@ -79,8 +79,8 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        scissor = d3d12::Scissor(LONG(width), LONG(height));
-        viewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
+        sceneScissor = d3d12::Scissor(LONG(width), LONG(height));
+        sceneViewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
 
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
@@ -406,8 +406,8 @@ namespace engine::render {
         }
 
         commandList->SetGraphicsRootSignature(rootSignature.get());
-        commandList->RSSetViewports(1, &viewport);
-        commandList->RSSetScissorRects(1, &scissor);
+        commandList->RSSetViewports(1, &sceneViewport);
+        commandList->RSSetScissorRects(1, &sceneScissor);
 
         auto renderTarget = frameData[frameIndex].renderTarget.get();
 

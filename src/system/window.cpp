@@ -2,8 +2,6 @@
 
 #include "backends/imgui_impl_win32.h"
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
 namespace {
     LRESULT CALLBACK WindowHandleCallback(
         HWND hwnd,
@@ -12,36 +10,54 @@ namespace {
         LPARAM lparam
     )
     {
-        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
-            return true;
-
         auto *self = reinterpret_cast<engine::system::Window::Callbacks*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
         switch (msg) {
         case WM_CREATE: {
             LPCREATESTRUCT create = reinterpret_cast<LPCREATESTRUCT>(lparam);
             SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(create->lpCreateParams));
-            return 0;
+            break;
         }
 
         case WM_KEYDOWN:
             self->onKeyPress(static_cast<int>(wparam));
-            return 0;
+            break;
 
         case WM_KEYUP:
             self->onKeyRelease(static_cast<int>(wparam));
-            return 0;
+            break;
 
         case WM_PAINT:
             self->repaint();
-            return 0;
+            break;
 
         case WM_DESTROY:
             PostQuitMessage(0);
-            return 0;
+            break;
+
+        case WM_CLOSE:
+            self->onClose();
+            break;
 
         default:
-            return DefWindowProc(hwnd, msg, wparam, lparam);
+            break;
+        }
+
+        return DefWindowProc(hwnd, msg, wparam, lparam);
+    }
+
+    using WindowStyle = engine::system::Window::Style;
+
+    DWORD selectStyle(WindowStyle style) {
+        switch (style) {
+        case WindowStyle::BORDERLESS:
+            return WS_POPUP;
+
+        case WindowStyle::WINDOWED:
+            return WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX);
+
+        default:
+            return WS_OVERLAPPEDWINDOW;
         }
     }
 }
@@ -98,7 +114,10 @@ namespace engine::system {
         return 0;
     }
 
-    win32::Result<Window> createWindow(HINSTANCE instance, LPCTSTR name, Window::Size size, Window::Callbacks *callbacks) {
+    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks) {
+        auto name = create.title;
+        auto [width, height] = create.size;
+
         WNDCLASSEX wc = {
             .cbSize = sizeof(WNDCLASSEX),
             .style = CS_HREDRAW | CS_VREDRAW,
@@ -108,21 +127,21 @@ namespace engine::system {
             .lpszClassName = name
         };
 
-        auto [width, height] = size;
         RECT rect = { .right = width, .bottom = height };
         
         if (RegisterClassEx(&wc) == 0) {
             return fail(GetLastError());
         }
 
-        if (AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false) == 0) {
+        // disable resizing and maximizing
+        auto style = selectStyle(create.style);
+
+        if (AdjustWindowRect(&rect, style, false) == 0) {
             return fail(GetLastError());
         }
 
-        auto style = WS_OVERLAPPEDWINDOW; // WS_MAXIMIZE | WS_POPUP;
-
         HWND handle = CreateWindow(
-            name, name, 
+            name, name,
             style,
             CW_USEDEFAULT, CW_USEDEFAULT,
             width, height,

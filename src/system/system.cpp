@@ -48,4 +48,8 @@ namespace engine::system {
 
         return result;
     }
+
+    void init() {
+        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
 }
