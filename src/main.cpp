@@ -73,6 +73,10 @@ int commonMain(HINSTANCE instance, int show) {
     if (!stats) { return stats.error(); }
     channel->info("{}", stats.value().name);
 
+    for (const auto &display : system::displays()) {
+        channel->info("display {}: {}", display.name(), display.desc());
+    }
+
     MainWindow callbacks;
 
     system::Window::Create create = {

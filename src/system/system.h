@@ -70,5 +70,18 @@ namespace engine::system {
     std::vector<std::string> loadedModules();
     std::vector<std::string> detrimentalModules(const std::vector<std::string>& all);
 
+    struct Display {
+        using Self = DISPLAY_DEVICEA;
+        Display(Self device) : device(device) { }
+
+        std::string_view name() const { return device.DeviceName; }
+        std::string_view desc() const { return device.DeviceString; }
+
+    private:
+        Self device;
+    };
+
+    std::vector<Display> displays();
+
     void init();
 }
