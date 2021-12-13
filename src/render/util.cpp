@@ -1,5 +1,7 @@
 #include "util.h"
 
+#include "util/strings.h"
+
 #include <comdef.h>
 #include <d3dcompiler.h>
 
@@ -9,11 +11,17 @@ namespace engine::render {
     std::string to_string(HRESULT hr) {
         _com_error err(hr);
         auto str = err.ErrorMessage();
-        auto len = wcslen(str);
-        std::string out(len, ' ');
-        auto res = wcstombs(out.data(), str, len);
-        out.resize(res);
-        return out;
+        return strings::encode(str);
+    }
+
+    Result<Display> createDisplay(dxgi::Output output) {
+        dxgi::OutputDesc desc;
+        if (HRESULT hr = output->GetDesc(&desc); FAILED(hr)) {
+            render->fatal("failed to get output description\n{}", to_string(hr));
+            return fail(hr);
+        }
+
+        return pass(Display { output, desc });
     }
 
     Result<Adapter> createAdapter(dxgi::Adapter1 adapter) {
@@ -24,7 +32,16 @@ namespace engine::render {
             return fail(hr);
         }
 
-        return pass(Adapter{ adapter, desc });
+        std::vector<Display> displays;
+
+        dxgi::Output output;
+        for (UINT i = 0; adapter->EnumOutputs(i, &output) != DXGI_ERROR_NOT_FOUND; i++) {
+            auto display = createDisplay(output);
+            if (!display) { return display.forward(); }
+            displays.push_back(display.value());
+        }
+
+        return pass(Adapter{ adapter, desc, displays });
     }
 
 #if D3D12_DEBUG

@@ -27,6 +27,10 @@ namespace engine::logging {
         }
     }
 
+    void Channel::send(Level report, std::wstring_view message) {
+        
+    }
+
     void Channel::infof(const char *message, ...) {
         va_list args;
         va_start(args, message);

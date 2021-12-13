@@ -91,6 +91,9 @@ namespace engine::render {
         using Adapter1 = Com<IDXGIAdapter1>;
         using AdapterDesc1 = DXGI_ADAPTER_DESC1;
 
+        using Output = Com<IDXGIOutput>;
+        using OutputDesc = DXGI_OUTPUT_DESC;
+
         using SwapChain1 = Com<IDXGISwapChain1>;
         using SwapChain3 = Com<IDXGISwapChain3>;
     }
@@ -130,11 +133,19 @@ namespace engine::render {
         };
     }
 
+    struct Display {
+        auto get() { return output.get(); }
+
+        dxgi::Output output;
+        dxgi::OutputDesc desc;
+    };
+
     struct Adapter {
         auto get() { return adapter.get(); }
 
         dxgi::Adapter1 adapter;
         dxgi::AdapterDesc1 desc;
+        std::vector<Display> outputs;
     };
 
     Result<Adapter> createAdapter(dxgi::Adapter1 adapter);

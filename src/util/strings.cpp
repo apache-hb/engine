@@ -58,4 +58,11 @@ namespace engine::strings {
 
         return result;
     }
+
+    std::string encode(std::wstring_view str) {
+        std::string result(str.size(), '\0');
+        auto res = wcstombs(result.data(), str.data(), str.size());
+        result.resize(res);
+        return result;
+    }
 }

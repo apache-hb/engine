@@ -16,8 +16,17 @@ struct MainWindow final : WindowCallbacks {
     virtual void onCreate(system::Window *ctx) override {
         window = ctx;
 
-        auto factory = render::createFactory();
-        context = render::createContext(factory.value(), ctx, 0, 2);
+        auto factory = render::createFactory().value();
+        for (const auto &adapter : factory.adapters) {
+            auto name = strings::encode(adapter.desc.Description);
+            channel->info("adapter: {}", name);
+            for (const auto &output : adapter.outputs) {
+                auto desc = strings::encode(output.desc.DeviceName);
+                channel->info("\toutput: {}", desc);
+            }
+        }
+
+        context = render::createContext(factory, ctx, 0, 2);
         context.createCore();
         context.createAssets();
     
