@@ -64,6 +64,10 @@ private:
 int commonMain(HINSTANCE instance, int show) {
     system::init();
 
+    if (auto err = logging::ConsoleChannel::init(); err) {
+        channel->info("ConsoleChannel::init() = %d", err);
+    }
+
     channel->info("agility sdk {}", AGILITY ? "enabled" : "disabled");
     if (render::debug::enable() != S_OK) {
         return 99;
