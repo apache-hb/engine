@@ -6,10 +6,14 @@ project('engine', [ 'c', 'cpp' ],
 )
 
 src = [ 
-    'src/util/error.ixx',
-    'src/util/timer.ixx',
-    'src/util/units.ixx',
-    'src/util/strings.ixx',
+    'src/render/util.cpp',
+    'src/render/render.cpp',
+    'src/util/strings.cpp',
+    'src/util/units.cpp',
+    'src/util/timer.cpp',
+    'src/system/window.cpp',
+    'src/system/system.cpp',
+    'src/logging/log.cpp',
     'src/main.cpp'
 ]
 
@@ -28,11 +32,11 @@ else
     args += [ '-DD3D12_DEBUG=0' ]
 endif
 
-deps = []
+deps = [ subproject('imgui').get_variable('imgui_dep') ]
 
 executable('engine', src,
     include_directories : 'src',
-    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib', 'dxva2.lib' ],
+    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib' ],
     cpp_args : args,
     dependencies : deps,
     win_subsystem : 'console'
