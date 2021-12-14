@@ -1,10 +1,13 @@
-#include "strings.h"
-
+#include <vector>
+#include <string>
+#include <string_view>
+#include <span>
+#include <sstream>
 #include <stdarg.h>
 
-#include <sstream>
+export module engine.util.strings;
 
-namespace engine::strings {
+export namespace engine::strings {
     std::string join(std::span<std::string> parts, std::string_view sep) {
         std::stringstream ss;
         for (size_t i = 0; i < parts.size(); i++) {
@@ -12,17 +15,6 @@ namespace engine::strings {
             ss << parts[i];
         }
         return ss.str();
-    }
-
-    std::string cformat(const char *fmt, ...) {
-        va_list args;
-        va_start(args, fmt);
-
-        auto result = cformatv(fmt, args);
-
-        va_end(args);
-
-        return result;
     }
 
     std::string cformatv(const char *fmt, va_list args) {
@@ -38,6 +30,17 @@ namespace engine::strings {
         result.resize(used);
 
         va_end(again);
+
+        return result;
+    }
+
+    std::string cformat(const char *fmt, ...) {
+        va_list args;
+        va_start(args, fmt);
+
+        auto result = cformatv(fmt, args);
+
+        va_end(args);
 
         return result;
     }

@@ -49,20 +49,6 @@ namespace engine::system {
         return result;
     }
 
-    std::vector<Display> displays() {
-        std::vector<Display> result;
-
-        DISPLAY_DEVICEA device = { .cb = sizeof(DISPLAY_DEVICEA) };
-
-        DWORD index = 0;
-        while (EnumDisplayDevicesA(nullptr, index, &device, 0)) {
-            result.push_back(Display(device));
-            index += 1;
-        }
-
-        return result;
-    }
-
     void init() {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }

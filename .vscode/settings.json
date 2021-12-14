@@ -59,6 +59,8 @@
         "xlocinfo": "cpp",
         "xtree": "cpp",
         "deque": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "source_location": "cpp",
+        "*.ixx": "cpp"
     }
 }

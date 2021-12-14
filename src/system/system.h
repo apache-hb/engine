@@ -14,19 +14,20 @@ namespace engine::system {
             BORDERLESS
         };
 
-        struct Create {
-            LPCTSTR title;
-            Size size;
-            Style style = Style::WINDOWED;
-        };
-
         struct Callbacks {
             virtual void onCreate(Window *ctx) { }
             virtual void onDestroy() { }
-            virtual void onClose() { }
+            virtual bool shouldClose() { return true; }
             virtual void onKeyPress(int key) { }
             virtual void onKeyRelease(int key) { }
             virtual void repaint() { }
+        };
+
+        struct Create {
+            LPCTSTR title;
+            RECT rect;
+            Style style = Style::WINDOWED;
+            Callbacks *callbacks;
         };
 
         DWORD run(int show);
@@ -58,7 +59,7 @@ namespace engine::system {
         Callbacks *callbacks;
     };
 
-    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks);
+    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create);
     void destroyWindow(Window &window);
 
     struct Stats {
@@ -80,8 +81,6 @@ namespace engine::system {
     private:
         Self device;
     };
-
-    std::vector<Display> displays();
 
     void init();
 }

@@ -36,7 +36,9 @@ namespace {
             break;
 
         case WM_CLOSE:
-            self->onClose();
+            if (self->shouldClose()) {
+                DestroyWindow(hwnd);
+            }
             break;
 
         default:
@@ -114,9 +116,15 @@ namespace engine::system {
         return 0;
     }
 
-    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks) {
+    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create) {
+        auto callbacks = create.callbacks;
         auto name = create.title;
-        auto [width, height] = create.size;
+        auto rect = create.rect;
+
+        auto x = rect.left;
+        auto y = rect.top;
+        auto width = rect.right - rect.left;
+        auto height = rect.bottom - rect.top;
 
         WNDCLASSEX wc = {
             .cbSize = sizeof(WNDCLASSEX),
@@ -127,8 +135,6 @@ namespace engine::system {
             .lpszClassName = name
         };
 
-        RECT rect = { .right = width, .bottom = height };
-        
         if (RegisterClassEx(&wc) == 0) {
             return fail(GetLastError());
         }
@@ -136,15 +142,10 @@ namespace engine::system {
         // disable resizing and maximizing
         auto style = selectStyle(create.style);
 
-        if (AdjustWindowRect(&rect, style, false) == 0) {
-            return fail(GetLastError());
-        }
-
         HWND handle = CreateWindow(
             name, name,
             style,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            width, height,
+            x, y, width, height,
             nullptr, nullptr,
             instance, callbacks
         );
