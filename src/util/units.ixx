@@ -44,7 +44,8 @@ export namespace engine {
 
     private:
         std::string format_memory(Memory::Unit most) const {
-            size_t total = bytes, gb = SIZE_MAX, mb = SIZE_MAX, kb = SIZE_MAX;
+            constexpr size_t max = std::numeric_limits<size_t>::max();
+            size_t total = bytes, gb = max, mb = max, kb = max;
             std::vector<std::string> parts;
             
             switch (most) {

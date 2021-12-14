@@ -13,7 +13,7 @@ src = [
     'src/main.cpp'
 ]
 
-args = [ '-DUNICODE=1' ]
+args = [ '-DUNICODE=1', '/stdIfcDir', 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.30.30705\\ifc\\x64' ]
 
 if get_option('agility-sdk').enabled()
     src += [ 'src/render/agility.cpp' ]
