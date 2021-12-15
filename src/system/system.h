@@ -6,6 +6,8 @@
 #include "util/units.h"
 
 namespace engine::system {
+    RECT rectCoords(LONG x, LONG y, LONG width, LONG height);
+
     struct Window {
         using Size = std::tuple<LONG, LONG>;
 
@@ -16,14 +18,14 @@ namespace engine::system {
 
         struct Create {
             LPCTSTR title;
-            Size size;
+            RECT rect;
             Style style = Style::WINDOWED;
         };
 
         struct Callbacks {
             virtual void onCreate(Window *ctx) { }
             virtual void onDestroy() { }
-            virtual void onClose() { }
+            virtual bool onClose() { return true; }
             virtual void onKeyPress(int key) { }
             virtual void onKeyRelease(int key) { }
             virtual void repaint() { }

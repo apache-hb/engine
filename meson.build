@@ -14,6 +14,7 @@ src = [
     'src/system/window.cpp',
     'src/system/system.cpp',
     'src/logging/log.cpp',
+    'src/input/inputx.cpp',
     'src/main.cpp'
 ]
 
@@ -32,12 +33,17 @@ else
     args += [ '-DD3D12_DEBUG=0' ]
 endif
 
-deps = [ subproject('imgui').get_variable('imgui_dep') ]
+links = [ 
+    'd3d12.lib', 
+    'dxgi.lib', 
+    'dxguid.lib', 
+    'd3dcompiler.lib',
+    'xinput.lib'
+]
 
 executable('engine', src,
     include_directories : 'src',
-    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'd3dcompiler.lib' ],
+    link_args : links,
     cpp_args : args,
-    dependencies : deps,
     win_subsystem : 'console'
 )

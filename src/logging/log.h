@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <windows.h>
 
-namespace engine::logging {
+namespace engine::log {
     enum Level {
         INFO,
         WARN,
@@ -22,15 +22,6 @@ namespace engine::logging {
         virtual ~Channel() { }
 
         void log(Level report, std::string_view message);
-
-        template<typename F>
-        Channel *ensure(bool success, std::string_view message, F &&func) {
-            if (!success) { 
-                fatal("assert: {}", message);
-                func();
-            }
-            return this;
-        }
 
         template<typename... A>
         void info(std::string_view message, A&&... args) {
@@ -52,7 +43,6 @@ namespace engine::logging {
         void fatalf(const char *message, ...);
 
         virtual void send(Level report, std::string_view message) = 0;
-        virtual void send(Level report, std::wstring_view message);
 
     protected:
         std::string_view channel() const { return name; }
@@ -75,4 +65,7 @@ namespace engine::logging {
     private:
         FILE *file;
     };
+
+    extern Channel *global;
+    extern Channel *render;
 }

@@ -3,6 +3,11 @@
 #include <psapi.h>
 
 namespace engine::system {
+    RECT rectCoords(LONG x, LONG y, LONG width, LONG height) {
+        RECT rect = { x, y, x + width, y + height };
+        return rect;
+    }
+    
     win32::Result<Stats> getStats() {
         std::string name(MAX_COMPUTERNAME_LENGTH + 1, ' ');
         DWORD size = MAX_COMPUTERNAME_LENGTH + 1;

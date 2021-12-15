@@ -14,7 +14,7 @@
 #define CYAN "\x1b[0;36m"
 #define WHITE "\x1b[0;37m"
 
-namespace engine::logging {
+namespace engine::log {
     void Channel::log(Level report, std::string_view message) {
         if (report < level) { return; }
         
@@ -25,10 +25,6 @@ namespace engine::logging {
                 send(report, part);
             }
         }
-    }
-
-    void Channel::send(Level report, std::wstring_view message) {
-        
     }
 
     void Channel::infof(const char *message, ...) {
@@ -83,4 +79,7 @@ namespace engine::logging {
 
         return 0;
     }
+
+    Channel *global = new ConsoleChannel("global", stdout);
+    Channel *render = new ConsoleChannel("render", stdout);
 }
