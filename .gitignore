@@ -1,4 +1,4 @@
 build*/
-.vscode
 *.pdb
 imgui.ini
+.vscode/settings.json
