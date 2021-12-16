@@ -73,6 +73,11 @@
         "numeric": "cpp",
         "random": "cpp",
         "fstream": "cpp",
-        "numbers": "cpp"
+        "numbers": "cpp",
+        "chrono": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "ratio": "cpp",
+        "stop_token": "cpp"
     }
 }

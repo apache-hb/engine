@@ -74,8 +74,8 @@ int runEngine(HINSTANCE instance, int show) {
 
     system::Window::Create create = {
         .title = TEXT("Hello world!"),
-        .rect = system::rectCoords(0, 0, 800, 600),
-        .style = system::Window::Style::WINDOWED
+        .rect = system::rectCoords(0, 0, 1920 * 2, 1080 * 2),
+        .style = system::Window::Style::BORDERLESS
     };
 
     auto window = system::createWindow(instance, create, &callbacks);

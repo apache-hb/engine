@@ -9,7 +9,6 @@ src = [
     'src/render/util.cpp',
     'src/render/render.cpp',
     'src/render/debug.cpp',
-    'src/render/camera.cpp',
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/timer.cpp',

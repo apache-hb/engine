@@ -40,6 +40,10 @@ namespace engine::render {
 
         static Com<T> invalid() { return Com<T>(nullptr); }
 
+        void rename(std::wstring_view name) {
+            self->SetName(name.data());
+        }
+
         operator bool() const { return self != nullptr; }
         bool valid() const { return self != nullptr; }
 

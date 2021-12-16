@@ -1,7 +1,6 @@
 #pragma once
 
 #include "util.h"
-#include "camera.h"
 #include "system/system.h"
 
 namespace engine::render {
@@ -39,8 +38,6 @@ namespace engine::render {
         void destroyAssets();
 
         void present();
-
-        Camera camera;
 
     private:
         void attachInfoQueue();
@@ -85,8 +82,8 @@ namespace engine::render {
         Com<ID3D12Resource> vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 
-        Com<ID3D12Resource> constBuffer;
-        Camera::ConstBuffer *constBufferPtr;
+        Com<ID3D12Resource> indexBuffer;
+        D3D12_INDEX_BUFFER_VIEW indexBufferView;
 
         /// frame data
         Frame *frames;

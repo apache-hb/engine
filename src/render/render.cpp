@@ -13,6 +13,8 @@ namespace engine::render {
 
         check(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)), "failed to create device");
     
+        device.rename(L"d3d12-device");
+
         attachInfoQueue();
 
         {
@@ -22,6 +24,8 @@ namespace engine::render {
             };
 
             check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)), "failed to create command queue");
+
+            queue.rename(L"d3d12-queue");
         }
 
         {
@@ -59,6 +63,8 @@ namespace engine::render {
             check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtvHeap)), "failed to create RTV descriptor heap");
 
             rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+            rtvHeap.rename(L"d3d12-rtv-heap");
         }
 
         {
@@ -69,6 +75,8 @@ namespace engine::render {
             };
 
             check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&cbvHeap)), "failed to create CBV descriptor heap");
+
+            cbvHeap.rename(L"d3d12-cbv-heap");
         }
 
         frames = new Frame[frameCount];
@@ -85,6 +93,9 @@ namespace engine::render {
 
                 handle.Offset(1, rtvDescriptorSize);
                 frame.fenceValue = 0;
+
+                frame.allocator.rename(std::format(L"frame-allocator-{}", i));
+                frame.target.rename(std::format(L"frame-target-{}", i));
             }
         }
     }
@@ -107,20 +118,8 @@ namespace engine::render {
     void Context::createAssets() {
         auto version = rootVersion();
         {
-            auto flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-                         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-                         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-                         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-                         D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-
-            CD3DX12_DESCRIPTOR_RANGE1 range;
-            CD3DX12_ROOT_PARAMETER1 parameter;
-
-            range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-            parameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
-
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(1, &parameter, 0, nullptr, flags);
+            desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
         
             Com<ID3DBlob> signature;
             Com<ID3DBlob> error;
@@ -131,6 +130,8 @@ namespace engine::render {
             }
 
             check(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)), "failed to create root signature");
+        
+            rootSignature.rename(L"d3d12-root-signature");
         }
 
         {
@@ -153,23 +154,29 @@ namespace engine::render {
                 .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
                 .NumRenderTargets = 1,
                 .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+                .DSVFormat = DXGI_FORMAT_D32_FLOAT,
                 .SampleDesc = { 1 }
             };
 
             check(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState)), "failed to create graphics pipeline state");
+        
+            pipelineState.rename(L"d3d12-pipeline-state");
         }
 
         check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, getAllocator().get(), pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
         check(commandList->Close(), "failed to close command list");
+
+        commandList.rename(L"d3d12-command-list");
 
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
         {
             auto aspect = create.window->getClientAspectRatio();
             Vertex verts[] = {
-                { { 0.0f, 0.25f * aspect, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-                { { 0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-                { { -0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+                { { -0.25f, 0.25f * aspect, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // top left
+                { { 0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } }, // bottom right
+                { { -0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // bottom left
+                { { 0.25f, 0.25f * aspect, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } } // top right
             };
 
             const UINT vertexBufferSize = sizeof(verts);
@@ -193,27 +200,38 @@ namespace engine::render {
                 .SizeInBytes = vertexBufferSize,
                 .StrideInBytes = sizeof(Vertex)
             };
+
+            vertexBuffer.rename(L"d3d12-vertex-buffer");
         }
 
         {
-            const UINT constBufferSize = sizeof(Camera::ConstBuffer);
-            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(constBufferSize);
+            DWORD indicies[] = {
+                0, 1, 2, // first triangle
+                0, 3, 1 // second triangle
+            };
+
+            UINT indexBufferSize = sizeof(indicies);
+            const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
 
             HRESULT hr = device->CreateCommittedResource(
                 &upload, D3D12_HEAP_FLAG_NONE,
                 &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr, IID_PPV_ARGS(&constBuffer)
+                nullptr, IID_PPV_ARGS(&indexBuffer)
             );
-            check(hr, "failed to create constant buffer");
+            check(hr, "failed to create index buffer");
 
-            D3D12_CONSTANT_BUFFER_VIEW_DESC view = {
-                .BufferLocation = constBuffer->GetGPUVirtualAddress(),
-                .SizeInBytes = constBufferSize
-            };
-            device->CreateConstantBufferView(&view, cbvHeap->GetCPUDescriptorHandleForHeapStart());
-
+            void *indexBufferPtr;
             CD3DX12_RANGE readRange(0, 0);
-            check(constBuffer->Map(0, &readRange, reinterpret_cast<void**>(&constBufferPtr)), "failed to map constant buffer");
+            check(indexBuffer->Map(0, &readRange, &indexBufferPtr), "failed to map index buffer");
+            memcpy(indexBufferPtr, indicies, indexBufferSize);
+            indexBuffer->Unmap(0, nullptr);
+
+            indexBufferView = {
+                .BufferLocation = indexBuffer->GetGPUVirtualAddress(),
+                .SizeInBytes = indexBufferSize,
+                .Format = DXGI_FORMAT_R32_UINT
+            };
         }
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -228,7 +246,7 @@ namespace engine::render {
     void Context::destroyAssets() {
         waitForGPU();
 
-        constBuffer.tryDrop("const-buffer");
+        indexBuffer.tryDrop("index-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
         rootSignature.tryDrop("root-signature");
         pipelineState.tryDrop("pipeline-state");
@@ -260,7 +278,8 @@ namespace engine::render {
         commandList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-        commandList->DrawInstanced(3, 1, 0, 0);
+        commandList->IASetIndexBuffer(&indexBufferView);
+        commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
         commandList->ResourceBarrier(1, &toPresent);
 
@@ -268,7 +287,6 @@ namespace engine::render {
     }
 
     void Context::present() {
-        camera.write(constBufferPtr, XM_PI / 3.f, aspect);
         populate();
 
         ID3D12CommandList* lists[] = { commandList.get() };

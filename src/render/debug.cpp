@@ -15,7 +15,9 @@ namespace engine::render::debug {
             log::render->warn("failed to get D3D12 debug interface: {}", to_string(hr));
         }
         
-        if (d3dDebug) { d3dDebug->EnableDebugLayer(); }
+        if (d3dDebug) { 
+            d3dDebug->EnableDebugLayer();
+        }
     }
 
     void disable() {
