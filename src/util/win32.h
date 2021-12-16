@@ -5,7 +5,26 @@
 
 #include "error.h"
 
+#include <format>
+
 namespace engine::win32 {
-    template<typename T>
-    using Result = engine::Result<T, DWORD>;
+    std::string to_string(DWORD err);
+    
+    struct Error : engine::Error {
+        Error(std::string message = "", std::source_location location = std::source_location::current())
+            : Error(GetLastError(), message, location)
+        { }
+
+        Error(DWORD code, std::string message = "", std::source_location location = std::source_location::current())
+            : engine::Error(message, location)
+            , code(code)
+        { }
+
+        virtual std::string query() const { return std::format("win32(%d) %s", error(), what()); }
+
+        DWORD error() const { return code; }
+
+    private:
+        DWORD code;
+    };
 }

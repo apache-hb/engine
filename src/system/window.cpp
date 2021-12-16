@@ -64,34 +64,30 @@ namespace {
 
 namespace engine::system {
     void Window::popup(std::string_view title, std::string_view message) {
-        MessageBoxA(handle, message.data(), title.data(), MB_ICONWARNING | MB_OK);
+        if (!MessageBoxA(handle, message.data(), title.data(), MB_ICONWARNING | MB_OK)) {
+            throw win32::Error("MessageBoxA");
+        }
     }
 
-    win32::Result<RECT> Window::getClientRect() const {
+    RECT Window::getClientRect() const {
         RECT rect;
         if (!GetClientRect(handle, &rect)) {
-            return fail(GetLastError());
+            throw win32::Error("GetClientRect");
         }
-        return pass(rect);
+        return rect;
     }
 
-    win32::Result<Window::Size> Window::getClientSize() const {
-        auto result = getClientRect();
-        if (!result) { return result.forward(); }
-
-        auto rect = result.value();
+    Window::Size Window::getClientSize() const {
+        auto rect = getClientRect();
         auto width = rect.right - rect.left;
         auto height = rect.bottom - rect.top;
 
-        return pass(Window::Size(width, height));
+        return Window::Size(width, height);
     }
 
-    win32::Result<float> Window::getClientAspectRatio() const {
-        auto result = getClientSize();
-        if (!result) { return result.forward(); }
-
-        auto [width, height] = result.value();
-        return pass(float(width) / float(height));
+    float Window::getClientAspectRatio() const {
+        auto [width, height] = getClientSize();
+        return float(width) / float(height);
     }
 
     DWORD Window::run(int show) {
@@ -114,7 +110,7 @@ namespace engine::system {
         return 0;
     }
 
-    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks) {
+    Window createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks) {
         auto name = create.title;
         auto rect = create.rect;
         auto x = rect.left;
@@ -132,7 +128,7 @@ namespace engine::system {
         };
 
         if (RegisterClassEx(&wc) == 0) {
-            return fail(GetLastError());
+            throw win32::Error("RegisterClassEx");
         }
 
         // disable resizing and maximizing
@@ -148,10 +144,10 @@ namespace engine::system {
         );
 
         if (handle == nullptr) {
-            return fail(GetLastError());
+            throw win32::Error("CreateWindow");
         }
 
-        return pass(Window(instance, name, handle, callbacks));
+        return Window(instance, name, handle, callbacks);
     }
 
     void destroyWindow(Window &window) {

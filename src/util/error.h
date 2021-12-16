@@ -2,56 +2,27 @@
 
 #include <string>
 #include <string_view>
+#include <source_location>
 
 namespace engine {
-    template<typename T>
-    struct Ok { 
-        T value; 
-    };
-
-    template<typename E>
-    struct Error { 
-        E error; 
-    };
-
-    template<typename T, typename E>
-    struct Result {
-        Result(Ok<T>&& value) 
-            : pass(true)
-            , val(value.value) 
+    struct Error {
+        Error(std::string message = "", std::source_location location = std::source_location::current())
+            : message(message)
+            , location(location)
         { }
 
-        Result(Error<E>&& error) 
-            : pass(false)
-            , err(error.error) 
-        { }
+        virtual std::string query() const { return std::string(message); }
 
-        ~Result() {
-            if (pass) { val.~T(); } 
-            else { err.~E(); }
-        }
+        std::string_view what() const { return message; }
+        std::source_location where() const { return location; }
 
-        operator bool() const { return pass; }
-        bool valid() const { return pass; }
+        auto line() const { return location.line(); }
+        auto column() const { return location.column(); }
 
-        T value() const { return val; }
-        E error() const { return err; }
-
-        T *operator->() { return &val; }
-
-        Error<E> forward() const { return Error<E>{ err }; }
-
+        auto file() const { return location.file_name(); }
+        auto function() const { return location.function_name(); }
     private:
-        bool pass;
-        union {
-            T val;
-            E err;
-        };
+        std::string message;
+        std::source_location location;
     };
-
-    template<typename T>
-    Ok<T> pass(T value) { return Ok<T>{ value }; }
-
-    template<typename E>
-    Error<E> fail(E error) { return Error<E>{ error }; }
 }

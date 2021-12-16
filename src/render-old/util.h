@@ -19,9 +19,6 @@
 namespace engine::render {
     using namespace DirectX;
 
-    template<typename T>
-    using Result = engine::Result<T, HRESULT>;
-
     std::string to_string(HRESULT hr);
     
     namespace debug {
@@ -65,15 +62,15 @@ namespace engine::render {
         auto release() { return self->Release(); }
 
         template<typename O>
-        Result<O> as() {
+        O as() {
             using Other = typename O::Self;
 
             Other *other = nullptr;
             if (HRESULT hr = self->QueryInterface(IID_PPV_ARGS(&other)); FAILED(hr)) {
-                return fail(hr);
+                return O(nullptr);
             }
 
-            return pass(O(other));
+            return O(other);
         }
     private:
         T *self;
@@ -146,7 +143,7 @@ namespace engine::render {
         std::vector<Display> outputs;
     };
 
-    Result<Adapter> createAdapter(dxgi::Adapter1 adapter);
+    Adapter createAdapter(dxgi::Adapter1 adapter);
 
     struct Factory {
         auto operator->() { return factory.get(); }
@@ -157,5 +154,5 @@ namespace engine::render {
         bool tearing;
     };
 
-    Result<Factory> createFactory();
+    Factory createFactory();
 }

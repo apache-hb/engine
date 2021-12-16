@@ -59,6 +59,20 @@
         "xlocinfo": "cpp",
         "xtree": "cpp",
         "deque": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "string_view": "cpp",
+        "optional": "cpp",
+        "source_location": "cpp",
+        "*.tcc": "cpp",
+        "cstdarg": "cpp",
+        "cwctype": "cpp",
+        "set": "cpp",
+        "unordered_map": "cpp",
+        "functional": "cpp",
+        "memory_resource": "cpp",
+        "numeric": "cpp",
+        "random": "cpp",
+        "fstream": "cpp",
+        "numbers": "cpp"
     }
 }

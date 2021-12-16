@@ -33,12 +33,11 @@ namespace engine::system {
 
         DWORD run(int show);
 
-        win32::Result<RECT> getClientRect() const;
-        win32::Result<Size> getClientSize() const;
-        win32::Result<float> getClientAspectRatio() const;
+        RECT getClientRect() const;
+        Size getClientSize() const;
+        float getClientAspectRatio() const;
 
         void popup(std::string_view title, std::string_view message);
-        void center();
 
         HWND getHandle() const { return handle; }
         LPCTSTR getName() const { return name; }
@@ -60,14 +59,14 @@ namespace engine::system {
         Callbacks *callbacks;
     };
 
-    win32::Result<Window> createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks);
+    Window createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks);
     void destroyWindow(Window &window);
 
     struct Stats {
         std::string name;
     };
 
-    win32::Result<Stats> getStats();
+    Stats getStats();
 
     std::vector<std::string> loadedModules();
     std::vector<std::string> detrimentalModules(const std::vector<std::string>& all);

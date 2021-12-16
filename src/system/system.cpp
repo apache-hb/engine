@@ -8,16 +8,16 @@ namespace engine::system {
         return rect;
     }
     
-    win32::Result<Stats> getStats() {
+    Stats getStats() {
         std::string name(MAX_COMPUTERNAME_LENGTH + 1, ' ');
         DWORD size = MAX_COMPUTERNAME_LENGTH + 1;
 
-        if (GetComputerNameA(name.data(), &size)) {
-            name.resize(size);
-            return pass(Stats{ name });
+        if (!GetComputerNameA(name.data(), &size)) {
+            throw win32::Error("GetComputerNameA");
         }
 
-        return fail(GetLastError());
+        name.resize(size);
+        return Stats { name };
     }
 
     std::vector<std::string> loadedModules() {
@@ -35,7 +35,9 @@ namespace engine::system {
 
         for (size_t i = 0; i < modules.size(); i++) {
             char name[MAX_PATH];
-            GetModuleFileNameA(modules[i], name, MAX_PATH);
+            if (!GetModuleFileNameA(modules[i], name, MAX_PATH)) {
+                throw win32::Error("GetModuleFileNameA");
+            }
             paths[i] = name;
         }
 
@@ -69,6 +71,8 @@ namespace engine::system {
     }
 
     void init() {
-        SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
+            throw win32::Error("SetProcessDpiAwarenessContext");
+        }
     }
 }
