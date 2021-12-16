@@ -213,8 +213,7 @@ namespace engine::render {
             device->CreateConstantBufferView(&view, cbvHeap->GetCPUDescriptorHandleForHeapStart());
 
             CD3DX12_RANGE readRange(0, 0);
-            check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
-            memcpy(constBufferPtr, &camera.buffer, constBufferSize);
+            check(constBuffer->Map(0, &readRange, reinterpret_cast<void**>(&constBufferPtr)), "failed to map constant buffer");
         }
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -269,7 +268,7 @@ namespace engine::render {
     }
 
     void Context::present() {
-        memcpy(constBufferPtr, &camera.buffer, sizeof(Camera::ConstBuffer));
+        camera.write(constBufferPtr, XM_PI / 3.f, aspect);
         populate();
 
         ID3D12CommandList* lists[] = { commandList.get() };

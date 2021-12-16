@@ -70,6 +70,7 @@ namespace engine::render {
         Com<ID3D12Device> device;
         Com<ID3D12CommandQueue> queue;
         Com<IDXGISwapChain3> swapchain;
+        float aspect;
 
         Com<ID3D12RootSignature> rootSignature;
         Com<ID3D12PipelineState> pipelineState;
@@ -85,7 +86,7 @@ namespace engine::render {
         D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 
         Com<ID3D12Resource> constBuffer;
-        void *constBufferPtr;
+        Camera::ConstBuffer *constBufferPtr;
 
         /// frame data
         Frame *frames;
