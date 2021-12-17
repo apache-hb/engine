@@ -31,7 +31,9 @@ struct MainWindow final : WindowCallbacks {
 
         draw = new std::jthread([this](auto stop) { 
             try {
-                while (!stop.stop_requested()) { context->present(); }
+                while (!stop.stop_requested()) { 
+                    context->present();
+                }
             } catch (const engine::Error &error) {
                 log::global->fatal("{}", error.query());
             } catch (...) {

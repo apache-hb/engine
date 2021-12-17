@@ -123,7 +123,7 @@ namespace engine::system {
             .style = CS_HREDRAW | CS_VREDRAW,
             .lpfnWndProc = WindowHandleCallback,
             .hInstance = instance,
-            .hCursor = LoadCursor(NULL, IDC_ARROW),
+            .hCursor = LoadCursor(nullptr, IDC_ARROW),
             .lpszClassName = name
         };
 

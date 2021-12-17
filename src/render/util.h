@@ -143,8 +143,21 @@ namespace engine::render {
         };
     }
 
+    using Colour = XMFLOAT4;
+
     struct Vertex {
         XMFLOAT3 position;
-        XMFLOAT4 colour;
+        Colour colour;
+    };
+
+    namespace colour {
+        constexpr Colour red = { 1.f, 0.f, 0.f, 1.f };
+        constexpr Colour green = { 0.f, 1.f, 0.f, 1.f };
+        constexpr Colour blue = { 0.f, 0.f, 1.f, 1.f };
+        constexpr Colour yellow = { 1.f, 1.f, 0.f, 1.f };
+    }
+
+    cbuffer ConstBuffer {
+        XMFLOAT3 offset;
     };
 }

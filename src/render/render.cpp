@@ -115,6 +115,42 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
+#if 0
+    constexpr float offset = -1.f;
+
+    constexpr Vertex verts[] = {
+        { { 0.25f, 0.25f, 0.25f + offset }, colour::red },       // [0] front top left
+        { { -0.25f, 0.25f, 0.25f + offset }, colour::red },      // [1] front top right
+        { { 0.25f, -0.25f, 0.25f + offset }, colour::green },    // [2] front bottom left
+        { { -0.25f, -0.25f, 0.25f + offset }, colour::green },   // [3] front bottom right
+        { { 0.25f, 0.25f, -0.25f + offset }, colour::blue },     // [4] back top left
+        { { -0.25f, 0.25f, -0.25f + offset }, colour::blue },    // [5] back top right
+        { { 0.25f, -0.25f, -0.25f + offset }, colour::yellow },  // [6] back bottom left
+        { { -0.25f, -0.25f, -0.25f + offset }, colour::yellow }  // [7] back bottom right
+    };
+
+    constexpr DWORD indicies[] = {
+        0, 1, 2,  2, 1, 3, // front face
+        4, 0, 6,  6, 0, 2, // left face
+        5, 1, 7,  7, 1, 3, // right face
+        6, 7, 4,  4, 7, 5, // top face
+        1, 0, 5,  5, 0, 4, // bottom face
+        5, 4, 6,  6, 4, 7  // back face
+    };
+#endif
+
+    constexpr Vertex verts[] = {
+        { { -0.25f, 0.25f, 0.0f }, colour::red }, // top left
+        { { 0.25f, -0.25f, 0.0f }, colour::green }, // bottom right
+        { { -0.25f, -0.25f, 0.0f }, colour::blue }, // bottom left
+        { { 0.25f, 0.25f, 0.0f }, colour::yellow } // top right
+    };
+
+    constexpr DWORD indicies[] = {
+        0, 1, 2, // first triangle
+        0, 3, 1 // second triangle
+    };
+
     void Context::createAssets() {
         auto version = rootVersion();
         {
@@ -150,7 +186,7 @@ namespace engine::render {
                 .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
                 .SampleMask = UINT_MAX,
                 .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-                .InputLayout = { inputs, _countof(inputs) },
+                .InputLayout = { inputs, std::size(inputs) },
                 .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
                 .NumRenderTargets = 1,
                 .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
@@ -171,14 +207,6 @@ namespace engine::render {
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
         {
-            auto aspect = create.window->getClientAspectRatio();
-            Vertex verts[] = {
-                { { -0.25f, 0.25f * aspect, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } }, // top left
-                { { 0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } }, // bottom right
-                { { -0.25f, -0.25f * aspect, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }, // bottom left
-                { { 0.25f, 0.25f * aspect, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } } // top right
-            };
-
             const UINT vertexBufferSize = sizeof(verts);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
 
@@ -205,11 +233,6 @@ namespace engine::render {
         }
 
         {
-            DWORD indicies[] = {
-                0, 1, 2, // first triangle
-                0, 3, 1 // second triangle
-            };
-
             UINT indexBufferSize = sizeof(indicies);
             const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
@@ -261,7 +284,7 @@ namespace engine::render {
         check(alloc->Reset(), "failed to reset command allocator");
         check(commandList->Reset(alloc.get(), pipelineState.get()), "failed to reset command list");
     
-        auto target = frames[frameIndex].target.get();
+        auto target = getTarget().get();
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
@@ -279,7 +302,7 @@ namespace engine::render {
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
         commandList->IASetIndexBuffer(&indexBufferView);
-        commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+        commandList->DrawIndexedInstanced(std::size(indicies), 1, 0, 0, 0);
 
         commandList->ResourceBarrier(1, &toPresent);
 

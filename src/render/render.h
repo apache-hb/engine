@@ -85,13 +85,23 @@ namespace engine::render {
         Com<ID3D12Resource> indexBuffer;
         D3D12_INDEX_BUFFER_VIEW indexBufferView;
 
+        Com<ID3D12Resource> constBuffer;
+        D3D12_CONSTANT_BUFFER_VIEW_DESC constBufferView;
+        void *constBufferPtr;
+        ConstBuffer constBufferData;
+
         /// frame data
         Frame *frames;
 
-        auto &getAllocator(size_t index = SIZE_MAX) {
+        auto &getAllocator(size_t index = SIZE_MAX) noexcept {
             if (index == SIZE_MAX) { index = frameIndex; }
             return frames[index].allocator;
         } 
+
+        auto &getTarget(size_t index = SIZE_MAX) noexcept {
+            if (index == SIZE_MAX) { index = frameIndex; }
+            return frames[index].target;
+        }
 
         /// sync objects
         Com<ID3D12Fence> fence;
