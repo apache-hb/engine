@@ -4,6 +4,14 @@
 #include "system/system.h"
 
 namespace engine::render {
+    namespace Slots {
+        enum : int {
+            Buffer = 0,
+            Texture = 1,
+            Total
+        };
+    }
+
     namespace debug {
         void enable();
         void disable();
@@ -47,6 +55,7 @@ namespace engine::render {
         D3D_ROOT_SIGNATURE_VERSION rootVersion();
 
         void populate();
+        void flushQueue();
         void waitForGPU();
         void nextFrame();
 
@@ -75,7 +84,17 @@ namespace engine::render {
         Com<ID3D12RootSignature> rootSignature;
         Com<ID3D12PipelineState> pipelineState;
 
-        Com<ID3D12DescriptorHeap> cbvHeap;
+        Com<ID3D12DescriptorHeap> cbvSrvHeap;
+        UINT cbvSrvDescriptorSize;
+
+        auto getCbvSrvGpuHandle(UINT index) {
+            return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetGPUDescriptorHandleForHeapStart(), index, cbvSrvDescriptorSize);
+        }
+
+        auto getCbvSrvCpuHandle(UINT index) {
+            return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), index, cbvSrvDescriptorSize);
+        }
+
         Com<ID3D12DescriptorHeap> rtvHeap;
         UINT rtvDescriptorSize;
 
@@ -90,6 +109,8 @@ namespace engine::render {
 
         Com<ID3D12Resource> constBuffer;
         void *constBufferPtr;
+
+        Com<ID3D12Resource> texture;
 
         /// frame data
         Frame *frames;

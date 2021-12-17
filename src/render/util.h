@@ -168,4 +168,6 @@ namespace engine::render {
 
         XMFLOAT3 offset = { 0.f, 0.f, 0.f };
     };
+
+    std::vector<UINT8> generateTexture(UINT width, UINT height);
 }

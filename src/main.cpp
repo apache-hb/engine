@@ -20,10 +20,11 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onCreate(system::Window *ctx) override {
+        const auto frames = 2;
         render::Context::Create info = {
             .adapter = factory->adapter(0),
             .window = ctx,
-            .frames = 2
+            .frames = frames
         };
 
         context->createDevice(info);

@@ -1,3 +1,4 @@
+/// only needs to be bound for the vertex shader stage
 cbuffer ConstBuffer : register(b0) {
     float4x4 model;
     float4x4 view;
@@ -6,26 +7,32 @@ cbuffer ConstBuffer : register(b0) {
     float3 offset;
 };
 
+/// only need to be bound for the pixel shader stage
+Texture2D texResource : register(t0);
+SamplerState texSampler : register(s0);
+
 struct PSInput {
     float4 position : SV_POSITION;
-    float4 colour : COLOUR;
+    float2 uv : TEXCOORD;
 };
 
-PSInput VSMain(float3 position : POSITION, float4 colour : COLOUR) {    
-    PSInput result;
-
-    float4 pos = float4(position, 1.f);
-
+float4 perspective(float3 position) {
+    float4 pos = float4(position, 1.0f);
     pos = mul(pos, model);
     pos = mul(pos, view);
     pos = mul(pos, projection);
+    return pos;
+}
 
-    result.position = pos;
-    result.colour = colour;
+PSInput VSMain(float3 position : POSITION, float4 uv : TEXCOORD) {    
+    PSInput result;
+
+    result.position = perspective(position);
+    result.uv = uv;
 
     return result;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-    return input.colour;
+    return texResource.Sample(texSampler, input.uv);
 }

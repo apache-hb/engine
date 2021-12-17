@@ -43,8 +43,13 @@ links = [
     'xinput.lib'
 ]
 
+imgui = subproject('imgui').get_variable('imgui_dep')
+
+deps = [ imgui ]
+
 executable('engine', src,
     include_directories : 'src',
+    dependencies : deps,
     link_args : links,
     cpp_args : args,
     win_subsystem : 'console'
