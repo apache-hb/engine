@@ -158,6 +158,10 @@ namespace engine::render {
     }
 
     cbuffer ConstBuffer {
-        XMFLOAT3 offset;
+        XMFLOAT4X4 model;
+        XMFLOAT4X4 view;
+        XMFLOAT4X4 projection;
+
+        XMFLOAT3 offset = { 0.f, 0.f, 0.f };
     };
 }

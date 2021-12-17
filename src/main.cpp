@@ -30,8 +30,12 @@ struct MainWindow final : WindowCallbacks {
         context->createAssets();
 
         draw = new std::jthread([this](auto stop) { 
+            util::Timer timer = util::createTimer();
+            float elapsed = 0.f;
             try {
                 while (!stop.stop_requested()) { 
+                    elapsed += timer.tick();
+                    context->constBufferData.offset.y = sinf(elapsed) * 0.5f;
                     context->present();
                 }
             } catch (const engine::Error &error) {

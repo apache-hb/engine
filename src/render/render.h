@@ -39,6 +39,8 @@ namespace engine::render {
 
         void present();
 
+        ConstBuffer constBufferData;
+
     private:
         void attachInfoQueue();
         D3D_ROOT_SIGNATURE_VERSION rootVersion();
@@ -86,9 +88,7 @@ namespace engine::render {
         D3D12_INDEX_BUFFER_VIEW indexBufferView;
 
         Com<ID3D12Resource> constBuffer;
-        D3D12_CONSTANT_BUFFER_VIEW_DESC constBufferView;
         void *constBufferPtr;
-        ConstBuffer constBufferData;
 
         /// frame data
         Frame *frames;

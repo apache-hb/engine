@@ -11,6 +11,24 @@ namespace engine::render {
         auto [width, height] = window->getClientSize();
         auto hwnd = window->getHandle();
 
+        {
+            auto eye = XMVectorSet(1.f, 1.f, 1.f, 0.f);
+            auto look = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+            auto up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+            auto model = XMMatrixScaling(1.f, 1.f, 1.f);
+            XMStoreFloat4x4(&constBufferData.model, model);
+
+            auto view = XMMatrixTranspose(XMMatrixLookAtRH(eye, look, up));
+            XMStoreFloat4x4(&constBufferData.view, view);
+
+            auto aspect = window->getClientAspectRatio();
+            auto fov = 90.f * (XM_PI / 180.f);
+
+            auto proj = XMMatrixTranspose(XMMatrixPerspectiveFovRH(fov, aspect, 0.01f, 100.f));
+            XMStoreFloat4x4(&constBufferData.projection, proj);
+        }
+
         check(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)), "failed to create device");
     
         device.rename(L"d3d12-device");
@@ -151,11 +169,24 @@ namespace engine::render {
         0, 3, 1 // second triangle
     };
 
+    constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
     void Context::createAssets() {
         auto version = rootVersion();
         {
+            CD3DX12_DESCRIPTOR_RANGE1 range;
+            CD3DX12_ROOT_PARAMETER1 parameter;
+
+            range.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+            parameter.InitAsDescriptorTable(1, &range, D3D12_SHADER_VISIBILITY_VERTEX);
+
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            desc.Init_1_1(1, &parameter, 0, nullptr, rootSignatureFlags);
         
             Com<ID3DBlob> signature;
             Com<ID3DBlob> error;
@@ -257,6 +288,31 @@ namespace engine::render {
             };
         }
 
+        {
+            UINT constBufferSize = sizeof(constBufferData);
+            const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(constBufferSize);
+
+            /// create resource to hold constant buffer data
+            HRESULT hr = device->CreateCommittedResource(
+                &upload, D3D12_HEAP_FLAG_NONE,
+                &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr, IID_PPV_ARGS(&constBuffer)
+            );
+            check(hr, "failed to create constant buffer");
+            
+            /// tell the device we want to make this resource a constant buffer
+            D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {
+                .BufferLocation = constBuffer->GetGPUVirtualAddress(),
+                .SizeInBytes = constBufferSize
+            };
+            device->CreateConstantBufferView(&desc, cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+            /// map the constant buffer into visible memory
+            CD3DX12_RANGE readRange(0, 0);
+            check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
+        }
+
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
         frames[frameIndex].fenceValue = 1;
         if ((fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr)) == nullptr) {
@@ -269,6 +325,7 @@ namespace engine::render {
     void Context::destroyAssets() {
         waitForGPU();
 
+        constBuffer.tryDrop("const-buffer");
         indexBuffer.tryDrop("index-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
         rootSignature.tryDrop("root-signature");
@@ -288,8 +345,12 @@ namespace engine::render {
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+        ID3D12DescriptorHeap *heaps[] = { cbvHeap.get() };
 
         commandList->SetGraphicsRootSignature(rootSignature.get());
+        commandList->SetDescriptorHeaps(std::size(heaps), heaps);
+        commandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        
         commandList->RSSetViewports(1, &scene.viewport);
         commandList->RSSetScissorRects(1, &scene.scissor);
 
@@ -310,6 +371,7 @@ namespace engine::render {
     }
 
     void Context::present() {
+        memcpy(constBufferPtr, &constBufferData, sizeof(constBufferData));
         populate();
 
         ID3D12CommandList* lists[] = { commandList.get() };
