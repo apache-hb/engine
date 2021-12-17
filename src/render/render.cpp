@@ -10,24 +10,7 @@ namespace engine::render {
 
         auto [width, height] = window->getClientSize();
         auto hwnd = window->getHandle();
-
-        {
-            auto eye = XMVectorSet(1.f, 1.f, 1.f, 0.f);
-            auto look = XMVectorSet(0.f, 0.f, 0.f, 0.f);
-            auto up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-
-            auto model = XMMatrixScaling(1.f, 1.f, 1.f);
-            XMStoreFloat4x4(&constBufferData.model, model);
-
-            auto view = XMMatrixTranspose(XMMatrixLookAtRH(eye, look, up));
-            XMStoreFloat4x4(&constBufferData.view, view);
-
-            auto aspect = window->getClientAspectRatio();
-            auto fov = 90.f * (XM_PI / 180.f);
-
-            auto proj = XMMatrixTranspose(XMMatrixPerspectiveFovRH(fov, aspect, 0.01f, 100.f));
-            XMStoreFloat4x4(&constBufferData.projection, proj);
-        }
+        aspect = window->getClientAspectRatio();
 
         check(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)), "failed to create device");
     
@@ -133,29 +116,32 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
-#if 0
-    constexpr float offset = -1.f;
-
+#if 1
     constexpr Vertex verts[] = {
-        { { 0.25f, 0.25f, 0.25f + offset }, colour::red },       // [0] front top left
-        { { -0.25f, 0.25f, 0.25f + offset }, colour::red },      // [1] front top right
-        { { 0.25f, -0.25f, 0.25f + offset }, colour::green },    // [2] front bottom left
-        { { -0.25f, -0.25f, 0.25f + offset }, colour::green },   // [3] front bottom right
-        { { 0.25f, 0.25f, -0.25f + offset }, colour::blue },     // [4] back top left
-        { { -0.25f, 0.25f, -0.25f + offset }, colour::blue },    // [5] back top right
-        { { 0.25f, -0.25f, -0.25f + offset }, colour::yellow },  // [6] back bottom left
-        { { -0.25f, -0.25f, -0.25f + offset }, colour::yellow }  // [7] back bottom right
+        { { 0.25f, 0.25f, 0.25f }, colour::red },       // [0] front top left
+        { { -0.25f, 0.25f, 0.25f }, colour::red },      // [1] front top right
+        { { 0.25f, -0.25f, 0.25f }, colour::green },    // [2] front bottom left
+        { { -0.25f, -0.25f, 0.25f }, colour::green },   // [3] front bottom right
+        { { 0.25f, 0.25f, -0.25f }, colour::blue },     // [4] back top left
+        { { -0.25f, 0.25f, -0.25f }, colour::blue },    // [5] back top right
+        { { 0.25f, -0.25f, -0.25f }, colour::yellow },  // [6] back bottom left
+        { { -0.25f, -0.25f, -0.25f }, colour::yellow }  // [7] back bottom right
     };
 
     constexpr DWORD indicies[] = {
-        0, 1, 2,  2, 1, 3, // front face
-        4, 0, 6,  6, 0, 2, // left face
-        5, 1, 7,  7, 1, 3, // right face
-        6, 7, 4,  4, 7, 5, // top face
-        1, 0, 5,  5, 0, 4, // bottom face
-        5, 4, 6,  6, 4, 7  // back face
+        2, 1, 0,  3, 1, 2, // front face
+        6, 0, 4,  2, 0, 6, // left face
+        7, 5, 1,  7, 1, 3, // right face
+        7, 6, 4,  7, 4, 5, // back face
+        0, 1, 4,  1, 5, 4, // top face
+        //5, 1, 7,  7, 1, 3, // right face
+        //7, 1, 5,  3, 1, 7, // right face
+        //5, 1, 7,  7, 1, 3, // right face
+        //6, 7, 4,  4, 7, 5, // top face
+        //1, 0, 5,  5, 0, 4, // bottom face
+        //5, 6, 4,  6, 4, 7  // back face
     };
-#endif
+#else
 
     constexpr Vertex verts[] = {
         { { -0.25f, 0.25f, 0.0f }, colour::red }, // top left
@@ -168,6 +154,7 @@ namespace engine::render {
         0, 1, 2, // first triangle
         0, 3, 1 // second triangle
     };
+#endif
 
     constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -334,6 +321,23 @@ namespace engine::render {
 
         CloseHandle(fenceEvent);
         fence.tryDrop("fence");
+    }
+
+    void Context::tick(float delta) {
+        auto eye = XMVectorSet(sinf(delta), 1.f, cosf(delta), 0.f);
+        auto look = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+        auto up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+        auto model = XMMatrixScaling(1.f, 1.f, 1.f);
+        XMStoreFloat4x4(&constBufferData.model, model);
+
+        auto view = XMMatrixTranspose(XMMatrixLookAtRH(eye, look, up));
+        XMStoreFloat4x4(&constBufferData.view, view);
+
+        auto fov = 90.f * (XM_PI / 180.f);
+
+        auto proj = XMMatrixTranspose(XMMatrixPerspectiveFovRH(fov, aspect, 0.01f, 100.f));
+        XMStoreFloat4x4(&constBufferData.projection, proj);
     }
 
     void Context::populate() {

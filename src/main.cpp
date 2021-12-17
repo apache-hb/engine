@@ -35,7 +35,7 @@ struct MainWindow final : WindowCallbacks {
             try {
                 while (!stop.stop_requested()) { 
                     elapsed += timer.tick();
-                    context->constBufferData.offset.y = sinf(elapsed) * 0.5f;
+                    context->tick(elapsed);
                     context->present();
                 }
             } catch (const engine::Error &error) {

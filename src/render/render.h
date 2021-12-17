@@ -38,6 +38,7 @@ namespace engine::render {
         void destroyAssets();
 
         void present();
+        void tick(float elapsed);
 
         ConstBuffer constBufferData;
 
