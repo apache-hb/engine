@@ -116,7 +116,6 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
-#if 1
     constexpr Vertex verts[] = {
         { { 0.25f, 0.25f, 0.25f }, colour::red },       // [0] front top left
         { { -0.25f, 0.25f, 0.25f }, colour::red },      // [1] front top right
@@ -134,27 +133,8 @@ namespace engine::render {
         7, 5, 1,  7, 1, 3, // right face
         7, 6, 4,  7, 4, 5, // back face
         0, 1, 4,  1, 5, 4, // top face
-        //5, 1, 7,  7, 1, 3, // right face
-        //7, 1, 5,  3, 1, 7, // right face
-        //5, 1, 7,  7, 1, 3, // right face
-        //6, 7, 4,  4, 7, 5, // top face
-        //1, 0, 5,  5, 0, 4, // bottom face
-        //5, 6, 4,  6, 4, 7  // back face
+        6, 3, 2,  6, 7, 3, // bottom face
     };
-#else
-
-    constexpr Vertex verts[] = {
-        { { -0.25f, 0.25f, 0.0f }, colour::red }, // top left
-        { { 0.25f, -0.25f, 0.0f }, colour::green }, // bottom right
-        { { -0.25f, -0.25f, 0.0f }, colour::blue }, // bottom left
-        { { 0.25f, 0.25f, 0.0f }, colour::yellow } // top right
-    };
-
-    constexpr DWORD indicies[] = {
-        0, 1, 2, // first triangle
-        0, 3, 1 // second triangle
-    };
-#endif
 
     constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -324,7 +304,7 @@ namespace engine::render {
     }
 
     void Context::tick(float delta) {
-        auto eye = XMVectorSet(sinf(delta), 1.f, cosf(delta), 0.f);
+        auto eye = XMVectorSet(sinf(delta), sinf(delta), cosf(delta), 0.f);
         auto look = XMVectorSet(0.f, 0.f, 0.f, 0.f);
         auto up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
