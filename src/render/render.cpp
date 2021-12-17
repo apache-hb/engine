@@ -118,13 +118,13 @@ namespace engine::render {
 
     constexpr Vertex verts[] = {
         { { 0.25f, 0.25f, 0.25f }, colour::red },       // [0] front top left
-        { { -0.25f, 0.25f, 0.25f }, colour::red },      // [1] front top right
-        { { 0.25f, -0.25f, 0.25f }, colour::green },    // [2] front bottom left
+        { { -0.25f, 0.25f, 0.25f }, colour::orange },      // [1] front top right
+        { { 0.25f, -0.25f, 0.25f }, colour::yellow },    // [2] front bottom left
         { { -0.25f, -0.25f, 0.25f }, colour::green },   // [3] front bottom right
         { { 0.25f, 0.25f, -0.25f }, colour::blue },     // [4] back top left
-        { { -0.25f, 0.25f, -0.25f }, colour::blue },    // [5] back top right
-        { { 0.25f, -0.25f, -0.25f }, colour::yellow },  // [6] back bottom left
-        { { -0.25f, -0.25f, -0.25f }, colour::yellow }  // [7] back bottom right
+        { { -0.25f, 0.25f, -0.25f }, colour::indigo },    // [5] back top right
+        { { 0.25f, -0.25f, -0.25f }, colour::violet },  // [6] back bottom left
+        { { -0.25f, -0.25f, -0.25f }, colour::white }  // [7] back bottom right
     };
 
     constexpr DWORD indicies[] = {

@@ -152,9 +152,13 @@ namespace engine::render {
 
     namespace colour {
         constexpr Colour red = { 1.f, 0.f, 0.f, 1.f };
+        constexpr Colour orange = { 1.f, 0.5f, 0.f, 1.f };
+        constexpr Colour yellow = { 1.f, 1.f, 0.f, 1.f };
         constexpr Colour green = { 0.f, 1.f, 0.f, 1.f };
         constexpr Colour blue = { 0.f, 0.f, 1.f, 1.f };
-        constexpr Colour yellow = { 1.f, 1.f, 0.f, 1.f };
+        constexpr Colour indigo = { 0.f, 0.f, 1.f, 1.f };
+        constexpr Colour violet = { 1.f, 0.f, 1.f, 1.f };
+        constexpr Colour white = { 1.f, 1.f, 1.f, 1.f };
     }
 
     cbuffer ConstBuffer {
