@@ -20,6 +20,7 @@ struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
 
     static constexpr float moveSpeed = 5.f;
+    static constexpr float ascentSpeed = 7.f;
     static constexpr float rotateSpeed = 5.f;
 
     static constexpr xinput::Deadzone ldeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
@@ -49,19 +50,23 @@ struct MainWindow final : WindowCallbacks {
                 auto delta = timer.tick();
                 auto state = device.poll();
 
-                auto rotateX = state.rstick.x * rotateSpeed * delta;
-                auto rotateY = state.rstick.y * rotateSpeed * delta;
+                auto pitch = state.rstick.x * rotateSpeed * delta;
+                auto yaw = state.rstick.y * rotateSpeed * delta;
 
                 auto moveX = state.lstick.x * moveSpeed * delta;
                 auto moveY = state.lstick.y * moveSpeed * delta;
-                auto moveZ = (state.rtrigger - state.ltrigger) * delta;
+                auto moveZ = (state.rtrigger - state.ltrigger) * ascentSpeed * delta;
 
                 if (moveX != 0.f || moveY != 0.f || moveZ != 0.f) {
                     log::global->info("move: {} {} {}", moveX, moveY, moveZ);
                 }
 
-                camera.move({ moveX, moveY, moveZ });
-                camera.rotate(0.f, rotateX, rotateY);
+                if (pitch != 0.f || yaw != 0.f) {
+                    log::global->info("rotate: {} {}", pitch, yaw);
+                }
+
+                camera.rotate(pitch, yaw);
+                camera.move(moveX, moveY, moveZ);
             }
         });
 
