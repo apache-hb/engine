@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <format>
 #include <string_view>
 #include <source_location>
 
@@ -24,5 +25,21 @@ namespace engine {
     private:
         std::string message;
         std::source_location location;
+    };
+
+    struct Errno : Error {
+        Errno(errno_t code, std::string message = "", std::source_location location = std::source_location::current())
+            : Error(message, location)
+            , code(code)
+        { }
+
+        virtual std::string query() const override {
+            return std::format("errno: {}\n{}", code, what());
+        }
+
+        errno_t error() const { return code; }
+
+    private:
+        errno_t code;
     };
 }

@@ -5,6 +5,8 @@
 #include "util/timer.h"
 #include "input/inputx.h"
 #include "input/camera.h"
+#include "input/mnk.h"
+#include "util/macros.h"
 
 #include <thread>
 
@@ -46,18 +48,27 @@ struct MainWindow final : WindowCallbacks {
 
         input = new std::jthread([this](auto stop) {
             util::Timer timer = util::createTimer();
-            while (!stop.stop_requested()) {                
+            input::MnK mnk{1.f};
+            while (!stop.stop_requested()) {
+                if (hasEvent()) { 
+                    auto event = pollEvent();
+                    switch (event.type) {
+                    case WM_KEYDOWN: mnk.pushRelease(event.wparam); break;
+                    case WM_KEYUP: mnk.pushPress(event.wparam); break;
+                    default: break;
+                    }
+                }
+
                 auto delta = timer.tick();
-                auto state = device.poll();
-                if (!device.valid()) { continue; }
+                auto in = mnk.poll();
 
-                auto pitch = state.rstick.x * rotateSpeed * delta;
-                auto yaw = state.rstick.y * rotateSpeed * delta;
+                auto pitch = in.rstick.x * rotateSpeed * delta;
+                auto yaw = in.rstick.y * rotateSpeed * delta;
 
-                auto moveX = state.lstick.x * moveSpeed * delta;
-                auto moveY = state.lstick.y * moveSpeed * delta;
-                auto moveZ = (state.rtrigger - state.ltrigger) * ascentSpeed * delta;
-
+                auto moveX = in.lstick.x * moveSpeed * delta;
+                auto moveY = in.lstick.y * moveSpeed * delta;
+                auto moveZ = (in.rtrigger - in.ltrigger) * ascentSpeed * delta;
+                
                 if (moveX != 0.f || moveY != 0.f || moveZ != 0.f) {
                     log::global->info("move: {} {} {}", moveX, moveY, moveZ);
                 }
@@ -89,14 +100,6 @@ struct MainWindow final : WindowCallbacks {
         delete input;
         delete draw;
         delete context;
-    }
-
-    virtual void onKeyPress(int key) override {
-
-    }
-
-    virtual void onKeyRelease(int key) override {
-    
     }
 
 private:
@@ -168,10 +171,10 @@ int commonMain(HINSTANCE instance, int show) noexcept {
     return result;
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR CmdLine, int nCmdShow) {
+int WINAPI wWinMain(HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPTSTR CmdLine, int nCmdShow) {
     return commonMain(hInstance, nCmdShow);
 }
 
-int main(int argc, const char **argv) {
+int main(UNUSED int argc, UNUSED const char **argv) {
     return commonMain(GetModuleHandle(nullptr), SW_SHOW);
 }

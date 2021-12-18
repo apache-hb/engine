@@ -1,23 +1,11 @@
 #pragma once
 
 #include "util/win32.h"
+#include "binds.h"
+
 #include <xinput.h>
 
 namespace engine::xinput {
-    struct Controller {
-        struct Stick {
-            float x;
-            float y;
-        };
-        
-        size_t index;
-        Stick lstick;
-        Stick rstick;
-
-        float ltrigger;
-        float rtrigger;
-    };
-
     struct Deadzone {
         int16_t x;
         int16_t y;
@@ -34,7 +22,7 @@ namespace engine::xinput {
 
         bool valid() const;
         void vibrate(USHORT left, USHORT right);
-        Controller poll();
+        input::Input poll();
     private:
         UINT index;
         Deadzone lstick;

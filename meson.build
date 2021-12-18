@@ -1,6 +1,8 @@
 project('engine', [ 'c', 'cpp' ],
     default_options : [
         'cpp_std=c++latest',
+        'warning_level=3',
+        'werror=true',
         'default_library=static'
     ]
 )
@@ -23,12 +25,16 @@ src = [
     'src/logging/log.cpp',
 
     'src/input/inputx.cpp',
+    'src/input/mnk.cpp',
     'src/input/camera.cpp',
 
     'src/main.cpp'
 ]
 
-args = [ '-DUNICODE=1' ]
+args = [ 
+    '-DUNICODE=1', 
+    '/wd4324' # C4324: structure was padded due to alignment specifier
+]
 
 if get_option('agility-sdk').enabled()
     src += [ 'src/render/agility.cpp' ]
@@ -53,8 +59,9 @@ links = [
 
 imgui = subproject('imgui').get_variable('imgui_dep')
 tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
+queue = subproject('atomic-queue').get_variable('queue')
 
-deps = [ imgui, tinyobj ]
+deps = [ imgui, tinyobj, queue ]
 
 executable('engine', src,
     include_directories : 'src',

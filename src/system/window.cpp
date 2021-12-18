@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include <windowsx.h>
+
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
@@ -14,8 +16,8 @@ namespace {
         LPARAM lparam
     )
     {
-        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
-            return true;
+        //if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
+        //    return true;
 
         auto *self = reinterpret_cast<engine::system::Window::Callbacks*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
@@ -26,16 +28,8 @@ namespace {
             break;
         }
 
-        case WM_KEYDOWN:
-            self->onKeyPress(static_cast<int>(wparam));
-            break;
-
-        case WM_KEYUP:
-            self->onKeyRelease(static_cast<int>(wparam));
-            break;
-
-        case WM_PAINT:
-            self->repaint();
+        case WM_KEYDOWN: case WM_KEYUP:
+            self->addEvent({ msg, wparam, lparam });
             break;
 
         case WM_DESTROY:

@@ -160,10 +160,10 @@ namespace engine::render {
             ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
             ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
 
-            parameters[0].InitAsDescriptorTable(std::size(ranges), ranges, D3D12_SHADER_VISIBILITY_ALL);
+            parameters[0].InitAsDescriptorTable(UINT(std::size(ranges)), ranges, D3D12_SHADER_VISIBILITY_ALL);
 
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(std::size(parameters), parameters, std::size(samplers), samplers, rootSignatureFlags);
+            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(samplers)), samplers, rootSignatureFlags);
         
             Com<ID3DBlob> signature;
             Com<ID3DBlob> error;
@@ -194,7 +194,7 @@ namespace engine::render {
                 .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
                 .SampleMask = UINT_MAX,
                 .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-                .InputLayout = { inputs, std::size(inputs) },
+                .InputLayout = { inputs, UINT(std::size(inputs)) },
                 .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
                 .NumRenderTargets = 1,
                 .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
@@ -217,7 +217,7 @@ namespace engine::render {
         model = loader::obj("resources\\utah-teapot.obj");
 
         {
-            const UINT vertexBufferSize = model.vertices.size() * sizeof(loader::Vertex);
+            const UINT vertexBufferSize = UINT(model.vertices.size() * sizeof(loader::Vertex));
             auto verts = model.vertices.data();
 
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
@@ -245,10 +245,9 @@ namespace engine::render {
         }
 
         {
-            const UINT indexBufferSize = model.indices.size() * sizeof(DWORD);
+            const UINT indexBufferSize = UINT(model.indices.size() * sizeof(DWORD));
             auto indicies = model.indices.data();
 
-            const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
 
             HRESULT hr = device->CreateCommittedResource(
@@ -273,7 +272,6 @@ namespace engine::render {
 
         {
             UINT constBufferSize = sizeof(constBufferData);
-            const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(constBufferSize);
 
             /// create resource to hold constant buffer data
@@ -400,9 +398,7 @@ namespace engine::render {
     }
 
     void Context::tick(const input::Camera& camera) {
-        auto model = XMMatrixScaling(1.f, 1.f, 1.f);
-        XMStoreFloat4x4(&constBufferData.model, model);
-
+        XMStoreFloat4x4(&constBufferData.model, XMMatrixScaling(1.f, 1.f, 1.f));
         camera.store(&constBufferData.view, &constBufferData.projection, aspect);
     }
 
@@ -435,7 +431,7 @@ namespace engine::render {
         check(contextList->Reset(alloc.get(), pipelineState.get()), "failed to reset command list");
 
         contextList->SetGraphicsRootSignature(rootSignature.get());
-        contextList->SetDescriptorHeaps(std::size(heaps), heaps);
+        contextList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
         contextList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(0));
         
         contextList->RSSetViewports(1, &scene.viewport);
@@ -450,9 +446,9 @@ namespace engine::render {
         contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
         contextList->IASetIndexBuffer(&indexBufferView);
-        contextList->DrawIndexedInstanced(model.indices.size(), 1, 0, 0, 0);
+        contextList->DrawIndexedInstanced(UINT(model.indices.size()), 1, 0, 0, 0);
 
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), contextList);
+        ImGui_ImplDX12_RenderDrawData(draw, contextList);
 
         contextList->ResourceBarrier(1, &toPresent);
 
@@ -472,7 +468,7 @@ namespace engine::render {
 
     void Context::flushQueue() {
         ID3D12CommandList* lists[] = { commandList.get() };
-        queue->ExecuteCommandLists(std::size(lists), lists);
+        queue->ExecuteCommandLists(UINT(std::size(lists)), lists);
     }
 
     void Context::waitForGPU() {
@@ -501,7 +497,7 @@ namespace engine::render {
         current = value + 1;
     }
 
-    auto callback = [](auto category, auto severity, auto id, auto msg, auto ctx) {
+    auto callback = [](UNUSED auto category, auto severity, auto id, auto msg, auto ctx) {
         if (id == D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE) { return; }
 
         auto *log = reinterpret_cast<log::Channel*>(ctx);

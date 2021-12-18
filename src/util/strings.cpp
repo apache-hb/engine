@@ -1,7 +1,7 @@
 #include "strings.h"
+#include "error.h"
 
 #include <stdarg.h>
-
 #include <sstream>
 
 namespace engine::strings {
@@ -61,8 +61,14 @@ namespace engine::strings {
 
     std::string encode(std::wstring_view str) {
         std::string result(str.size(), '\0');
-        auto res = wcstombs(result.data(), str.data(), str.size());
-        result.resize(res);
+        size_t size = 0;
+
+        errno_t err = wcstombs_s(&size, result.data(), result.size(), str.data(), result.size());
+        if (err != 0) {
+            throw engine::Errno(err);
+        }
+
+        result.resize(size);
         return result;
     }
 }

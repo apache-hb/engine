@@ -34,7 +34,7 @@ namespace engine::loader {
                 );
                 
                 vertices.push_back(Vertex { vertex, texcoord });
-                indicies.push_back(vertices.size() - 1);
+                indicies.push_back(DWORD(vertices.size() - 1));
             }
         }
 

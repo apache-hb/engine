@@ -121,8 +121,8 @@ namespace engine::log {
                 ImGui::Separator();
                 ImGui::PushTextWrapPos(ImGui::GetWindowWidth() * 0.9f);
 
-                for (const auto& [level, report] : reports) {
-                    auto colour = reportColour(level);
+                for (const auto& [lvl, report] : reports) {
+                    auto colour = reportColour(lvl);
                     ImGui::PushStyleColor(ImGuiCol_Text, colour);
                     if (ImGui::Selectable(report.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
                         if (ImGui::IsMouseDoubleClicked(0)) {

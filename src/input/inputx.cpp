@@ -32,13 +32,11 @@ namespace engine::xinput {
         return ratioGivenDeadzone(value, deadzone, triggerMax);
     }
 
-    Controller Device::poll() {
+    input::Input Device::poll() {
         XINPUT_STATE state;
         ok = XInputGetState(index, &state) == ERROR_SUCCESS;
 
-        Controller controller;
-        controller.index = state.dwPacketNumber;
-
+        input::Input controller;
         controller.lstick.x = stickRatio(state.Gamepad.sThumbLX, lstick.x);
         controller.lstick.y = stickRatio(state.Gamepad.sThumbLY, lstick.y);
 

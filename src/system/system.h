@@ -1,9 +1,12 @@
 #pragma once
 
 #include <vector>
+#include <queue>
 
+#include "util/macros.h"
 #include "util/win32.h"
 #include "util/units.h"
+#include "atomic-queue/queue.h"
 
 namespace engine::system {
     RECT rectCoords(LONG x, LONG y, LONG width, LONG height);
@@ -22,13 +25,23 @@ namespace engine::system {
             Style style = Style::WINDOWED;
         };
 
+        struct Event {
+            UINT type;
+            WPARAM wparam;
+            LPARAM lparam;
+        };
+
         struct Callbacks {
-            virtual void onCreate(Window *ctx) { }
+            virtual void onCreate(UNUSED Window *ctx) { }
             virtual void onDestroy() { }
             virtual bool onClose() { return true; }
-            virtual void onKeyPress(int key) { }
-            virtual void onKeyRelease(int key) { }
-            virtual void repaint() { }
+
+            bool hasEvent() const { return !events.is_empty(); }
+            Event pollEvent() { return events.pop(); }
+            void addEvent(Event event) { events.push(event); }
+
+        private:
+            ubn::queue<Event> events;
         };
 
         DWORD run(int show);
@@ -51,8 +64,10 @@ namespace engine::system {
             , handle(handle)
             , callbacks(callbacks) 
         { }
-        
+
     private:
+        friend Window createWindow(HINSTANCE instance, const Window::Create &create, Window::Callbacks *callbacks);
+
         HINSTANCE instance;
         LPCTSTR name;
         HWND handle;
