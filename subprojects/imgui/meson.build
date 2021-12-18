@@ -10,7 +10,7 @@ src = [
     'imgui/backends/imgui_impl_win32.cpp'
 ]
 
-inc = [ 'imgui', 'imgui/backends' ]
+inc = [ '.', 'imgui', 'imgui/backends' ]
 
 imgui = library('imgui', src,
     include_directories : inc

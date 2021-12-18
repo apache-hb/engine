@@ -4,6 +4,8 @@
 
 #include "util/strings.h"
 
+#include "imgui/imgui.h"
+
 #define RESET "\x1b[0m"
 #define BLACK "\x1b[0;30m"
 #define RED "\x1b[0;31m"
@@ -80,6 +82,75 @@ namespace engine::log {
         return 0;
     }
 
+    struct BroadcastChannel : Channel {
+        using Channels = std::vector<Channel*>;
+        BroadcastChannel(std::string_view name, Channels channels)
+            : Channel(name, false)
+            , channels(channels) 
+        { }
+
+        virtual void send(Level report, std::string_view message) override {
+            for (auto channel : channels) {
+                channel->send(report, message);
+            }
+        }
+
+        virtual void tick() override {
+            for (auto channel : channels) {
+                channel->tick();
+            }
+        }
+    private:
+        Channels channels;
+    };
+
+    struct ImGuiChannel : Channel {
+        using Report = std::tuple<Level, std::string>;
+
+        ImGuiChannel(std::string_view name) 
+            : Channel(name, false) 
+        { }
+
+        virtual void send(Level report, std::string_view message) override {
+            reports.push_back(Report(report, std::string(message)));
+        }
+
+        virtual void tick() override {
+            if (ImGui::Begin(channel().data())) {
+                ImGui::Text("double click a log to copy it to clipboard");
+                ImGui::Separator();
+                ImGui::PushTextWrapPos(ImGui::GetWindowWidth() * 0.9f);
+
+                for (const auto& [level, report] : reports) {
+                    auto colour = reportColour(level);
+                    ImGui::PushStyleColor(ImGuiCol_Text, colour);
+                    if (ImGui::Selectable(report.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
+                        if (ImGui::IsMouseDoubleClicked(0)) {
+                            ImGui::SetClipboardText(report.c_str());
+                        }
+                    }
+                    ImGui::PopStyleColor();
+                }
+                
+                ImGui::PopTextWrapPos();
+            }
+            ImGui::End();
+        }
+    private:
+        static ImVec4 reportColour(Level level) {
+            switch (level) {
+            case INFO: return ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+            case WARN: return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+            case FATAL: return ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+            default: return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+            }
+        }
+        std::vector<Report> reports;
+    };
+
     Channel *global = new ConsoleChannel("global", stdout);
-    Channel *render = new ConsoleChannel("render", stdout);
+    Channel *render = new BroadcastChannel("render", {
+        new ConsoleChannel("render", stdout),
+        new ImGuiChannel("console")
+    });
 }

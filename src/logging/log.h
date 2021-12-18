@@ -43,6 +43,7 @@ namespace engine::log {
         void fatalf(const char *message, ...);
 
         virtual void send(Level report, std::string_view message) = 0;
+        virtual void tick() { }
 
     protected:
         std::string_view channel() const { return name; }

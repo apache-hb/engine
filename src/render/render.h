@@ -5,9 +5,17 @@
 
 namespace engine::render {
     namespace Slots {
-        enum : int {
+        enum Index : int {
             Buffer = 0,
             Texture = 1,
+            ImGui = 2,
+            Total
+        };
+    }
+
+    namespace Allocator {
+        enum Index : int {
+            Context = 0,
             Total
         };
     }
@@ -17,11 +25,6 @@ namespace engine::render {
         void disable();
         void report();
     }
-
-    struct Resolution {
-        UINT width;
-        UINT height;
-    };
 
     struct Context {
         struct Create {
@@ -69,7 +72,7 @@ namespace engine::render {
 
         struct Frame {
             Com<ID3D12Resource> target;
-            Com<ID3D12CommandAllocator> allocator;
+            Com<ID3D12CommandAllocator> allocators[Allocator::Total];
             UINT64 fenceValue;
         };
 
@@ -115,9 +118,9 @@ namespace engine::render {
         /// frame data
         Frame *frames;
 
-        auto &getAllocator(size_t index = SIZE_MAX) noexcept {
+        auto &getAllocator(Allocator::Index type, size_t index = SIZE_MAX) noexcept {
             if (index == SIZE_MAX) { index = frameIndex; }
-            return frames[index].allocator;
+            return frames[index].allocators[type];
         } 
 
         auto &getTarget(size_t index = SIZE_MAX) noexcept {

@@ -7,6 +7,10 @@
 
 #include <thread>
 
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_dx12.h"
+
 using namespace engine;
 
 using WindowCallbacks = system::Window::Callbacks;
@@ -34,7 +38,7 @@ struct MainWindow final : WindowCallbacks {
             util::Timer timer = util::createTimer();
             float elapsed = 0.f;
             try {
-                while (!stop.stop_requested()) { 
+                while (!stop.stop_requested()) {
                     elapsed += timer.tick();
                     context->tick(elapsed);
                     context->present();
@@ -74,8 +78,19 @@ private:
     render::Context *context;
 };
 
+void initImGui() {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    ImGuiIO &io = ImGui::GetIO();
+    io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", 32.f);
+    io.DisplayFramebufferScale = { 2.f, 2.f };
+}
+
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
+    initImGui();
 
     MainWindow callbacks;
 
@@ -89,6 +104,8 @@ int runEngine(HINSTANCE instance, int show) {
     window.run(show);
 
     render::debug::disable();
+
+    ImGui::DestroyContext();
 
     return 0;
 }

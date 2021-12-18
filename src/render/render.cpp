@@ -1,5 +1,9 @@
 #include "render.h"
 
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_dx12.h"
+
 namespace engine::render {
     void Context::createDevice(Context::Create& info) {
         create = info;
@@ -92,12 +96,15 @@ namespace engine::render {
                 check(swapchain->GetBuffer(i, IID_PPV_ARGS(&frame.target)), "failed to get swapchain buffer");
                 device->CreateRenderTargetView(frame.target.get(), nullptr, handle);
                 
-                check(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frame.allocator)), "failed to create command allocator");
+                for (auto alloc = 0; alloc < Allocator::Total; alloc++) {
+                    auto &allocator = frame.allocators[alloc];
+                    check(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)), "failed to create command allocator");
+                    allocator.rename(std::format(L"frame-allocator-{}-{}", i, alloc).c_str());
+                }
 
                 handle.Offset(1, rtvDescriptorSize);
                 frame.fenceValue = 0;
 
-                frame.allocator.rename(std::format(L"frame-allocator-{}", i));
                 frame.target.rename(std::format(L"frame-target-{}", i));
             }
         }
@@ -107,7 +114,9 @@ namespace engine::render {
         for (UINT i = 0; i < create.frames; i++) {
             auto frame = frames[i];
             frame.target.release();
-            frame.allocator.tryDrop("allocator");
+            for (auto &alloc : frame.allocators) {
+                alloc.tryDrop("allocator");
+            }
         }
         delete[] frames;
 
@@ -188,8 +197,8 @@ namespace engine::render {
         }
 
         {
-            auto vertexShader = compileShader(L"shaders\\shader.hlsl", "VSMain", "vs_5_0");
-            auto pixelShader = compileShader(L"shaders\\shader.hlsl", "PSMain", "ps_5_0");
+            auto vertexShader = compileShader(L"resources\\shader.hlsl", "VSMain", "vs_5_0");
+            auto pixelShader = compileShader(L"resources\\shader.hlsl", "PSMain", "ps_5_0");
         
             D3D12_INPUT_ELEMENT_DESC inputs[] = {
                 { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -216,8 +225,10 @@ namespace engine::render {
             pipelineState.rename(L"d3d12-pipeline-state");
         }
 
-        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, getAllocator().get(), pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
+        auto alloc = getAllocator(Allocator::Context).get();
 
+        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc, pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
+        
         commandList.rename(L"d3d12-command-list");
 
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -344,8 +355,8 @@ namespace engine::render {
             };
             UpdateSubresources(commandList.get(), texture.get(), uploadResource.get(), 0, 0, 1, &texData);
             const auto toResource = CD3DX12_RESOURCE_BARRIER::Transition(texture.get(), 
-                D3D12_RESOURCE_STATE_COPY_DEST, 
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+                D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
             );
             commandList->ResourceBarrier(1, &toResource);
 
@@ -363,6 +374,13 @@ namespace engine::render {
 
         check(commandList->Close(), "failed to close command list");
 
+        ImGui_ImplWin32_Init(create.window->getHandle());
+        ImGui_ImplDX12_Init(device.get(), create.frames,
+            DXGI_FORMAT_R8G8B8A8_UNORM, cbvSrvHeap.get(),
+            getCbvSrvCpuHandle(Slots::ImGui),
+            getCbvSrvGpuHandle(Slots::ImGui)
+        );
+
         flushQueue();
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -378,6 +396,9 @@ namespace engine::render {
 
     void Context::destroyAssets() {
         waitForGPU();
+
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
 
         texture.tryDrop("texture");
         constBuffer.tryDrop("const-buffer");
@@ -409,37 +430,56 @@ namespace engine::render {
     }
 
     void Context::populate() {
-        auto alloc = getAllocator();
-        check(alloc->Reset(), "failed to reset command allocator");
-        check(commandList->Reset(alloc.get(), pipelineState.get()), "failed to reset command list");
-    
+        /// imgui execution
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        log::render->tick();
+
+        ImGui::Render();
+
+        /// common resources
+        ID3D12DescriptorHeap *heaps[] = { cbvSrvHeap.get() };
+        
+        auto *contextList = commandList.get();
+
+        auto draw = ImGui::GetDrawData();
         auto target = getTarget().get();
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
-        ID3D12DescriptorHeap *heaps[] = { cbvSrvHeap.get() };
 
-        commandList->SetGraphicsRootSignature(rootSignature.get());
-        commandList->SetDescriptorHeaps(std::size(heaps), heaps);
-        commandList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(0));
+        /// main command list execution
+        auto alloc = getAllocator(Allocator::Context);
+        check(alloc->Reset(), "failed to reset command allocator");
+        check(contextList->Reset(alloc.get(), pipelineState.get()), "failed to reset command list");
+
+        contextList->SetGraphicsRootSignature(rootSignature.get());
+        contextList->SetDescriptorHeaps(std::size(heaps), heaps);
+        contextList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(0));
         
-        commandList->RSSetViewports(1, &scene.viewport);
-        commandList->RSSetScissorRects(1, &scene.scissor);
+        contextList->RSSetViewports(1, &scene.viewport);
+        contextList->RSSetScissorRects(1, &scene.scissor);
 
-        commandList->ResourceBarrier(1, &toTarget);
+        contextList->ResourceBarrier(1, &toTarget);
 
-        commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        contextList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
         const float clear[] = { 0.f, 0.2f, 0.4f, 1.f };
-        commandList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
-        commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-        commandList->IASetIndexBuffer(&indexBufferView);
-        commandList->DrawIndexedInstanced(std::size(indicies), 1, 0, 0, 0);
+        contextList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
+        contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
+        contextList->IASetIndexBuffer(&indexBufferView);
+        contextList->DrawIndexedInstanced(std::size(indicies), 1, 0, 0, 0);
 
-        commandList->ResourceBarrier(1, &toPresent);
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), contextList);
 
-        check(commandList->Close(), "failed to close command list");
+        contextList->ResourceBarrier(1, &toPresent);
+
+        check(contextList->Close(), "failed to close command list");
     }
 
     void Context::present() {
@@ -455,7 +495,7 @@ namespace engine::render {
 
     void Context::flushQueue() {
         ID3D12CommandList* lists[] = { commandList.get() };
-        queue->ExecuteCommandLists(1, lists);
+        queue->ExecuteCommandLists(std::size(lists), lists);
     }
 
     void Context::waitForGPU() {
