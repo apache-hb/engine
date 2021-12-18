@@ -1,7 +1,7 @@
 #include "win32.h"
 
 namespace engine::win32 {
-    std::string to_string(DWORD err) {
+    std::string toString(DWORD err) {
         auto flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM;
         auto lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
         HLOCAL buffer = nullptr;

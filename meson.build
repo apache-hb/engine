@@ -9,18 +9,26 @@ src = [
     'src/render/util.cpp',
     'src/render/render.cpp',
     'src/render/debug.cpp',
+
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/timer.cpp',
     'src/util/win32.cpp',
+
+    'src/assets/obj.cpp',
+
     'src/system/window.cpp',
     'src/system/system.cpp',
+
     'src/logging/log.cpp',
+
     'src/input/inputx.cpp',
+    'src/input/camera.cpp',
+
     'src/main.cpp'
 ]
 
-args = [ '-DUNICODE=1', '/stdIfcDir', 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.30.30705\\ifc\\x64' ]
+args = [ '-DUNICODE=1' ]
 
 if get_option('agility-sdk').enabled()
     src += [ 'src/render/agility.cpp' ]
@@ -44,8 +52,9 @@ links = [
 ]
 
 imgui = subproject('imgui').get_variable('imgui_dep')
+tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
 
-deps = [ imgui ]
+deps = [ imgui, tinyobj ]
 
 executable('engine', src,
     include_directories : 'src',

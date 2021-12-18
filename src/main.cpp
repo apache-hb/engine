@@ -4,6 +4,7 @@
 #include "util/strings.h"
 #include "util/timer.h"
 #include "input/inputx.h"
+#include "input/camera.h"
 
 #include <thread>
 
@@ -17,6 +18,14 @@ using WindowCallbacks = system::Window::Callbacks;
 
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
+
+    static constexpr float moveSpeed = 5.f;
+    static constexpr float rotateSpeed = 5.f;
+
+    static constexpr xinput::Deadzone ldeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
+    static constexpr xinput::Deadzone rdeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
+    static constexpr int16_t ltrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+    static constexpr int16_t rtrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
     MainWindow() {
         factory = new render::Factory(DXGI_CREATE_FACTORY_DEBUG);
@@ -34,13 +43,32 @@ struct MainWindow final : WindowCallbacks {
         context->createDevice(info);
         context->createAssets();
 
-        draw = new std::jthread([this](auto stop) { 
+        input = new std::jthread([this](auto stop) {
             util::Timer timer = util::createTimer();
-            float elapsed = 0.f;
+            while (!stop.stop_requested()) {                
+                auto delta = timer.tick();
+                auto state = device.poll();
+
+                auto rotateX = state.rstick.x * rotateSpeed * delta;
+                auto rotateY = state.rstick.y * rotateSpeed * delta;
+
+                auto moveX = state.lstick.x * moveSpeed * delta;
+                auto moveY = state.lstick.y * moveSpeed * delta;
+                auto moveZ = (state.rtrigger - state.ltrigger) * delta;
+
+                if (moveX != 0.f || moveY != 0.f || moveZ != 0.f) {
+                    log::global->info("move: {} {} {}", moveX, moveY, moveZ);
+                }
+
+                camera.move({ moveX, moveY, moveZ });
+                camera.rotate(0.f, rotateX, rotateY);
+            }
+        });
+
+        draw = new std::jthread([this](auto stop) { 
             try {
                 while (!stop.stop_requested()) {
-                    elapsed += timer.tick();
-                    context->tick(elapsed);
+                    context->tick(camera);
                     context->present();
                 }
             } catch (const engine::Error &error) {
@@ -52,19 +80,13 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onDestroy() override {
+        delete input;
         delete draw;
         delete context;
     }
 
     virtual void onKeyPress(int key) override {
-        auto state = input.poll();
-        auto gamepad = state.Gamepad;
-        log::global->info("packet {} ({:x} {} {} ({}x{}) ({}x{}))", 
-            state.dwPacketNumber, gamepad.wButtons, 
-            gamepad.bLeftTrigger, gamepad.bRightTrigger,
-            gamepad.sThumbLX, gamepad.sThumbLY,
-            gamepad.sThumbRX, gamepad.sThumbRY
-        );
+
     }
 
     virtual void onKeyRelease(int key) override {
@@ -73,7 +95,11 @@ struct MainWindow final : WindowCallbacks {
 
 private:
     std::jthread *draw;
-    xinput::Device input{0};
+    std::jthread *input;
+
+    xinput::Device device{0, ldeadzone, rdeadzone, ltrigger, rtrigger};
+    input::Camera camera{{0.f, 0.f, 0.f}, {0.f, 1.f, 0.f}};
+    
     render::Factory *factory;
     render::Context *context;
 };

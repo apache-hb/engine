@@ -2,6 +2,8 @@
 
 #include "util.h"
 #include "system/system.h"
+#include "assets/loader.h"
+#include "input/camera.h"
 
 namespace engine::render {
     namespace Slots {
@@ -49,7 +51,7 @@ namespace engine::render {
         void destroyAssets();
 
         void present();
-        void tick(float elapsed);
+        void tick(const input::Camera& camera);
 
         ConstBuffer constBufferData;
 
@@ -114,6 +116,8 @@ namespace engine::render {
         void *constBufferPtr;
 
         Com<ID3D12Resource> texture;
+
+        loader::Model model;
 
         /// frame data
         Frame *frames;

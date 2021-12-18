@@ -14,7 +14,7 @@
 namespace engine::render {
     using namespace DirectX;
 
-    std::string to_string(HRESULT hr);
+    std::string toString(HRESULT hr);
 
     struct Error : engine::Error {
         Error(HRESULT hr, std::string message = "", std::source_location location = std::source_location::current())
@@ -25,7 +25,7 @@ namespace engine::render {
         HRESULT error() const { return code; }
 
         virtual std::string query() const override {
-            return std::format("hresult: {}\n{}", to_string(code), what());
+            return std::format("hresult: {}\n{}", toString(code), what());
         }
     private:
         HRESULT code;
@@ -144,11 +144,6 @@ namespace engine::render {
     }
 
     using Colour = XMFLOAT4;
-
-    struct Vertex {
-        XMFLOAT3 position;
-        Colour colour;
-    };
 
     namespace colour {
         constexpr Colour red = { 1.f, 0.f, 0.f, 1.f };

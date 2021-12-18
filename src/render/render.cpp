@@ -1,5 +1,7 @@
 #include "render.h"
 
+#include "assets/loader.h"
+
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
@@ -127,26 +129,6 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
-    constexpr Vertex verts[] = {
-        { { 0.25f, 0.25f, 0.25f }, colour::red },       // [0] front top left
-        { { -0.25f, 0.25f, 0.25f }, colour::orange },      // [1] front top right
-        { { 0.25f, -0.25f, 0.25f }, colour::yellow },    // [2] front bottom left
-        { { -0.25f, -0.25f, 0.25f }, colour::green },   // [3] front bottom right
-        { { 0.25f, 0.25f, -0.25f }, colour::blue },     // [4] back top left
-        { { -0.25f, 0.25f, -0.25f }, colour::indigo },    // [5] back top right
-        { { 0.25f, -0.25f, -0.25f }, colour::violet },  // [6] back bottom left
-        { { -0.25f, -0.25f, -0.25f }, colour::white }  // [7] back bottom right
-    };
-
-    constexpr DWORD indicies[] = {
-        2, 1, 0,  3, 1, 2, // front face
-        6, 0, 4,  2, 0, 6, // left face
-        7, 5, 1,  7, 1, 3, // right face
-        7, 6, 4,  7, 4, 5, // back face
-        0, 1, 4,  1, 5, 4, // top face
-        6, 3, 2,  6, 7, 3, // bottom face
-    };
-
     constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -232,9 +214,12 @@ namespace engine::render {
         commandList.rename(L"d3d12-command-list");
 
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+        model = loader::obj("resources\\utah-teapot.obj");
 
         {
-            const UINT vertexBufferSize = sizeof(verts);
+            const UINT vertexBufferSize = model.vertices.size() * sizeof(loader::Vertex);
+            auto verts = model.vertices.data();
+
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
 
             HRESULT hr = device->CreateCommittedResource(
@@ -253,14 +238,16 @@ namespace engine::render {
             vertexBufferView = {
                 .BufferLocation = vertexBuffer->GetGPUVirtualAddress(),
                 .SizeInBytes = vertexBufferSize,
-                .StrideInBytes = sizeof(Vertex)
+                .StrideInBytes = sizeof(loader::Vertex)
             };
 
             vertexBuffer.rename(L"d3d12-vertex-buffer");
         }
 
         {
-            UINT indexBufferSize = sizeof(indicies);
+            const UINT indexBufferSize = model.indices.size() * sizeof(DWORD);
+            auto indicies = model.indices.data();
+
             const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
 
@@ -412,21 +399,11 @@ namespace engine::render {
         fence.tryDrop("fence");
     }
 
-    void Context::tick(float delta) {
-        auto eye = XMVectorSet(sinf(delta), 0.f, cosf(delta), 0.f);
-        auto look = XMVectorSet(0.f, 0.f, 0.f, 0.f);
-        auto up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-
+    void Context::tick(const input::Camera& camera) {
         auto model = XMMatrixScaling(1.f, 1.f, 1.f);
         XMStoreFloat4x4(&constBufferData.model, model);
 
-        auto view = XMMatrixTranspose(XMMatrixLookAtRH(eye, look, up));
-        XMStoreFloat4x4(&constBufferData.view, view);
-
-        auto fov = 90.f * (XM_PI / 180.f);
-
-        auto proj = XMMatrixTranspose(XMMatrixPerspectiveFovRH(fov, aspect, 0.01f, 100.f));
-        XMStoreFloat4x4(&constBufferData.projection, proj);
+        camera.store(&constBufferData.view, &constBufferData.projection, aspect);
     }
 
     void Context::populate() {
@@ -473,7 +450,7 @@ namespace engine::render {
         contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
         contextList->IASetIndexBuffer(&indexBufferView);
-        contextList->DrawIndexedInstanced(std::size(indicies), 1, 0, 0, 0);
+        contextList->DrawIndexedInstanced(model.indices.size(), 1, 0, 0, 0);
 
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), contextList);
 

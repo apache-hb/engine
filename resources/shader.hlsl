@@ -24,7 +24,7 @@ float4 perspective(float3 position) {
     return pos;
 }
 
-PSInput VSMain(float3 position : POSITION, float4 uv : TEXCOORD) {    
+PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD) {    
     PSInput result;
 
     result.position = perspective(position);

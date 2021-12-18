@@ -11,7 +11,7 @@ extern "C" {
 }
 
 namespace engine::render {
-    std::string to_string(HRESULT hr) {
+    std::string toString(HRESULT hr) {
         return strings::encode(_com_error(hr).ErrorMessage());
     }
 

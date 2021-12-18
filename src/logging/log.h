@@ -68,5 +68,6 @@ namespace engine::log {
     };
 
     extern Channel *global;
+    extern Channel *loader;
     extern Channel *render;
 }

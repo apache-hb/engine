@@ -54,7 +54,7 @@ namespace engine::log {
     }
 
     namespace {
-        std::string_view level_string(Level level) {
+        std::string_view levelString(Level level) {
             switch (level) {
             case INFO: return GREEN "info" RESET;
             case WARN: return YELLOW "warn" RESET;
@@ -65,7 +65,7 @@ namespace engine::log {
     }
 
     void ConsoleChannel::send(Level report, std::string_view message) {
-        auto view = level_string(report);
+        auto view = levelString(report);
         const std::string full = std::format("{}[{}]: {}", channel(), view, message);
         fprintf(file, "%s\n", full.c_str());
     }
@@ -149,6 +149,7 @@ namespace engine::log {
     };
 
     Channel *global = new ConsoleChannel("global", stdout);
+    Channel *loader = new ConsoleChannel("loader", stderr);
     Channel *render = new BroadcastChannel("render", {
         new ConsoleChannel("render", stdout),
         new ImGuiChannel("console")
