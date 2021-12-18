@@ -5,9 +5,9 @@
 
 namespace engine::input {
     struct MnK {
-        MnK(float sensitivity)
-            : sensitivity(sensitivity)
-        { }
+        MnK(float sensitivity): sensitivity(sensitivity) { 
+            memset(keys, 0, sizeof(keys));
+        }
 
         void pushPress(WPARAM wparam);
         void pushRelease(WPARAM wparam);
