@@ -36,6 +36,7 @@ namespace engine::system {
         RECT getClientRect() const;
         Size getClientSize() const;
         float getClientAspectRatio() const;
+        size_t getDpi() const;
 
         void popup(std::string_view title, std::string_view message);
 

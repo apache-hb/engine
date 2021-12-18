@@ -49,6 +49,7 @@ struct MainWindow final : WindowCallbacks {
             while (!stop.stop_requested()) {                
                 auto delta = timer.tick();
                 auto state = device.poll();
+                if (!device.valid()) { continue; }
 
                 auto pitch = state.rstick.x * rotateSpeed * delta;
                 auto yaw = state.rstick.y * rotateSpeed * delta;
@@ -103,25 +104,24 @@ private:
     std::jthread *input;
 
     xinput::Device device{0, ldeadzone, rdeadzone, ltrigger, rtrigger};
-    input::Camera camera{{0.f, 0.f, 0.f}, {0.f, 1.f, 0.f}};
+    input::Camera camera{{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
     
     render::Factory *factory;
     render::Context *context;
 };
 
-void initImGui() {
+void initImGui(size_t dpi) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
     ImGuiIO &io = ImGui::GetIO();
-    io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", 32.f);
+    io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
     io.DisplayFramebufferScale = { 2.f, 2.f };
 }
 
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
-    initImGui();
 
     MainWindow callbacks;
 
@@ -132,6 +132,9 @@ int runEngine(HINSTANCE instance, int show) {
     };
 
     auto window = system::createWindow(instance, create, &callbacks);
+
+    initImGui(window.getDpi());
+
     window.run(show);
 
     render::debug::disable();

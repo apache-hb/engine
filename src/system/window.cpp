@@ -99,6 +99,10 @@ namespace engine::system {
         return float(width) / float(height);
     }
 
+    size_t Window::getDpi() const {
+        return GetDpiForWindow(handle);
+    }
+
     DWORD Window::run(int show) {
         if (ShowWindow(handle, show) != 0) {
             return GetLastError();
