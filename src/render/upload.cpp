@@ -42,6 +42,14 @@ namespace engine::render {
             .Texture2D = { .MipLevels = 1 }
         };
     }
+
+    constexpr DXGI_FORMAT formatForBPP(size_t bpp) {
+        switch (bpp) {
+        case 3: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case 4: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        default: return DXGI_FORMAT_UNKNOWN;
+        }
+    }
     
     Com<ID3D12Resource> Context::uploadBuffer(const void *data, size_t size, std::wstring_view name) {
         const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);

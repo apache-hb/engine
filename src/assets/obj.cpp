@@ -65,8 +65,6 @@ namespace engine::loader {
 
         Scene scene;
 
-        std::unordered_map<Vertex, DWORD> uniqueVertices = {};
-
         log::loader->info("loading scene {}", path);
         log::loader->info("\t{} materials", materials.size());
         log::loader->info("\t{} shapes", shapes.size());
@@ -111,14 +109,8 @@ namespace engine::loader {
                 
                 Vertex vertexData = { vertex, normal, texcoord };
 
-                if (auto it = uniqueVertices.find(vertexData); it != uniqueVertices.end()) {
-                    scene.indices.push_back(it->second);
-                } else {
-                    scene.vertices.push_back(vertexData);
-                    UINT indecie = UINT(scene.vertices.size() - 1);
-                    scene.indices.push_back(indecie);
-                    uniqueVertices[vertexData] = indecie;
-                }
+                scene.vertices.push_back(vertexData);
+                scene.indices.push_back(UINT(scene.vertices.size() - 1));
             }
 
             size_t lastIndex = scene.indices.size() - 1;

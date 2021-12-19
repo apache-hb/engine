@@ -9,7 +9,7 @@
 namespace engine::render {
     void Context::createDevice(Context::Create& info) {
         create = info;
-        scene = loader::objScene("resources\\utah-teapot.obj");
+        scene = loader::objScene("resources\\sponza\\sponza.obj");
 
         auto adapter = create.adapter;
         auto window = create.window;
