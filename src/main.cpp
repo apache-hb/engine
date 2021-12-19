@@ -24,8 +24,8 @@ constexpr xinput::Deadzone rdeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XI
 constexpr int16_t ltrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 constexpr int16_t rtrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
-constexpr float moveSpeed = 50.f;
-constexpr float ascentSpeed = 70.f;
+constexpr float moveSpeed = 5.f;
+constexpr float ascentSpeed = 5.f;
 constexpr float rotateSpeed = 3.f;
 
 struct InputManager {
@@ -142,9 +142,12 @@ int runEngine(HINSTANCE instance, int show) {
 
     MainWindow callbacks;
 
+    auto width = GetSystemMetrics(SM_CXSCREEN);
+    auto height = GetSystemMetrics(SM_CYSCREEN);
+
     system::Window::Create create = {
         .title = TEXT("Hello world!"),
-        .rect = system::rectCoords(0, 0, 1920 * 2, 1080 * 2),
+        .rect = system::rectCoords(0, 0, width, height),
         .style = system::Window::Style::BORDERLESS
     };
 
