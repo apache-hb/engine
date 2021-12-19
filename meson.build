@@ -19,7 +19,7 @@ src = [
     'src/util/win32.cpp',
 
     'src/assets/obj.cpp',
-    'src/assets/tga.cpp',
+    'src/assets/image.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',
@@ -59,10 +59,13 @@ links = [
     'xinput.lib'
 ]
 
+cmake = import('cmake')
+
 imgui = subproject('imgui').get_variable('imgui_dep')
 tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
 queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
+assimp = cmake.subproject('assimp').get_variable('assimp_dep')
 
 deps = [ imgui, tinyobj, queue, stb ]
 

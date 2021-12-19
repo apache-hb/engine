@@ -60,10 +60,10 @@ namespace engine::strings {
     }
 
     std::string encode(std::wstring_view str) {
-        std::string result(str.size(), '\0');
-        size_t size = 0;
+        std::string result(str.size() + 1, '\0');
+        size_t size = result.size();
 
-        errno_t err = wcstombs_s(&size, result.data(), result.size(), str.data(), result.size());
+        errno_t err = wcstombs_s(&size, result.data(), result.size(), str.data(), str.size());
         if (err != 0) {
             throw engine::Errno(err);
         }

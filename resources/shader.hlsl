@@ -3,8 +3,6 @@ cbuffer ConstBuffer : register(b0) {
     float4x4 model;
     float4x4 view;
     float4x4 projection;
-
-    float3 offset;
 };
 
 /// only need to be bound for the pixel shader stage
@@ -13,6 +11,7 @@ SamplerState texSampler : register(s0);
 
 struct PSInput {
     float4 position : SV_POSITION;
+    float3 normal : NORMAL;
     float2 uv : TEXCOORD;
 };
 
@@ -24,10 +23,11 @@ float4 perspective(float3 position) {
     return pos;
 }
 
-PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD) {    
+PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD) {    
     PSInput result;
 
     result.position = perspective(position);
+    result.normal = normal;
     result.uv = uv;
 
     return result;

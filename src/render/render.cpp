@@ -9,6 +9,7 @@
 namespace engine::render {
     void Context::createDevice(Context::Create& info) {
         create = info;
+        scene = loader::objScene("resources\\sponza\\sponza.obj");
 
         auto adapter = create.adapter;
         auto window = create.window;
@@ -67,8 +68,8 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        scene.scissor = d3d12::Scissor(width, height);
-        scene.viewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
+        sceneView.scissor = d3d12::Scissor(width, height);
+        sceneView.viewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
     
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
@@ -97,7 +98,7 @@ namespace engine::render {
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
                 .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                .NumDescriptors = Slots::Total,
+                .NumDescriptors = UINT(requiredCbvSrvHeapEntries()),
                 .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
             };
 
@@ -182,12 +183,12 @@ namespace engine::render {
         auto version = rootVersion();
         {
             CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-            CD3DX12_ROOT_PARAMETER1 parameters[1];
+            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // constant buffer data
+            ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
 
-            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-            ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
-
-            parameters[0].InitAsDescriptorTable(UINT(std::size(ranges)), ranges, D3D12_SHADER_VISIBILITY_ALL);
+            CD3DX12_ROOT_PARAMETER1 parameters[2];
+            parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX); // constant buffer
+            parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
             desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(samplers)), samplers, rootSignatureFlags);
@@ -210,8 +211,9 @@ namespace engine::render {
             auto pixelShader = compileShader(L"resources\\shader.hlsl", "PSMain", "ps_5_0");
         
             D3D12_INPUT_ELEMENT_DESC inputs[] = {
-                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(loader::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(loader::Vertex, normal),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, offsetof(loader::Vertex, texcoord), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
             };
             
             D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
@@ -247,10 +249,9 @@ namespace engine::render {
 
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
         const auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-        model = loader::obj("resources\\sponza\\sponza.obj");
 
         {
-            const auto verts = std::span(model.vertices);
+            const auto verts = std::span(scene.vertices);
             vertexBuffer = uploadSpan(verts, L"model-vertex-data");
 
             vertexBufferView = {
@@ -261,7 +262,7 @@ namespace engine::render {
         }
 
         {
-            const auto indices = std::span(model.indices);
+            const auto indices = std::span(scene.indices);
             indexBuffer = uploadSpan(indices, L"model-index-data");
 
             indexBufferView = {
@@ -321,10 +322,11 @@ namespace engine::render {
             check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
         }
 
-        {
-            const auto data = loader::tga("resources\\sponza\\textures\\background.tga");
-
-            texture = uploadTexture(data, getCbvSrvCpuHandle(Slots::Texture), L"texture");
+        /// upload all our textures to the gpu
+        textures.resize(scene.textures.size());
+        for (size_t i = 0; i < scene.textures.size(); i++) {
+            const auto& tex = scene.textures[i];
+            textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
         }
 
         ImGui_ImplWin32_Init(create.window->getHandle());
@@ -349,8 +351,11 @@ namespace engine::render {
         ImGui_ImplDX12_Shutdown();
         ImGui_ImplWin32_Shutdown();
 
+        for (auto& texture : textures) {
+            texture.tryDrop("texture");
+        }
+
         depthStencil.tryDrop("depth-stencil");
-        texture.tryDrop("texture");
         constBuffer.tryDrop("const-buffer");
         indexBuffer.tryDrop("index-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
@@ -400,10 +405,10 @@ namespace engine::render {
 
         contextList->SetGraphicsRootSignature(rootSignature.get());
         contextList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-        contextList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(0));
+        contextList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(Slots::Buffer));
         
-        contextList->RSSetViewports(1, &scene.viewport);
-        contextList->RSSetScissorRects(1, &scene.scissor);
+        contextList->RSSetViewports(1, &sceneView.viewport);
+        contextList->RSSetScissorRects(1, &sceneView.scissor);
 
         contextList->ResourceBarrier(1, &toTarget);
 
@@ -415,7 +420,15 @@ namespace engine::render {
         contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
         contextList->IASetIndexBuffer(&indexBufferView);
-        contextList->DrawIndexedInstanced(UINT(model.indices.size()), 1, 0, 0, 0);
+        
+        for (size_t i = 0; i < scene.objects.size(); i++) {
+            const auto& obj = scene.objects[i];
+            const auto start = obj.offset;
+            const auto count = obj.length;
+
+            contextList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(obj.texture));
+            contextList->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
+        }
 
         ImGui_ImplDX12_RenderDrawData(draw, contextList);
 

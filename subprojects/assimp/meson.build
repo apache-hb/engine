@@ -1,0 +1,2 @@
+project('assimp', 'cpp')
+

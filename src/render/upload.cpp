@@ -1,5 +1,7 @@
 #include "render.h"
 
+#include "util/strings.h"
+
 namespace engine::render {
     const auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     const auto uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -79,6 +81,8 @@ namespace engine::render {
     }
 
     Com<ID3D12Resource> Context::uploadTexture(const loader::Texture& tex, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name) {
+        log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
+        
         const auto width = UINT(tex.width);
         const auto height = UINT(tex.height);
         const auto bpp = UINT(tex.bpp);

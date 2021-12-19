@@ -10,17 +10,16 @@
 namespace engine::render {
     namespace Slots {
         enum Index : int {
-            Buffer = 0,
-            Texture = 1,
-            ImGui = 2,
+            Buffer,
+            ImGui,
             Total
         };
     }
 
     namespace Allocator {
         enum Index : int {
-            Context = 0,
-            Copy = 1,
+            Context,
+            Copy,
             Total
         };
 
@@ -107,7 +106,7 @@ namespace engine::render {
             return uploadBuffer(data.data(), data.size() * sizeof(T), name);
         }
 
-        View scene;
+        View sceneView;
 
         /// pipeline objects
         Com<ID3D12Device> device;
@@ -128,12 +127,24 @@ namespace engine::render {
         Com<ID3D12DescriptorHeap> cbvSrvHeap;
         UINT cbvSrvDescriptorSize;
 
-        auto getCbvSrvGpuHandle(UINT index) {
-            return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetGPUDescriptorHandleForHeapStart(), index, cbvSrvDescriptorSize);
+        size_t requiredCbvSrvHeapEntries() const {
+            return scene.textures.size() + Slots::Total;
         }
 
-        auto getCbvSrvCpuHandle(UINT index) {
-            return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), index, cbvSrvDescriptorSize);
+        auto getCbvSrvGpuHandle(size_t index) {
+            return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetGPUDescriptorHandleForHeapStart(), UINT(index), cbvSrvDescriptorSize);
+        }
+
+        auto getCbvSrvCpuHandle(size_t index) {
+            return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), UINT(index), cbvSrvDescriptorSize);
+        }
+        
+        auto getTextureSlotGpuHandle(size_t index) {
+            return getCbvSrvGpuHandle(index + Slots::Total);
+        }
+
+        auto getTextureSlotCpuHandle(size_t index) {
+            return getCbvSrvCpuHandle(index + Slots::Total);
         }
 
         Com<ID3D12GraphicsCommandList> commandList;
@@ -155,9 +166,9 @@ namespace engine::render {
 
         Com<ID3D12Resource> depthStencil;
 
-        Com<ID3D12Resource> texture;
+        std::vector<Com<ID3D12Resource>> textures;
 
-        loader::Model model;
+        loader::Scene scene;
 
         /// frame data
         Frame *frames;

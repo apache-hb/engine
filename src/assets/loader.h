@@ -12,6 +12,7 @@ namespace engine::loader {
 
     struct Vertex {
         XMFLOAT3 position;
+        XMFLOAT3 normal;
         XMFLOAT2 texcoord;
     };
 
@@ -25,16 +26,25 @@ namespace engine::loader {
         size_t height;
         size_t bpp;
 
-        std::span<UINT8> pixels;
+        std::vector<UINT8> pixels;
     };
 
     struct Scene {
-        struct Item {
-            Model model;
-            Texture texture;
+        // all verticies that make up the scene
+        std::vector<Vertex> vertices;
+
+        // all indicies into the verticies
+        std::vector<DWORD> indices;
+
+        std::vector<Texture> textures;
+
+        struct Object {
+            size_t offset; // offset into the indices
+            size_t length; // number of indicies
+            size_t texture; // index into the texture buffer
         };
 
-        std::vector<Item> models;
+        std::vector<Object> objects;
     };
 
     struct LoadError : engine::Error {
@@ -47,8 +57,7 @@ namespace engine::loader {
         std::string warning;
     };
 
-    Model obj(std::string_view path);
     Scene objScene(std::string_view path);
 
-    Texture tga(std::string_view path);
+    Texture image(std::string_view path);
 }

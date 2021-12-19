@@ -118,32 +118,4 @@ namespace engine::render {
 
         return shader;
     }
-
-    constexpr auto pixelSize = 4;
-
-    std::vector<UINT8> generateTexture(UINT width, UINT height) {
-        const size_t rowPitch = width * pixelSize;
-        const size_t cellPitch = rowPitch >> 3;
-        const size_t cellHeight = height >> 3;
-        const size_t size = rowPitch * height;
-
-        std::vector<UINT8> texture(size);
-        auto *data = texture.data();
-
-        for (size_t n = 0; n < size; n += pixelSize) {
-            size_t x = n % rowPitch;
-            size_t y = n / rowPitch;
-            size_t i = x / cellPitch;
-            size_t j = y / cellHeight;
-
-            UINT8 colour = (i % 2 == j % 2) ? 0x00 : 0xFF;
-
-            data[n + 0] = UINT8(i); // red
-            data[n + 1] = UINT8(j); // green
-            data[n + 2] = colour; // blue
-            data[n + 3] = 0xFF; // alpha
-        }
-
-        return texture;
-    }
 }
