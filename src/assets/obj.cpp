@@ -5,6 +5,28 @@
 #include "logging/log.h"
 
 #include <filesystem>
+#include <unordered_map>
+
+template<>
+struct std::hash<engine::loader::Vertex> {
+    size_t operator()(const engine::loader::Vertex &vertex) const {
+        return std::hash<float>()(vertex.position.x) ^
+            std::hash<float>()(vertex.position.y) ^
+            std::hash<float>()(vertex.position.z) ^
+            std::hash<float>()(vertex.normal.x) ^
+            std::hash<float>()(vertex.normal.y) ^
+            std::hash<float>()(vertex.normal.z) ^
+            std::hash<float>()(vertex.texcoord.x) ^
+            std::hash<float>()(vertex.texcoord.y);
+    }
+};
+
+template<>
+struct std::equal_to<engine::loader::Vertex> {
+    bool operator()(const engine::loader::Vertex &lhs, const engine::loader::Vertex &rhs) const {
+        return memcmp(&lhs, &rhs, sizeof(engine::loader::Vertex)) == 0;
+    }
+};
 
 namespace {
     constexpr auto pixelSize = 4;
@@ -56,6 +78,8 @@ namespace engine::loader {
             }
         }
 
+        std::unordered_map<Vertex, DWORD> uniqueVertices = {};
+
         for (const auto& shape : shapes) {
             const auto& mesh = shape.mesh;
 
@@ -83,8 +107,16 @@ namespace engine::loader {
                     attrib.texcoords[2 * tidx + 1]
                 );
                 
-                scene.vertices.push_back(Vertex { vertex, normal, texcoord });
-                scene.indices.push_back(DWORD(scene.vertices.size() - 1));
+                Vertex vertexData = { vertex, normal, texcoord };
+
+                if (auto it = uniqueVertices.find(vertexData); it != uniqueVertices.end()) {
+                    scene.indices.push_back(it->second);
+                } else {
+                    scene.vertices.push_back(vertexData);
+                    UINT indecie = UINT(scene.vertices.size() - 1);
+                    scene.indices.push_back(indecie);
+                    uniqueVertices[vertexData] = indecie;
+                }
             }
 
             size_t lastIndex = scene.indices.size() - 1;

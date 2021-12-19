@@ -1,2 +1,0 @@
-project('assimp', 'cpp')
-
