@@ -381,8 +381,6 @@ namespace engine::render {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();
-
         log::render->tick();
 
         ImGui::Render();

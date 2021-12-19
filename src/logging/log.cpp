@@ -116,7 +116,8 @@ namespace engine::log {
         }
 
         virtual void tick() override {
-            if (ImGui::Begin(channel().data())) {
+            ImGui::SetNextWindowPos(ImVec2(0, 0));
+            if (ImGui::Begin(channel().data(), nullptr, ImGuiWindowFlags_NoMove)) {
                 ImGui::Text("double click a log to copy it to clipboard");
                 ImGui::Separator();
                 ImGui::PushTextWrapPos(ImGui::GetWindowWidth() * 0.9f);
