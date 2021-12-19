@@ -34,8 +34,8 @@ PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : T
 }
 
 float4 PSMain(PSInput input) : SV_TARGET {
-    float it = dot(normalize(input.position.xyz), normalize(input.normal.xyz)) * 0.5f;
+    //float it = dot(normalize(input.position.xyz), normalize(input.normal.xyz)) * 0.5f;
 
-    return float4(max(0.0f, it), max(0.0f, -it), 0.0f, 1.0f);
-    //return texResource.Sample(texSampler, input.uv);
+    //return float4(max(0.0f, it), max(0.0f, -it), 0.0f, 1.0f);
+    return texResource.Sample(texSampler, input.uv);
 }

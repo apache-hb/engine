@@ -9,7 +9,7 @@
 namespace engine::render {
     void Context::createDevice(Context::Create& info) {
         create = info;
-        scene = loader::objScene("resources\\sponza\\sponza.obj");
+        scene = loader::objScene("resources\\utah-teapot.obj");
 
         auto adapter = create.adapter;
         auto window = create.window;
@@ -223,6 +223,7 @@ namespace engine::render {
                 .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
                 .SampleMask = UINT_MAX,
                 .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+                .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
                 .InputLayout = { inputs, UINT(std::size(inputs)) },
                 .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
                 .NumRenderTargets = 1,
@@ -415,12 +416,13 @@ namespace engine::render {
         contextList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
         const float clear[] = { 0.f, 0.2f, 0.4f, 1.f };
-        commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
         contextList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
+        commandList->ClearDepthStencilView(dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+        
         contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
         contextList->IASetIndexBuffer(&indexBufferView);
-        
+
         for (size_t i = 0; i < scene.objects.size(); i++) {
             const auto& obj = scene.objects[i];
             const auto start = obj.offset;

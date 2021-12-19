@@ -100,11 +100,7 @@ namespace engine::render {
         return tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
     }
 
-#if D3D12_DEBUG
-#   define COMPILE_FLAGS D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
-#else
-#   define COMPILE_FLAGS 0
-#endif
+#define COMPILE_FLAGS 0
 
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target) {
         Com<ID3DBlob> shader;

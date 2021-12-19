@@ -63,10 +63,14 @@ namespace engine::loader {
             throw LoadError(err, warn);
         }
 
-        // push default material
-        materials.push_back(tinyobj::material_t {});
-
         Scene scene;
+
+        std::unordered_map<Vertex, DWORD> uniqueVertices = {};
+
+        log::loader->info("loading scene {}", path);
+        log::loader->info("\t{} materials", materials.size());
+        log::loader->info("\t{} shapes", shapes.size());
+        log::loader->info("\t{} vertices", attrib.vertices.size() / 3);
 
         for (const auto& mat : materials) {
             auto texname = base/mat.diffuse_texname;
@@ -77,8 +81,6 @@ namespace engine::loader {
                 scene.textures.push_back(tex);
             }
         }
-
-        std::unordered_map<Vertex, DWORD> uniqueVertices = {};
 
         for (const auto& shape : shapes) {
             const auto& mesh = shape.mesh;

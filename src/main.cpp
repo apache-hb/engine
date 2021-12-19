@@ -26,7 +26,7 @@ constexpr int16_t rtrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
 constexpr float moveSpeed = 50.f;
 constexpr float ascentSpeed = 70.f;
-constexpr float rotateSpeed = 10.f;
+constexpr float rotateSpeed = 3.f;
 
 struct InputManager {
     void handleEvent(system::Window::Event event) {
