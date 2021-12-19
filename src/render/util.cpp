@@ -138,10 +138,10 @@ namespace engine::render {
 
             UINT8 colour = (i % 2 == j % 2) ? 0x00 : 0xFF;
 
-            data[n + 0] = colour;
-            data[n + 1] = colour;
-            data[n + 2] = colour;
-            data[n + 3] = 0xFF;
+            data[n + 0] = UINT8(i); // red
+            data[n + 1] = UINT8(j); // green
+            data[n + 2] = colour; // blue
+            data[n + 3] = 0xFF; // alpha
         }
 
         return texture;

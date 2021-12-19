@@ -22,11 +22,11 @@ namespace engine::input {
         result.rstick.x = float(newX - mouseX) * sensitivity;
         result.rstick.y = -float(newY - mouseY) * sensitivity;
 
-        result.lstick.x = float(keys['A'] - keys['D']);
-        result.lstick.y = float(keys['S'] - keys['W']);
+        result.lstick.x = -float(keys['A'] - keys['D']);
+        result.lstick.y = -float(keys['S'] - keys['W']);
 
-        result.ltrigger = float(keys['E']);
-        result.rtrigger = float(keys['Q']);
+        result.ltrigger = float(keys['Q']);
+        result.rtrigger = float(keys['E']);
 
         mouseX = newX;
         mouseY = newY;

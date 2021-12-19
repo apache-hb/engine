@@ -10,6 +10,7 @@ project('engine', [ 'c', 'cpp' ],
 src = [ 
     'src/render/util.cpp',
     'src/render/render.cpp',
+    'src/render/upload.cpp',
     'src/render/debug.cpp',
 
     'src/util/strings.cpp',
@@ -18,6 +19,7 @@ src = [
     'src/util/win32.cpp',
 
     'src/assets/obj.cpp',
+    'src/assets/tga.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',
@@ -60,8 +62,9 @@ links = [
 imgui = subproject('imgui').get_variable('imgui_dep')
 tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
 queue = subproject('atomic-queue').get_variable('queue')
+stb = subproject('stb').get_variable('stb')
 
-deps = [ imgui, tinyobj, queue ]
+deps = [ imgui, tinyobj, queue, stb ]
 
 executable('engine', src,
     include_directories : 'src',

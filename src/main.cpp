@@ -7,6 +7,7 @@
 #include "input/camera.h"
 #include "input/mnk.h"
 #include "util/macros.h"
+#include "assets/loader.h"
 
 #include <thread>
 
@@ -18,17 +19,57 @@ using namespace engine;
 
 using WindowCallbacks = system::Window::Callbacks;
 
+constexpr xinput::Deadzone ldeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
+constexpr xinput::Deadzone rdeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
+constexpr int16_t ltrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+constexpr int16_t rtrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+constexpr float moveSpeed = 50.f;
+constexpr float ascentSpeed = 70.f;
+constexpr float rotateSpeed = 10.f;
+
+struct InputManager {
+    void handleEvent(system::Window::Event event) {
+        switch (event.type) {
+        case WM_KEYDOWN: mnk.pushPress(event.wparam); break;
+        case WM_KEYUP: mnk.pushRelease(event.wparam); break;
+        default: break;
+        }
+    }
+
+    void update() {
+        auto in = poll();
+        float delta = timer.tick();
+
+        auto pitch = in.rstick.x * rotateSpeed * delta;
+        auto yaw = in.rstick.y * rotateSpeed * delta;
+
+        auto moveX = in.lstick.x * moveSpeed * delta;
+        auto moveY = in.lstick.y * moveSpeed * delta;
+        auto moveZ = (in.rtrigger - in.ltrigger) * ascentSpeed * delta;
+
+        camera.rotate(pitch, yaw);
+        camera.move(moveX, moveY, moveZ);
+    }
+
+    input::Input poll() {
+        if (choice == XINPUT) {
+            return device.poll();
+        } else {
+            return mnk.poll();
+        }
+    }
+
+    enum Choice { XINPUT, MNK } choice = XINPUT;
+    xinput::Device device{0, ldeadzone, rdeadzone, ltrigger, rtrigger};
+    input::MnK mnk{0.1f};
+
+    input::Camera camera{{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
+    util::Timer timer = util::createTimer();
+};
+
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
-
-    static constexpr float moveSpeed = 5.f;
-    static constexpr float ascentSpeed = 7.f;
-    static constexpr float rotateSpeed = 5.f;
-
-    static constexpr xinput::Deadzone ldeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
-    static constexpr xinput::Deadzone rdeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
-    static constexpr int16_t ltrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-    static constexpr int16_t rtrigger = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
     MainWindow() {
         factory = new render::Factory(DXGI_CREATE_FACTORY_DEBUG);
@@ -47,45 +88,19 @@ struct MainWindow final : WindowCallbacks {
         context->createAssets();
 
         input = new std::jthread([this](auto stop) {
-            util::Timer timer = util::createTimer();
-            input::MnK mnk{1.f};
             while (!stop.stop_requested()) {
                 if (hasEvent()) { 
-                    auto event = pollEvent();
-                    switch (event.type) {
-                    case WM_KEYDOWN: mnk.pushRelease(event.wparam); break;
-                    case WM_KEYUP: mnk.pushPress(event.wparam); break;
-                    default: break;
-                    }
+                    manager.handleEvent(pollEvent());
                 }
 
-                auto delta = timer.tick();
-                auto in = mnk.poll();
-
-                auto pitch = in.rstick.x * rotateSpeed * delta;
-                auto yaw = in.rstick.y * rotateSpeed * delta;
-
-                auto moveX = in.lstick.x * moveSpeed * delta;
-                auto moveY = in.lstick.y * moveSpeed * delta;
-                auto moveZ = (in.rtrigger - in.ltrigger) * ascentSpeed * delta;
-                
-                if (moveX != 0.f || moveY != 0.f || moveZ != 0.f) {
-                    log::global->info("move: {} {} {}", moveX, moveY, moveZ);
-                }
-
-                if (pitch != 0.f || yaw != 0.f) {
-                    log::global->info("rotate: {} {}", pitch, yaw);
-                }
-
-                camera.rotate(pitch, yaw);
-                camera.move(moveX, moveY, moveZ);
+                manager.update();
             }
         });
 
         draw = new std::jthread([this](auto stop) { 
             try {
                 while (!stop.stop_requested()) {
-                    context->tick(camera);
+                    context->tick(manager.camera);
                     context->present();
                 }
             } catch (const engine::Error &error) {
@@ -106,11 +121,10 @@ private:
     std::jthread *draw;
     std::jthread *input;
 
-    xinput::Device device{0, ldeadzone, rdeadzone, ltrigger, rtrigger};
-    input::Camera camera{{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
-    
     render::Factory *factory;
     render::Context *context;
+
+    InputManager manager;
 };
 
 void initImGui(size_t dpi) {
@@ -120,11 +134,13 @@ void initImGui(size_t dpi) {
 
     ImGuiIO &io = ImGui::GetIO();
     io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
-    io.DisplayFramebufferScale = { 2.f, 2.f };
+    io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
 }
 
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
+
+    loader::objScene("resources\\sponza\\sponza.obj");
 
     MainWindow callbacks;
 

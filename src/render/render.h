@@ -1,5 +1,7 @@
 #pragma once
 
+#include <span>
+
 #include "util.h"
 #include "system/system.h"
 #include "assets/loader.h"
@@ -18,8 +20,25 @@ namespace engine::render {
     namespace Allocator {
         enum Index : int {
             Context = 0,
+            Copy = 1,
             Total
         };
+
+        constexpr D3D12_COMMAND_LIST_TYPE getType(Index index) {
+            switch (index) {
+            case Context: return D3D12_COMMAND_LIST_TYPE_DIRECT;
+            case Copy: return D3D12_COMMAND_LIST_TYPE_COPY;
+            default: throw engine::Error("invalid allocator index");
+            }
+        }
+
+        constexpr std::wstring_view getName(Index index) {
+            switch (index) {
+            case Context: return L"context";
+            case Copy: return L"copy";
+            default: throw engine::Error("invalid allocator index");
+            }
+        }
     }
 
     namespace debug {
@@ -61,8 +80,10 @@ namespace engine::render {
 
         void populate();
         void flushQueue();
-        void waitForGPU();
-        void nextFrame();
+        void flushCopyQueue();
+
+        void waitForGPU(Com<ID3D12CommandQueue> queue);
+        void nextFrame(Com<ID3D12CommandQueue> queue);
 
         Factory factory;
         Create create;
@@ -78,16 +99,31 @@ namespace engine::render {
             UINT64 fenceValue;
         };
 
+        Com<ID3D12Resource> uploadBuffer(const void *data, size_t size, std::wstring_view name = L"resource");
+        Com<ID3D12Resource> uploadTexture(const loader::Texture& texture, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name = L"texture");
+
+        template<typename T>
+        Com<ID3D12Resource> uploadSpan(const std::span<T>& data, std::wstring_view name = L"resource") {
+            return uploadBuffer(data.data(), data.size() * sizeof(T), name);
+        }
+
         View scene;
 
         /// pipeline objects
         Com<ID3D12Device> device;
-        Com<ID3D12CommandQueue> queue;
+
+        Com<ID3D12CommandQueue> directQueue;
+
         Com<IDXGISwapChain3> swapchain;
         float aspect;
 
         Com<ID3D12RootSignature> rootSignature;
         Com<ID3D12PipelineState> pipelineState;
+
+        Com<ID3D12DescriptorHeap> dsvHeap;
+        
+        Com<ID3D12DescriptorHeap> rtvHeap;
+        UINT rtvDescriptorSize;
 
         Com<ID3D12DescriptorHeap> cbvSrvHeap;
         UINT cbvSrvDescriptorSize;
@@ -100,10 +136,11 @@ namespace engine::render {
             return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), index, cbvSrvDescriptorSize);
         }
 
-        Com<ID3D12DescriptorHeap> rtvHeap;
-        UINT rtvDescriptorSize;
-
         Com<ID3D12GraphicsCommandList> commandList;
+
+        Com<ID3D12CommandQueue> copyQueue;
+        Com<ID3D12GraphicsCommandList> copyCommandList;
+        std::vector<Com<ID3D12Resource>> copyResources;
 
         /// resources
         Com<ID3D12Resource> vertexBuffer;
@@ -114,6 +151,8 @@ namespace engine::render {
 
         Com<ID3D12Resource> constBuffer;
         void *constBufferPtr;
+
+        Com<ID3D12Resource> depthStencil;
 
         Com<ID3D12Resource> texture;
 

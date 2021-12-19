@@ -46,7 +46,7 @@ namespace engine::input {
         auto up = XMVectorSet(0.f, 1.f, 0.f, 1.f);
 
         auto viewMatrix = XMMatrixLookToRH(XMLoadFloat3(&where), XMLoadFloat3(&look), up);
-        auto projectionMatrix = XMMatrixPerspectiveFovRH(fov * (XM_PI / 180.f), aspect, 0.1f, 1000.f);
+        auto projectionMatrix = XMMatrixPerspectiveFovRH(fov * (XM_PI / 180.f), aspect, 0.1f, 100000.f);
 
         XMStoreFloat4x4(view, XMMatrixTranspose(viewMatrix));
         XMStoreFloat4x4(projection, XMMatrixTranspose(projectionMatrix));

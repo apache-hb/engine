@@ -26,13 +26,22 @@ namespace engine::render {
 
         {
             D3D12_COMMAND_QUEUE_DESC desc = {
-                .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-                .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE
+                .Type = D3D12_COMMAND_LIST_TYPE_DIRECT
             };
 
-            check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)), "failed to create command queue");
+            check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&directQueue)), "failed to create command queue");
 
-            queue.rename(L"d3d12-queue");
+            directQueue.rename(L"d3d12-direct-queue");
+        }
+
+        {
+            D3D12_COMMAND_QUEUE_DESC desc = {
+                .Type = D3D12_COMMAND_LIST_TYPE_COPY
+            };
+
+            check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&copyQueue)), "failed to create command queue");
+
+            copyQueue.rename(L"d3d12-copy-queue");
         }
 
         {
@@ -47,7 +56,7 @@ namespace engine::render {
                 .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
             };
 
-            auto swapchain1 = factory.createSwapChain(queue, hwnd, desc);
+            auto swapchain1 = factory.createSwapChain(directQueue, hwnd, desc);
 
             if (!(swapchain = swapchain1.as<IDXGISwapChain3>()).valid()) {
                 throw engine::Error("failed to create swapchain");
@@ -61,6 +70,17 @@ namespace engine::render {
         scene.scissor = d3d12::Scissor(width, height);
         scene.viewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
     
+        {
+            D3D12_DESCRIPTOR_HEAP_DESC desc = {
+                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+                .NumDescriptors = 1
+            };
+
+            check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&dsvHeap)), "failed to create DSV descriptor heap");
+        
+            dsvHeap.rename(L"d3d12-dsv-heap");
+        }
+
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
                 .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -100,8 +120,13 @@ namespace engine::render {
                 
                 for (auto alloc = 0; alloc < Allocator::Total; alloc++) {
                     auto &allocator = frame.allocators[alloc];
-                    check(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&allocator)), "failed to create command allocator");
-                    allocator.rename(std::format(L"frame-allocator-{}-{}", i, alloc).c_str());
+                    auto as = Allocator::Index(alloc);
+
+                    const auto type = Allocator::getType(as);
+                    const auto name = Allocator::getName(as);
+
+                    check(device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)), "failed to create command allocator");
+                    allocator.rename(std::format(L"frame-allocator-{}-{}", i, name).c_str());
                 }
 
                 handle.Offset(1, rtvDescriptorSize);
@@ -122,10 +147,12 @@ namespace engine::render {
         }
         delete[] frames;
 
+        dsvHeap.tryDrop("dsv-heap");
         cbvSrvHeap.tryDrop("cbv-srv-heap");
         rtvHeap.tryDrop("rtv-heap");
         swapchain.tryDrop("swapchain");
-        queue.tryDrop("queue");
+        directQueue.tryDrop("direct-queue");
+        copyQueue.tryDrop("copy-queue");
         device.tryDrop("device");
     }
 
@@ -207,67 +234,67 @@ namespace engine::render {
             pipelineState.rename(L"d3d12-pipeline-state");
         }
 
-        auto alloc = getAllocator(Allocator::Context).get();
+        auto contextAlloc = getAllocator(Allocator::Context).get();
+        auto copyAlloc = getAllocator(Allocator::Copy).get();
 
-        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc, pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
-        
+        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, copyAlloc, nullptr, IID_PPV_ARGS(&copyCommandList)), "failed to create copy command list");
+        copyCommandList.rename(L"d3d12-copy-command-list");
+
+
+        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, contextAlloc, pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
+        check(commandList->Close(), "failed to close command list");
         commandList.rename(L"d3d12-command-list");
 
         const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        model = loader::obj("resources\\utah-teapot.obj");
+        const auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        model = loader::obj("resources\\sponza\\sponza.obj");
 
         {
-            const UINT vertexBufferSize = UINT(model.vertices.size() * sizeof(loader::Vertex));
-            auto verts = model.vertices.data();
-
-            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-
-            HRESULT hr = device->CreateCommittedResource(
-                &upload, D3D12_HEAP_FLAG_NONE,
-                &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr, IID_PPV_ARGS(&vertexBuffer)
-            );
-            check(hr, "failed to create vertex buffer");
-
-            void *vertexBufferPtr;
-            CD3DX12_RANGE readRange(0, 0);
-            check(vertexBuffer->Map(0, &readRange, &vertexBufferPtr), "failed to map vertex buffer");
-            memcpy(vertexBufferPtr, verts, vertexBufferSize);
-            vertexBuffer->Unmap(0, nullptr);
+            const auto verts = std::span(model.vertices);
+            vertexBuffer = uploadSpan(verts, L"model-vertex-data");
 
             vertexBufferView = {
                 .BufferLocation = vertexBuffer->GetGPUVirtualAddress(),
-                .SizeInBytes = vertexBufferSize,
+                .SizeInBytes = UINT(verts.size() * sizeof(loader::Vertex)),
                 .StrideInBytes = sizeof(loader::Vertex)
             };
-
-            vertexBuffer.rename(L"d3d12-vertex-buffer");
         }
 
         {
-            const UINT indexBufferSize = UINT(model.indices.size() * sizeof(DWORD));
-            auto indicies = model.indices.data();
-
-            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
-
-            HRESULT hr = device->CreateCommittedResource(
-                &upload, D3D12_HEAP_FLAG_NONE,
-                &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr, IID_PPV_ARGS(&indexBuffer)
-            );
-            check(hr, "failed to create index buffer");
-
-            void *indexBufferPtr;
-            CD3DX12_RANGE readRange(0, 0);
-            check(indexBuffer->Map(0, &readRange, &indexBufferPtr), "failed to map index buffer");
-            memcpy(indexBufferPtr, indicies, indexBufferSize);
-            indexBuffer->Unmap(0, nullptr);
+            const auto indices = std::span(model.indices);
+            indexBuffer = uploadSpan(indices, L"model-index-data");
 
             indexBufferView = {
                 .BufferLocation = indexBuffer->GetGPUVirtualAddress(),
-                .SizeInBytes = indexBufferSize,
+                .SizeInBytes = UINT(indices.size() * sizeof(DWORD)),
                 .Format = DXGI_FORMAT_R32_UINT
             };
+        }
+
+        {
+            D3D12_DEPTH_STENCIL_VIEW_DESC desc = {
+                .Format = DXGI_FORMAT_D32_FLOAT,
+                .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D
+            };
+
+            D3D12_CLEAR_VALUE clear = {
+                .Format = DXGI_FORMAT_D32_FLOAT,
+                .DepthStencil = { 1.0f, 0 }
+            };
+
+            auto [width, height] = create.window->getClientSize();
+
+            const auto tex2d = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+
+            HRESULT hr = device->CreateCommittedResource(
+                &defaultProps, D3D12_HEAP_FLAG_NONE,
+                &tex2d, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                &clear, IID_PPV_ARGS(&depthStencil)
+            );
+            check(hr, "failed to create depth stencil");
+            depthStencil.rename(L"d3d12-depth-stencil");
+
+            device->CreateDepthStencilView(depthStencil.get(), &desc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
         }
 
         {
@@ -294,14 +321,18 @@ namespace engine::render {
             check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
         }
 
+        {
+            const auto data = loader::tga("resources\\sponza\\textures\\background.tga");
+
+            texture = uploadTexture(data, getCbvSrvCpuHandle(Slots::Texture), L"texture");
+        }
+#if 0
         Com<ID3D12Resource> uploadResource;
 
         {
-            const auto width = 256;
-            const auto height = 256;
+            const auto width = 512;
+            const auto height = 512;
 
-            const auto def = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-            const auto up = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
             const auto data = generateTexture(width, height);
             const auto format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -317,7 +348,7 @@ namespace engine::render {
             };
 
             HRESULT hrDefault = device->CreateCommittedResource(
-                &def, D3D12_HEAP_FLAG_NONE,
+                &defaultProps, D3D12_HEAP_FLAG_NONE,
                 &desc, D3D12_RESOURCE_STATE_COPY_DEST,
                 nullptr, IID_PPV_ARGS(&texture)
             );
@@ -327,7 +358,7 @@ namespace engine::render {
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(textureSize);
 
             HRESULT hrUpload = device->CreateCommittedResource(
-                &up, D3D12_HEAP_FLAG_NONE,
+                &upload, D3D12_HEAP_FLAG_NONE,
                 &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr, IID_PPV_ARGS(&uploadResource)
             );
@@ -338,12 +369,7 @@ namespace engine::render {
                 .RowPitch = width * 4,
                 .SlicePitch = width * height * 4
             };
-            UpdateSubresources(commandList.get(), texture.get(), uploadResource.get(), 0, 0, 1, &texData);
-            const auto toResource = CD3DX12_RESOURCE_BARRIER::Transition(texture.get(), 
-                D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE
-            );
-            commandList->ResourceBarrier(1, &toResource);
+            UpdateSubresources(copyCommandList.get(), texture.get(), uploadResource.get(), 0, 0, 1, &texData);
 
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
                 .Format = format,
@@ -356,8 +382,7 @@ namespace engine::render {
             texture.rename(L"d3d12-texture");
             uploadResource.rename(L"d3d12-upload-resource");
         }
-
-        check(commandList->Close(), "failed to close command list");
+#endif
 
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
@@ -366,39 +391,38 @@ namespace engine::render {
             getCbvSrvGpuHandle(Slots::ImGui)
         );
 
-        flushQueue();
-
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
         frames[frameIndex].fenceValue = 1;
         if ((fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr)) == nullptr) {
             throw win32::Error("failed to create fence event");
         }
 
-        waitForGPU();
-
-        uploadResource.tryDrop("upload-resource");
+        flushCopyQueue();
     }
 
     void Context::destroyAssets() {
-        waitForGPU();
+        waitForGPU(directQueue);
 
         ImGui_ImplDX12_Shutdown();
         ImGui_ImplWin32_Shutdown();
 
+        depthStencil.tryDrop("depth-stencil");
         texture.tryDrop("texture");
         constBuffer.tryDrop("const-buffer");
         indexBuffer.tryDrop("index-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
         rootSignature.tryDrop("root-signature");
         pipelineState.tryDrop("pipeline-state");
+
         commandList.tryDrop("command-list");
+        copyCommandList.tryDrop("copy-command-list");
 
         CloseHandle(fenceEvent);
         fence.tryDrop("fence");
     }
 
     void Context::tick(const input::Camera& camera) {
-        XMStoreFloat4x4(&constBufferData.model, XMMatrixScaling(1.f, 1.f, 1.f));
+        XMStoreFloat4x4(&constBufferData.model, XMMatrixScaling(0.1f, 0.1f, 0.1f));
         camera.store(&constBufferData.view, &constBufferData.projection, aspect);
     }
 
@@ -424,6 +448,7 @@ namespace engine::render {
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
         /// main command list execution
         auto alloc = getAllocator(Allocator::Context);
@@ -439,9 +464,10 @@ namespace engine::render {
 
         contextList->ResourceBarrier(1, &toTarget);
 
-        contextList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        contextList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
         const float clear[] = { 0.f, 0.2f, 0.4f, 1.f };
+        commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
         contextList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
         contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
@@ -463,15 +489,28 @@ namespace engine::render {
 
         check(swapchain->Present(0, factory.presentFlags()), "failed to present swapchain");
 
-        nextFrame();
+        nextFrame(directQueue);
     }
 
     void Context::flushQueue() {
         ID3D12CommandList* lists[] = { commandList.get() };
-        queue->ExecuteCommandLists(UINT(std::size(lists)), lists);
+        directQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
     }
 
-    void Context::waitForGPU() {
+    void Context::flushCopyQueue() {
+        check(copyCommandList->Close(), "failed to close copy command list");
+
+        ID3D12CommandList* lists[] = { copyCommandList.get() };
+        copyQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
+
+        waitForGPU(copyQueue);
+
+        for (auto &resource : copyResources) {
+            resource.tryDrop("copy-resource");
+        }
+    }
+
+    void Context::waitForGPU(Com<ID3D12CommandQueue> queue) {
         UINT64 &value = frames[frameIndex].fenceValue;
         check(queue->Signal(fence.get(), value), "failed to signal fence");
 
@@ -481,7 +520,7 @@ namespace engine::render {
         value += 1;
     }
 
-    void Context::nextFrame() {
+    void Context::nextFrame(Com<ID3D12CommandQueue> queue) {
         UINT64 value = frames[frameIndex].fenceValue;
         check(queue->Signal(fence.get(), value), "failed to signal fence");
         
