@@ -140,6 +140,7 @@ namespace engine::render {
 
         Com<ID3D12CommandQueue> copyQueue;
         Com<ID3D12GraphicsCommandList> copyCommandList;
+        
         std::vector<Com<ID3D12Resource>> copyResources;
 
         /// resources

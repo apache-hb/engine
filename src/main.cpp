@@ -140,8 +140,6 @@ void initImGui(size_t dpi) {
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
 
-    loader::objScene("resources\\sponza\\sponza.obj");
-
     MainWindow callbacks;
 
     system::Window::Create create = {

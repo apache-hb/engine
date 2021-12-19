@@ -326,63 +326,6 @@ namespace engine::render {
 
             texture = uploadTexture(data, getCbvSrvCpuHandle(Slots::Texture), L"texture");
         }
-#if 0
-        Com<ID3D12Resource> uploadResource;
-
-        {
-            const auto width = 512;
-            const auto height = 512;
-
-            const auto data = generateTexture(width, height);
-            const auto format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-            D3D12_RESOURCE_DESC desc = {
-                .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-                .Width = width,
-                .Height = height,
-                .DepthOrArraySize = 1,
-                .MipLevels = 1,
-                .Format = format,
-                .SampleDesc = { 1, 0 },
-                .Flags = D3D12_RESOURCE_FLAG_NONE
-            };
-
-            HRESULT hrDefault = device->CreateCommittedResource(
-                &defaultProps, D3D12_HEAP_FLAG_NONE,
-                &desc, D3D12_RESOURCE_STATE_COPY_DEST,
-                nullptr, IID_PPV_ARGS(&texture)
-            );
-            check(hrDefault, "failed to create texture");
-
-            const UINT64 textureSize = GetRequiredIntermediateSize(texture.get(), 0, 1);
-            const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(textureSize);
-
-            HRESULT hrUpload = device->CreateCommittedResource(
-                &upload, D3D12_HEAP_FLAG_NONE,
-                &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
-                nullptr, IID_PPV_ARGS(&uploadResource)
-            );
-            check(hrUpload, "failed to create upload buffer");
-
-            D3D12_SUBRESOURCE_DATA texData = {
-                .pData = data.data(),
-                .RowPitch = width * 4,
-                .SlicePitch = width * height * 4
-            };
-            UpdateSubresources(copyCommandList.get(), texture.get(), uploadResource.get(), 0, 0, 1, &texData);
-
-            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
-                .Format = format,
-                .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-                .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-                .Texture2D = { .MipLevels = 1 }
-            };
-            device->CreateShaderResourceView(texture.get(), &srvDesc, getCbvSrvCpuHandle(Slots::Texture));
-        
-            texture.rename(L"d3d12-texture");
-            uploadResource.rename(L"d3d12-upload-resource");
-        }
-#endif
 
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,

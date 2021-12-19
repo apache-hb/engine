@@ -88,16 +88,11 @@ namespace engine::loader {
                 indicies.push_back(DWORD(vertices.size() - 1));
             }
 
-            for (const auto &index : mesh.material_ids) {
-                // material might be out of bounds
-                auto idx = index >= materials.size() ? materials.size() - 1 : index;
-                const auto& mat = materials[idx];
-                log::global->info("shape {} material `{}`", shape.name, mat.diffuse_texname);
-            }
-
+            auto tex = materials.at(0).diffuse_texname;
+            auto mat = tga((base/tex).string());
             auto model = Model { vertices, indicies };
 
-            scene.models.push_back({ model, { } });
+            scene.models.push_back({ model, mat });
         }
 
         return scene;
