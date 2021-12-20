@@ -63,8 +63,9 @@ imgui = subproject('imgui').get_variable('imgui_dep')
 tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
 queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
+d3d12 = subproject('d3d12').get_variable('d3d12')
 
-deps = [ imgui, tinyobj, queue, stb ]
+deps = [ imgui, tinyobj, queue, stb, d3d12 ]
 
 executable('engine', src,
     include_directories : 'src',
