@@ -97,20 +97,12 @@ namespace engine::render {
         Scissor(LONG width, LONG height)
             : Super({ 0, 0, width, height })
         { }
-
-        Scissor(LONG left, LONG top, LONG right, LONG bottom)
-            : Super({ left, top, right, bottom })
-        { }
     };
 
     struct Viewport : D3D12_VIEWPORT {
         using Super = D3D12_VIEWPORT;
         Viewport(FLOAT width, FLOAT height)
             : Super({ 0.f, 0.f, width, height, 0.f, 1.f })
-        { }
-
-        Viewport(FLOAT left, FLOAT top, FLOAT right, FLOAT bottom)
-            : Super({ left, top, right, bottom, 0.f, 1.f })
         { }
     };
 

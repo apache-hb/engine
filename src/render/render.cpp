@@ -15,10 +15,10 @@ namespace engine::render {
     };
 
     constexpr auto screenQuad = std::to_array<ScreenVertex>({
-        { { -1.f, -1.f, 0.f, 1.f }, { 0.f, 0.f } },
-        { { -1.f,  1.f, 0.f, 1.f }, { 0.f, 1.f } },
-        { {  1.f, -1.f, 0.f, 1.f }, { 1.f, 0.f } },
-        { {  1.f,  1.f, 0.f, 1.f }, { 1.f, 1.f } }
+        { { -1.f, -1.f, 0.f, 1.f }, { 0.f, 1.f } },
+        { { -1.f,  1.f, 0.f, 1.f }, { 0.f, 0.f } },
+        { {  1.f, -1.f, 0.f, 1.f }, { 1.f, 1.f } },
+        { {  1.f,  1.f, 0.f, 1.f }, { 1.f, 0.f } }
     });
 
     constexpr auto swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -90,6 +90,28 @@ namespace engine::render {
         sceneView.scissor.top = LONG(top);
         sceneView.scissor.right = LONG(left + width);
         sceneView.scissor.bottom = LONG(top + height);
+
+        log::render->info("resolution info");
+        log::render->info("  display: {}x{}", displayWidth, displayHeight);
+        log::render->info("  internal: {}x{}", internalWidth, internalHeight);
+        log::render->info("  scene view:");
+        log::render->info("    viewport: {}x{} {}x{}", 
+            sceneView.viewport.TopLeftX, sceneView.viewport.TopLeftY, 
+            sceneView.viewport.Width, sceneView.viewport.Height
+        );
+        log::render->info("    scissor: {}x{} {}x{}", 
+            sceneView.scissor.left, sceneView.scissor.top, 
+            sceneView.scissor.right, sceneView.scissor.bottom
+        );
+        log::render->info("  post view:");
+        log::render->info("    viewport: {}x{} {}x{}", 
+            postView.viewport.TopLeftX, postView.viewport.TopLeftY, 
+            postView.viewport.Width, postView.viewport.Height
+        );
+        log::render->info("    scissor: {}x{} {}x{}", 
+            postView.scissor.left, postView.scissor.top, 
+            postView.scissor.right, postView.scissor.bottom
+        );
     }
 
     void Context::createDevice(Context::Create& info) {
@@ -222,7 +244,6 @@ namespace engine::render {
         delete[] frames;
 
         sceneTarget.tryDrop("scene-target");
-
         dsvHeap.tryDrop("dsv-heap");
         cbvSrvHeap.tryDrop("cbv-srv-heap");
         rtvHeap.tryDrop("rtv-heap");
@@ -415,6 +436,8 @@ namespace engine::render {
             texture.tryDrop("texture");
         }
 
+        screenBuffer.tryDrop("screen-buffer");
+
         depthStencil.tryDrop("depth-stencil");
         constBuffer.tryDrop("const-buffer");
         indexBuffer.tryDrop("index-buffer");
@@ -501,8 +524,6 @@ namespace engine::render {
                 sceneList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(obj.texture));
                 sceneList->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
             }
-
-            ImGui_ImplDX12_RenderDrawData(draw, sceneList);
         }
 
         /// post command list
@@ -520,7 +541,6 @@ namespace engine::render {
             postList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
 
             postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Post));
-            // postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             postList->RSSetScissorRects(1, &postView.scissor);
             postList->RSSetViewports(1, &postView.viewport);
 
@@ -531,6 +551,8 @@ namespace engine::render {
             postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             postList->IASetVertexBuffers(0, 1, &screenBufferView);
             postList->DrawInstanced(4, 1, 0, 0);
+
+            ImGui_ImplDX12_RenderDrawData(draw, postList);
 
             D3D12_RESOURCE_BARRIER outTransitions[] = {
                 CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
