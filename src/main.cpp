@@ -41,6 +41,8 @@ struct InputManager {
         auto in = poll();
         float delta = timer.tick();
 
+        if (choice == XINPUT && !device.valid()) { return; }
+
         auto pitch = in.rstick.x * rotateSpeed * delta;
         auto yaw = in.rstick.y * rotateSpeed * delta;
 

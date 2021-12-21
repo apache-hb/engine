@@ -3,29 +3,35 @@
 #include <span>
 
 #include "util.h"
+#include "library.h"
+#include "device.h"
+#include "heap.h"
+#include "factory.h"
 #include "system/system.h"
 #include "assets/loader.h"
 #include "input/camera.h"
 
 namespace engine::render {
-    namespace Slots {
+    namespace Resource {
         enum Index : int {
-            Buffer,
-            ImGui,
+            Scene, /// scene render target
+            Post, /// post processing render target
+            ImGui, /// render target for imgui
             Total
         };
     }
 
     namespace Allocator {
         enum Index : int {
-            Context,
+            Scene,
+            Post,
             Copy,
             Total
         };
 
         constexpr D3D12_COMMAND_LIST_TYPE getType(Index index) {
             switch (index) {
-            case Context: return D3D12_COMMAND_LIST_TYPE_DIRECT;
+            case Scene: case Post: return D3D12_COMMAND_LIST_TYPE_DIRECT;
             case Copy: return D3D12_COMMAND_LIST_TYPE_COPY;
             default: throw engine::Error("invalid allocator index");
             }
@@ -33,7 +39,8 @@ namespace engine::render {
 
         constexpr std::wstring_view getName(Index index) {
             switch (index) {
-            case Context: return L"context";
+            case Scene: return L"scene";
+            case Post: return L"post";
             case Copy: return L"copy";
             default: throw engine::Error("invalid allocator index");
             }
@@ -77,7 +84,10 @@ namespace engine::render {
         void attachInfoQueue();
         D3D_ROOT_SIGNATURE_VERSION rootVersion();
 
+        void updateViews();
+
         void populate();
+
         void flushQueue();
         void flushCopyQueue();
 
@@ -86,11 +96,6 @@ namespace engine::render {
 
         Factory factory;
         Create create;
-
-        struct View {
-            d3d12::Scissor scissor{0, 0};
-            d3d12::Viewport viewport{0.f, 0.f};
-        };
 
         struct Frame {
             Com<ID3D12Resource> target;
@@ -106,52 +111,77 @@ namespace engine::render {
             return uploadBuffer(data.data(), data.size() * sizeof(T), name);
         }
 
+        template<typename T>
+        std::tuple<Com<ID3D12Resource>, D3D12_VERTEX_BUFFER_VIEW> 
+        uploadVertexBuffer(const std::span<T>& data, std::wstring_view name = L"vertex-resource") {
+            auto resource = uploadSpan(data, name);
+            D3D12_VERTEX_BUFFER_VIEW view = {
+                .BufferLocation = resource->GetGPUVirtualAddress(),
+                .SizeInBytes = UINT(data.size() * sizeof(T)),
+                .StrideInBytes = sizeof(T)
+            };
+
+            return std::make_tuple(resource, view);
+        }
+
+        template<typename T>
+        std::tuple<Com<ID3D12Resource>, D3D12_INDEX_BUFFER_VIEW> 
+        uploadIndexBuffer(const std::span<T>& data, DXGI_FORMAT format, std::wstring_view name = L"index-resource") {
+            auto resource = uploadSpan(data, name);
+            D3D12_INDEX_BUFFER_VIEW view = {
+                .BufferLocation = resource->GetGPUVirtualAddress(),
+                .SizeInBytes = UINT(data.size() * sizeof(T)),
+                .Format = format
+            };
+            
+            return std::make_tuple(resource, view);
+        }
+
         View sceneView;
+        View postView;
 
-        /// pipeline objects
-        Com<ID3D12Device> device;
-
+        /// basic pipeline objects
+        Device<ID3D12Device4> device;
         Com<ID3D12CommandQueue> directQueue;
-
         Com<IDXGISwapChain3> swapchain;
-        float aspect;
 
-        Com<ID3D12RootSignature> rootSignature;
-        Com<ID3D12PipelineState> pipelineState;
+        float internalAspect;
+        LONG internalWidth;
+        LONG internalHeight;
+
+        float displayAspect;
+        LONG displayWidth;
+        LONG displayHeight;
 
         Com<ID3D12DescriptorHeap> dsvHeap;
         
-        Com<ID3D12DescriptorHeap> rtvHeap;
-        UINT rtvDescriptorSize;
+        DescriptorHeap rtvHeap;
+        DescriptorHeap cbvSrvHeap;
 
-        Com<ID3D12DescriptorHeap> cbvSrvHeap;
-        UINT cbvSrvDescriptorSize;
-
-        size_t requiredCbvSrvHeapEntries() const {
-            return scene.textures.size() + Slots::Total;
+        UINT requiredCbvSrvHeapEntries() const {
+            return UINT(scene.textures.size() + Resource::Total);
         }
 
-        auto getCbvSrvGpuHandle(size_t index) {
-            return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetGPUDescriptorHandleForHeapStart(), UINT(index), cbvSrvDescriptorSize);
-        }
+        /// render target resource layout
+        /// 
+        /// --------------------------------------------------
+        /// intermediate | rtv1 | rtvN
 
-        auto getCbvSrvCpuHandle(size_t index) {
-            return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvSrvHeap->GetCPUDescriptorHandleForHeapStart(), UINT(index), cbvSrvDescriptorSize);
+        UINT requiredRtvHeapEntries() const {
+            return create.frames + 1; // +1 for intermediate frame
         }
-        
+    
         auto getTextureSlotGpuHandle(size_t index) {
-            return getCbvSrvGpuHandle(index + Slots::Total);
+            return cbvSrvHeap.gpuHandle(index + Resource::Total);
         }
 
         auto getTextureSlotCpuHandle(size_t index) {
-            return getCbvSrvCpuHandle(index + Slots::Total);
+            return cbvSrvHeap.cpuHandle(index + Resource::Total);
         }
 
-        Com<ID3D12GraphicsCommandList> commandList;
-
+        /// resource copying state
         Com<ID3D12CommandQueue> copyQueue;
-        Com<ID3D12GraphicsCommandList> copyCommandList;
-        
+        Com<ID3D12GraphicsCommandList> copyCommandList;        
         std::vector<Com<ID3D12Resource>> copyResources;
 
         /// resources
@@ -164,6 +194,9 @@ namespace engine::render {
         Com<ID3D12Resource> constBuffer;
         void *constBufferPtr;
 
+        Com<ID3D12Resource> screenBuffer;
+        D3D12_VERTEX_BUFFER_VIEW screenBufferView;
+
         Com<ID3D12Resource> depthStencil;
 
         std::vector<Com<ID3D12Resource>> textures;
@@ -172,6 +205,20 @@ namespace engine::render {
 
         /// frame data
         Frame *frames;
+
+        Com<ID3D12GraphicsCommandList> sceneCommandList;
+        Com<ID3D12GraphicsCommandList> postCommandList;
+
+        Com<ID3D12RootSignature> sceneRootSignature;
+        Com<ID3D12PipelineState> scenePipelineState;
+
+        Com<ID3D12RootSignature> postRootSignature;
+        Com<ID3D12PipelineState> postPipelineState;
+
+        ShaderLibrary sceneShaders;
+        ShaderLibrary postShaders;
+
+        Com<ID3D12Resource> sceneTarget;
 
         auto &getAllocator(Allocator::Index type, size_t index = SIZE_MAX) noexcept {
             if (index == SIZE_MAX) { index = frameIndex; }

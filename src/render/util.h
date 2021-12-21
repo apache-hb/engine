@@ -37,11 +37,17 @@ namespace engine::render {
     struct Com {
         using Self = T;
         Com(T *self = nullptr) : self(self) { }
+        Com& operator=(const Com&) = default;
+        Com& operator=(T *self) { this->self = self; return *this; }
 
         static Com<T> invalid() { return Com<T>(nullptr); }
 
         void rename(std::wstring_view name) {
             self->SetName(name.data());
+        }
+
+        void set(Com<T> other) {
+            self = other.get();
         }
 
         operator bool() const { return self != nullptr; }
@@ -53,6 +59,9 @@ namespace engine::render {
 
         T *get() { return self; }
         T **addr() { return &self; }
+
+        const T *get() const { return self; }
+        const T **addr() const { return &self; }
 
         void drop(std::string_view name = "") {
             auto refs = release();
@@ -80,68 +89,41 @@ namespace engine::render {
         T *self;
     };
 
-    struct Output {
-        Output(IDXGIOutput *output = nullptr);
-
-        std::string name() const;
-        RECT coords() const;
-
-    private:
-        Com<IDXGIOutput> self;
-        DXGI_OUTPUT_DESC desc;
-    };
-
-    struct Adapter {
-        Adapter(IDXGIAdapter1 *adapter = nullptr);
-
-        std::string name() const;
-        units::Memory videoMemory() const;
-        units::Memory systemMemory() const;
-        units::Memory sharedMemory() const;
-        std::span<Output> outputs();
-        bool software() const;
-
-        auto get() { return self.get(); }
-
-    private:
-        Com<IDXGIAdapter1> self;
-        DXGI_ADAPTER_DESC1 desc;
-        std::vector<Output> displays;
-    };
-
-    struct Factory {
-        Factory(bool debug = false);
-        
-        std::span<Adapter> adapters();
-        Adapter adapter(size_t index);
-        UINT presentFlags() const;
-
-        Com<IDXGISwapChain1> createSwapChain(Com<ID3D12CommandQueue> queue, HWND window, const DXGI_SWAP_CHAIN_DESC1 &desc);
-
-    private:
-        Com<IDXGIFactory4> self;
-        std::vector<Adapter> devices;
-        BOOL tearing = false;
-    };
-
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target);
 
-    namespace d3d12 {
-        struct Scissor : D3D12_RECT {
-            using Super = D3D12_RECT;
+    struct Scissor : D3D12_RECT {
+        using Super = D3D12_RECT;
 
-            Scissor(LONG width, LONG height)
-                : Super({ 0, 0, width, height })
-            { }
-        };
+        Scissor(LONG width, LONG height)
+            : Super({ 0, 0, width, height })
+        { }
 
-        struct Viewport : D3D12_VIEWPORT {
-            using Super = D3D12_VIEWPORT;
-            Viewport(FLOAT width, FLOAT height)
-                : Super({ 0.f, 0.f, width, height, 0.f, 1.f })
-            { }
-        };
-    }
+        Scissor(LONG left, LONG top, LONG right, LONG bottom)
+            : Super({ left, top, right, bottom })
+        { }
+    };
+
+    struct Viewport : D3D12_VIEWPORT {
+        using Super = D3D12_VIEWPORT;
+        Viewport(FLOAT width, FLOAT height)
+            : Super({ 0.f, 0.f, width, height, 0.f, 1.f })
+        { }
+
+        Viewport(FLOAT left, FLOAT top, FLOAT right, FLOAT bottom)
+            : Super({ left, top, right, bottom, 0.f, 1.f })
+        { }
+    };
+
+    struct View {
+        View() = default;
+        View(LONG width, LONG height)
+            : scissor({ width, height })
+            , viewport({ FLOAT(width), FLOAT(height) })
+        { }
+
+        Scissor scissor{0, 0};
+        Viewport viewport{0.f, 0.f};
+    };
 
     using Colour = XMFLOAT4;
 

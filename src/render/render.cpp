@@ -6,51 +6,93 @@
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
+#include <array>
+
 namespace engine::render {
+    struct ScreenVertex {
+        XMFLOAT4 position;
+        XMFLOAT2 texcoord;
+    };
+
+    constexpr auto screenQuad = std::to_array<ScreenVertex>({
+        { { -1.f, -1.f, 0.f, 1.f }, { 0.f, 0.f } },
+        { { -1.f,  1.f, 0.f, 1.f }, { 0.f, 1.f } },
+        { {  1.f, -1.f, 0.f, 1.f }, { 1.f, 0.f } },
+        { {  1.f,  1.f, 0.f, 1.f }, { 1.f, 1.f } }
+    });
+
+    constexpr auto swapFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+    constexpr auto depthFormat = DXGI_FORMAT_D32_FLOAT;
+    constexpr auto swapSampleCount = 1;
+    constexpr auto swapSampleQuality = 0;
+    constexpr float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    const auto clearValue = CD3DX12_CLEAR_VALUE(swapFormat, clearColour);
+
+    /// shader libraries
+
+    constexpr auto sceneInput = std::to_array<D3D12_INPUT_ELEMENT_DESC>({
+        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, position)),
+        shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
+        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord))
+    });
+
+    constexpr ShaderLibrary::Create sceneCreate = {
+        .path = L"resources\\scene-shader.hlsl",
+        .vsMain = "vsMain",
+        .psMain = "psMain",
+        .layout = { sceneInput }
+    };
+
+    constexpr auto postInput = std::to_array<D3D12_INPUT_ELEMENT_DESC>({
+        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(ScreenVertex, position)),
+        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(ScreenVertex, texcoord))
+    });
+
+    constexpr ShaderLibrary::Create postCreate = {
+        .path = L"resources\\post-shader.hlsl",
+        .vsMain = "vsMain",
+        .psMain = "psMain",
+        .layout = { postInput }
+    };
+
+    /// buffer property constants
+
+    constexpr auto uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    constexpr auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    constexpr auto sceneWidth = 1920 / 4;
+    constexpr auto sceneHeight = 1080 / 2;
+
     void Context::createDevice(Context::Create& info) {
         create = info;
-        scene = loader::objScene("resources\\sponza\\sponza.obj");
+        scene = loader::objScene("resources\\utah-teapot.obj");
 
         auto adapter = create.adapter;
         auto window = create.window;
         auto frameCount = create.frames;
 
-        auto [width, height] = window->getClientSize();
         auto hwnd = window->getHandle();
-        aspect = window->getClientAspectRatio();
 
-        check(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)), "failed to create device");
-    
-        device.rename(L"d3d12-device");
+        std::tie(displayWidth, displayHeight) = window->getClientSize();
+        displayAspect = window->getClientAspectRatio();
+
+        internalWidth = sceneWidth;
+        internalHeight = sceneHeight;
+        internalAspect = float(internalWidth) / float(internalHeight);
+
+        device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
 
         attachInfoQueue();
 
-        {
-            D3D12_COMMAND_QUEUE_DESC desc = {
-                .Type = D3D12_COMMAND_LIST_TYPE_DIRECT
-            };
-
-            check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&directQueue)), "failed to create command queue");
-
-            directQueue.rename(L"d3d12-direct-queue");
-        }
-
-        {
-            D3D12_COMMAND_QUEUE_DESC desc = {
-                .Type = D3D12_COMMAND_LIST_TYPE_COPY
-            };
-
-            check(device->CreateCommandQueue(&desc, IID_PPV_ARGS(&copyQueue)), "failed to create command queue");
-
-            copyQueue.rename(L"d3d12-copy-queue");
-        }
+        directQueue = device.newCommandQueue(L"direct-queue", { D3D12_COMMAND_LIST_TYPE_DIRECT });
+        copyQueue = device.newCommandQueue(L"copy-queue", { D3D12_COMMAND_LIST_TYPE_COPY });
 
         {
             DXGI_SWAP_CHAIN_DESC1 desc = {
-                .Width = UINT(width),
-                .Height = UINT(height),
-                .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-                .SampleDesc = { .Count = 1 },
+                .Width = UINT(displayWidth),
+                .Height = UINT(displayHeight),
+                .Format = swapFormat,
+                .SampleDesc = { .Count = swapSampleCount, .Quality = swapSampleQuality },
                 .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
                 .BufferCount = frameCount,
                 .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
@@ -68,9 +110,9 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        sceneView.scissor = d3d12::Scissor(width, height);
-        sceneView.viewport = d3d12::Viewport(FLOAT(width), FLOAT(height));
-    
+        sceneView = View(internalWidth, internalHeight);
+        updateViews();
+
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
                 .Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
@@ -82,42 +124,45 @@ namespace engine::render {
             dsvHeap.rename(L"d3d12-dsv-heap");
         }
 
+        rtvHeap = device.newHeap(L"d3d12-rtv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+            .NumDescriptors = requiredRtvHeapEntries()
+        });
+
+        cbvSrvHeap = device.newHeap(L"d3d12-cbv-srv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = requiredCbvSrvHeapEntries(),
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        });
+
+        /// create the intermediate render target
         {
-            D3D12_DESCRIPTOR_HEAP_DESC desc = {
-                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-                .NumDescriptors = frameCount
-            };
-            
-            check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&rtvHeap)), "failed to create RTV descriptor heap");
+            const auto targetDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+                swapFormat, internalWidth, internalHeight,
+                1u, 1u,
+                swapSampleCount, swapSampleQuality,
+                D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+            );
 
-            rtvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+            HRESULT hr = device->CreateCommittedResource(
+                &defaultProps, D3D12_HEAP_FLAG_NONE,
+                &targetDesc, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                &clearValue, IID_PPV_ARGS(&sceneTarget)
+            );
+            check(hr, "failed to create intermediate target");
 
-            rtvHeap.rename(L"d3d12-rtv-heap");
-        }
-
-        {
-            D3D12_DESCRIPTOR_HEAP_DESC desc = {
-                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-                .NumDescriptors = UINT(requiredCbvSrvHeapEntries()),
-                .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-            };
-
-            check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&cbvSrvHeap)), "failed to create CBV descriptor heap");
-
-            cbvSrvDescriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-            cbvSrvHeap.rename(L"d3d12-cbv-srv-heap");
+            device->CreateRenderTargetView(sceneTarget.get(), nullptr, rtvHeap.cpuHandle(0));
+            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Post));
+            sceneTarget.rename(L"d3d12-intermediate-target");
         }
 
         frames = new Frame[frameCount];
         {
-            CD3DX12_CPU_DESCRIPTOR_HANDLE handle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
             for (UINT i = 0; i < frameCount; i++) {
                 auto &frame = frames[i];
                 
                 check(swapchain->GetBuffer(i, IID_PPV_ARGS(&frame.target)), "failed to get swapchain buffer");
-                device->CreateRenderTargetView(frame.target.get(), nullptr, handle);
+                device->CreateRenderTargetView(frame.target.get(), nullptr, rtvHeap.cpuHandle(i));
                 
                 for (auto alloc = 0; alloc < Allocator::Total; alloc++) {
                     auto &allocator = frame.allocators[alloc];
@@ -130,7 +175,6 @@ namespace engine::render {
                     allocator.rename(std::format(L"frame-allocator-{}-{}", i, name).c_str());
                 }
 
-                handle.Offset(1, rtvDescriptorSize);
                 frame.fenceValue = 0;
 
                 frame.target.rename(std::format(L"frame-target-{}", i));
@@ -148,6 +192,8 @@ namespace engine::render {
         }
         delete[] frames;
 
+        sceneTarget.tryDrop("scene-target");
+
         dsvHeap.tryDrop("dsv-heap");
         cbvSrvHeap.tryDrop("cbv-srv-heap");
         rtvHeap.tryDrop("rtv-heap");
@@ -159,11 +205,11 @@ namespace engine::render {
 
     constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
+        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-    constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = { 
+    constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {
         {
             .Filter = D3D12_FILTER_MIN_MAG_MIP_POINT,
             .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -180,13 +226,22 @@ namespace engine::render {
     };
 
     void Context::createAssets() {
+        sceneShaders = ShaderLibrary(sceneCreate);
+        postShaders = ShaderLibrary(postCreate);
+
         auto version = rootVersion();
+
+        // create our scene root signature
+        // consists of a constant buffer with camera data 
+        // an srv for the model texture
+        // and a sampler
         {
             CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
+            CD3DX12_ROOT_PARAMETER1 parameters[2];
+
             ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // constant buffer data
             ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
 
-            CD3DX12_ROOT_PARAMETER1 parameters[2];
             parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX); // constant buffer
             parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
@@ -201,92 +256,67 @@ namespace engine::render {
                 throw render::Error(hr, (char*)error->GetBufferPointer());
             }
 
-            check(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)), "failed to create root signature");
-        
-            rootSignature.rename(L"d3d12-root-signature");
+            sceneRootSignature = device.newRootSignature(L"scene-root-signature", signature);
         }
 
+        // create our post root signature
         {
-            auto vertexShader = compileShader(L"resources\\shader.hlsl", "VSMain", "vs_5_0");
-            auto pixelShader = compileShader(L"resources\\shader.hlsl", "PSMain", "ps_5_0");
-        
-            D3D12_INPUT_ELEMENT_DESC inputs[] = {
-                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(loader::Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(loader::Vertex, normal),   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-                { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, offsetof(loader::Vertex, texcoord), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-            };
-            
-            D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
-                .pRootSignature = rootSignature.get(),
-                .VS = CD3DX12_SHADER_BYTECODE(vertexShader.get()),
-                .PS = CD3DX12_SHADER_BYTECODE(pixelShader.get()),
-                .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-                .SampleMask = UINT_MAX,
-                .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-                .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
-                .InputLayout = { inputs, UINT(std::size(inputs)) },
-                .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-                .NumRenderTargets = 1,
-                .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
-                .DSVFormat = DXGI_FORMAT_D32_FLOAT,
-                .SampleDesc = { 1 }
-            };
+            CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+            CD3DX12_ROOT_PARAMETER1 parameters[1];
 
-            check(device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState)), "failed to create graphics pipeline state");
-        
-            pipelineState.rename(L"d3d12-pipeline-state");
+            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // texture data
+            parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // texture
+
+            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(samplers)), samplers, rootSignatureFlags);
+
+            Com<ID3DBlob> signature;
+            Com<ID3DBlob> error;
+
+            HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
+            if (FAILED(hr)) {
+                throw render::Error(hr, (char*)error->GetBufferPointer());
+            }
+
+            postRootSignature = device.newRootSignature(L"post-root-signature", signature);
         }
 
-        auto contextAlloc = getAllocator(Allocator::Context).get();
+        scenePipelineState = device.newPipelineState(L"scene-pipeline-state", sceneShaders, sceneRootSignature.get());
+        postPipelineState = device.newPipelineState(L"post-pipeline-state", postShaders, postRootSignature.get());
+
+        /// create all the needed command lists
+
         auto copyAlloc = getAllocator(Allocator::Copy).get();
+        auto sceneAlloc = getAllocator(Allocator::Scene).get();
+        auto postAlloc = getAllocator(Allocator::Post).get();
 
-        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, copyAlloc, nullptr, IID_PPV_ARGS(&copyCommandList)), "failed to create copy command list");
-        copyCommandList.rename(L"d3d12-copy-command-list");
+        copyCommandList = device.newCommandList(L"copy-command-list", D3D12_COMMAND_LIST_TYPE_COPY, copyAlloc);
+        sceneCommandList = device.newCommandList(L"scene-command-list", D3D12_COMMAND_LIST_TYPE_DIRECT, sceneAlloc, scenePipelineState.get());
+        postCommandList = device.newCommandList(L"post-command-list", D3D12_COMMAND_LIST_TYPE_DIRECT, postAlloc);
 
+        check(sceneCommandList->Close(), "failed to close scene command list");
+        check(postCommandList->Close(), "failed to close post command list");
 
-        check(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, contextAlloc, pipelineState.get(), IID_PPV_ARGS(&commandList)), "failed to create command list");
-        check(commandList->Close(), "failed to close command list");
-        commandList.rename(L"d3d12-command-list");
+        /// upload all our needed geometry
 
-        const auto upload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-        const auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        std::tie(vertexBuffer, vertexBufferView) = uploadVertexBuffer(std::span(scene.vertices), L"model-vertex-data");
+        std::tie(indexBuffer, indexBufferView) = uploadIndexBuffer(std::span(scene.indices), DXGI_FORMAT_R32_UINT, L"model-index-data");
 
-        {
-            const auto verts = std::span(scene.vertices);
-            vertexBuffer = uploadSpan(verts, L"model-vertex-data");
-
-            vertexBufferView = {
-                .BufferLocation = vertexBuffer->GetGPUVirtualAddress(),
-                .SizeInBytes = UINT(verts.size() * sizeof(loader::Vertex)),
-                .StrideInBytes = sizeof(loader::Vertex)
-            };
-        }
-
-        {
-            const auto indices = std::span(scene.indices);
-            indexBuffer = uploadSpan(indices, L"model-index-data");
-
-            indexBufferView = {
-                .BufferLocation = indexBuffer->GetGPUVirtualAddress(),
-                .SizeInBytes = UINT(indices.size() * sizeof(DWORD)),
-                .Format = DXGI_FORMAT_R32_UINT
-            };
-        }
+        // upload our screen quad
+        std::tie(screenBuffer, screenBufferView) = uploadVertexBuffer(std::span(screenQuad.data(), screenQuad.size()), L"screen-quad");
 
         {
             D3D12_DEPTH_STENCIL_VIEW_DESC desc = {
-                .Format = DXGI_FORMAT_D32_FLOAT,
+                .Format = depthFormat,
                 .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D
             };
 
             D3D12_CLEAR_VALUE clear = {
-                .Format = DXGI_FORMAT_D32_FLOAT,
+                .Format = depthFormat,
                 .DepthStencil = { 1.0f, 0 }
             };
 
-            auto [width, height] = create.window->getClientSize();
-
-            const auto tex2d = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_D32_FLOAT, width, height, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+            const auto tex2d = CD3DX12_RESOURCE_DESC::Tex2D(depthFormat, internalWidth, internalHeight, 1, 0, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
             HRESULT hr = device->CreateCommittedResource(
                 &defaultProps, D3D12_HEAP_FLAG_NONE,
@@ -305,7 +335,7 @@ namespace engine::render {
 
             /// create resource to hold constant buffer data
             HRESULT hr = device->CreateCommittedResource(
-                &upload, D3D12_HEAP_FLAG_NONE,
+                &uploadProps, D3D12_HEAP_FLAG_NONE,
                 &buffer, D3D12_RESOURCE_STATE_GENERIC_READ,
                 nullptr, IID_PPV_ARGS(&constBuffer)
             );
@@ -316,7 +346,7 @@ namespace engine::render {
                 .BufferLocation = constBuffer->GetGPUVirtualAddress(),
                 .SizeInBytes = constBufferSize
             };
-            device->CreateConstantBufferView(&desc, getCbvSrvCpuHandle(Slots::Buffer));
+            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resource::Scene));
 
             /// map the constant buffer into visible memory
             CD3DX12_RANGE readRange(0, 0);
@@ -333,8 +363,8 @@ namespace engine::render {
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
             DXGI_FORMAT_R8G8B8A8_UNORM, cbvSrvHeap.get(),
-            getCbvSrvCpuHandle(Slots::ImGui),
-            getCbvSrvGpuHandle(Slots::ImGui)
+            cbvSrvHeap.cpuHandle(Resource::ImGui),
+            cbvSrvHeap.gpuHandle(Resource::ImGui)
         );
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -360,10 +390,15 @@ namespace engine::render {
         constBuffer.tryDrop("const-buffer");
         indexBuffer.tryDrop("index-buffer");
         vertexBuffer.tryDrop("vertex-buffer");
-        rootSignature.tryDrop("root-signature");
-        pipelineState.tryDrop("pipeline-state");
 
-        commandList.tryDrop("command-list");
+        sceneRootSignature.tryDrop("scene-root-signature");
+        scenePipelineState.tryDrop("scene-pipeline-state");
+
+        postRootSignature.tryDrop("post-root-signature");
+        postPipelineState.tryDrop("post-pipeline-state");
+
+        sceneCommandList.tryDrop("scene-command-list");
+        postCommandList.tryDrop("post-command-list");
         copyCommandList.tryDrop("copy-command-list");
 
         CloseHandle(fenceEvent);
@@ -372,7 +407,7 @@ namespace engine::render {
 
     void Context::tick(const input::Camera& camera) {
         XMStoreFloat4x4(&constBufferData.model, XMMatrixScaling(0.1f, 0.1f, 0.1f));
-        camera.store(&constBufferData.view, &constBufferData.projection, aspect);
+        camera.store(&constBufferData.view, &constBufferData.projection, internalAspect);
     }
 
     void Context::populate() {
@@ -381,60 +416,102 @@ namespace engine::render {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
+        ImGui::ShowDemoWindow();
+
         log::render->tick();
 
         ImGui::Render();
 
-        /// common resources
-        ID3D12DescriptorHeap *heaps[] = { cbvSrvHeap.get() };
-        
-        auto *contextList = commandList.get();
-
+        /// common scene resources
         auto draw = ImGui::GetDrawData();
         auto target = getTarget().get();
         const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+        auto rtvHandle = rtvHeap.cpuHandle(frameIndex);
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
-        /// main command list execution
-        auto alloc = getAllocator(Allocator::Context);
-        check(alloc->Reset(), "failed to reset command allocator");
-        check(contextList->Reset(alloc.get(), pipelineState.get()), "failed to reset command list");
+        /// scene resources
+        ID3D12DescriptorHeap *heaps[] = { cbvSrvHeap.get() };
+        auto sceneAlloc = getAllocator(Allocator::Scene);
+        auto *sceneList = sceneCommandList.get();
 
-        contextList->SetGraphicsRootSignature(rootSignature.get());
-        contextList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-        contextList->SetGraphicsRootDescriptorTable(0, getCbvSrvGpuHandle(Slots::Buffer));
-        
-        contextList->RSSetViewports(1, &sceneView.viewport);
-        contextList->RSSetScissorRects(1, &sceneView.scissor);
+        /// post resources
+        auto postAlloc = getAllocator(Allocator::Post);
+        auto *postList = postCommandList.get();
 
-        contextList->ResourceBarrier(1, &toTarget);
+        /// common setup
 
-        contextList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+        check(sceneAlloc->Reset(), "failed to reset scene command allocator");
+        check(sceneList->Reset(sceneAlloc.get(), scenePipelineState.get()), "failed to reset scene command list");
 
-        const float clear[] = { 0.f, 0.2f, 0.4f, 1.f };
-        contextList->ClearRenderTargetView(rtvHandle, clear, 0, nullptr);
-        commandList->ClearDepthStencilView(dsvHeap->GetCPUDescriptorHandleForHeapStart(), D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-        
-        contextList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        contextList->IASetVertexBuffers(0, 1, &vertexBufferView);
-        contextList->IASetIndexBuffer(&indexBufferView);
+        check(postAlloc->Reset(), "failed to reset post command allocator");
+        check(postList->Reset(postAlloc.get(), postPipelineState.get()), "failed to reset post command list");
 
-        for (size_t i = 0; i < scene.objects.size(); i++) {
-            const auto& obj = scene.objects[i];
-            const auto start = obj.offset;
-            const auto count = obj.length;
 
-            contextList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(obj.texture));
-            contextList->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
+        /// scene command list
+        {
+            sceneList->SetGraphicsRootSignature(sceneRootSignature.get());
+            sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
+            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Scene));
+
+            sceneList->RSSetViewports(1, &sceneView.viewport);
+            sceneList->RSSetScissorRects(1, &sceneView.scissor);
+
+            sceneList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+
+            sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
+            sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+            
+            sceneList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            sceneList->IASetVertexBuffers(0, 1, &vertexBufferView);
+            sceneList->IASetIndexBuffer(&indexBufferView);
+
+            for (size_t i = 0; i < scene.objects.size(); i++) {
+                const auto& obj = scene.objects[i];
+                const auto start = obj.offset;
+                const auto count = obj.length;
+
+                sceneList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(obj.texture));
+                sceneList->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
+            }
+
+            ImGui_ImplDX12_RenderDrawData(draw, sceneList);
         }
 
-        ImGui_ImplDX12_RenderDrawData(draw, contextList);
+        /// post command list
 
-        contextList->ResourceBarrier(1, &toPresent);
+        {
+            postList->SetGraphicsRootSignature(postRootSignature.get());
 
-        check(contextList->Close(), "failed to close command list");
+            postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
+
+            postList->RSSetScissorRects(1, &postView.scissor);
+            postList->RSSetViewports(1, &postView.viewport);
+
+            D3D12_RESOURCE_BARRIER inTransitions[] = {
+                CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
+                CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+            };
+
+            postList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
+
+            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Post));
+            postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            postList->IASetVertexBuffers(0, 1, &screenBufferView);
+
+            postList->DrawInstanced(4, 1, 0, 0);
+
+            D3D12_RESOURCE_BARRIER outTransitions[] = {
+                CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
+                CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
+            };
+
+            postList->ResourceBarrier(UINT(std::size(outTransitions)), outTransitions);
+        }
+
+        /// common cleanup
+        check(sceneList->Close(), "failed to close scene command list");
+        check(postList->Close(), "failed to close post command list");
     }
 
     void Context::present() {
@@ -449,7 +526,7 @@ namespace engine::render {
     }
 
     void Context::flushQueue() {
-        ID3D12CommandList* lists[] = { commandList.get() };
+        ID3D12CommandList* lists[] = { sceneCommandList.get(), postCommandList.get() };
         directQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
     }
 
@@ -464,6 +541,35 @@ namespace engine::render {
         for (auto &resource : copyResources) {
             resource.tryDrop("copy-resource");
         }
+    }
+
+    void Context::updateViews() {
+        float widthRatio = float(internalWidth) / float(displayWidth);
+        float heightRatio = float(internalHeight) / float(displayHeight);
+
+        float x = 1.f;
+        float y = 1.f;
+
+        if (widthRatio < heightRatio) {
+            x = widthRatio / heightRatio;
+        } else {
+            y = heightRatio / widthRatio;
+        }
+
+        auto left = displayWidth * (1.f - x) / 2.f;
+        auto top = displayHeight * (1.f - y) / 2.f;
+        auto width = displayWidth * x;
+        auto height = displayHeight * y;
+
+        postView.viewport.TopLeftX = left;
+        postView.viewport.TopLeftY = top;
+        postView.viewport.Width = width;
+        postView.viewport.Height = height;
+
+        postView.scissor.left = LONG(left);
+        postView.scissor.top = LONG(top);
+        postView.scissor.right = LONG(left + width);
+        postView.scissor.bottom = LONG(top + height);
     }
 
     void Context::waitForGPU(Com<ID3D12CommandQueue> queue) {

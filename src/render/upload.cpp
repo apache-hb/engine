@@ -91,13 +91,13 @@ namespace engine::render {
     Com<ID3D12Resource> Context::uploadTexture(const loader::Texture& tex, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name) {
         log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
         
-        const auto width = UINT(tex.width);
-        const auto height = UINT(tex.height);
+        const auto texWidth = UINT(tex.width);
+        const auto texHeight = UINT(tex.height);
         const auto bpp = UINT(tex.bpp);
         const auto& data = tex.pixels;
         const auto format = DXGI_FORMAT_R8G8B8A8_UNORM; // TODO: this is configurable
-        const auto desc = createResourceDesc(width, height, format);
-        const auto textureDesc = createTextureUploadDesc(data.data(), width, height, bpp);
+        const auto desc = createResourceDesc(texWidth, texHeight, format);
+        const auto textureDesc = createTextureUploadDesc(data.data(), texWidth, texHeight, bpp);
         const auto srvDesc = createSRVDesc(format);
 
         Com<ID3D12Resource> defaultResource;

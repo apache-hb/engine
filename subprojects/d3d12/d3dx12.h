@@ -12,6 +12,12 @@
 
 #if defined( __cplusplus )
 
+#if __cpp_constexpr >= 200704
+#   define D3DX12_CONSTEXPR_DECL constexpr
+#else
+#   define D3DX12_CONSTEXPR_DECL
+#endif
+
 struct CD3DX12_DEFAULT {};
 extern const DECLSPEC_SELECTANY CD3DX12_DEFAULT D3D12_DEFAULT;
 
@@ -401,33 +407,23 @@ struct CD3DX12_RESOURCE_ALLOCATION_INFO : public D3D12_RESOURCE_ALLOCATION_INFO
 struct CD3DX12_HEAP_PROPERTIES : public D3D12_HEAP_PROPERTIES
 {
     CD3DX12_HEAP_PROPERTIES() = default;
-    explicit CD3DX12_HEAP_PROPERTIES(const D3D12_HEAP_PROPERTIES &o) noexcept :
+    explicit D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(const D3D12_HEAP_PROPERTIES &o) noexcept :
         D3D12_HEAP_PROPERTIES(o)
     {}
-    CD3DX12_HEAP_PROPERTIES(
+    D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(
         D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
         D3D12_MEMORY_POOL memoryPoolPreference,
         UINT creationNodeMask = 1,
-        UINT nodeMask = 1 ) noexcept
-    {
-        Type = D3D12_HEAP_TYPE_CUSTOM;
-        CPUPageProperty = cpuPageProperty;
-        MemoryPoolPreference = memoryPoolPreference;
-        CreationNodeMask = creationNodeMask;
-        VisibleNodeMask = nodeMask;
-    }
-    explicit CD3DX12_HEAP_PROPERTIES(
+        UINT nodeMask = 1 ) noexcept :
+        D3D12_HEAP_PROPERTIES({ D3D12_HEAP_TYPE_CUSTOM, cpuPageProperty, memoryPoolPreference, creationNodeMask, nodeMask })
+    {}
+    explicit D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(
         D3D12_HEAP_TYPE type,
         UINT creationNodeMask = 1,
-        UINT nodeMask = 1 ) noexcept
-    {
-        Type = type;
-        CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-        MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-        CreationNodeMask = creationNodeMask;
-        VisibleNodeMask = nodeMask;
-    }
-    bool IsCPUAccessible() const noexcept
+        UINT nodeMask = 1 ) noexcept :
+        D3D12_HEAP_PROPERTIES({ type, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, creationNodeMask, nodeMask })
+    {}
+    D3DX12_CONSTEXPR_DECL bool IsCPUAccessible() const noexcept
     {
         return Type == D3D12_HEAP_TYPE_UPLOAD || Type == D3D12_HEAP_TYPE_READBACK || (Type == D3D12_HEAP_TYPE_CUSTOM &&
             (CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE || CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_WRITE_BACK));
@@ -5023,6 +5019,7 @@ inline HRESULT CD3DX12FeatureSupport::QueryProtectedResourceSessionTypes(UINT No
 
 #endif // #ifndef D3DX12_NO_CHECK_FEATURE_SUPPORT_CLASS
 
+#undef D3DX12_CONSTEXPR_DECL
 #undef D3DX12_COM_PTR
 #undef D3DX12_COM_PTR_GET
 #undef D3DX12_COM_PTR_ADDRESSOF
