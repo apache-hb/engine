@@ -30,7 +30,7 @@ namespace engine::render {
 
     /// shader libraries
 
-    constexpr auto sceneInput = std::to_array<D3D12_INPUT_ELEMENT_DESC>({
+    constexpr auto sceneInput = std::to_array({
         shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, position)),
         shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
         shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord))
@@ -43,8 +43,8 @@ namespace engine::render {
         .layout = { sceneInput }
     };
 
-    constexpr auto postInput = std::to_array<D3D12_INPUT_ELEMENT_DESC>({
-        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(ScreenVertex, position)),
+    constexpr auto postInput = std::to_array({
+        shaderInput("POSITION", DXGI_FORMAT_R32G32B32A32_FLOAT, offsetof(ScreenVertex, position)),
         shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(ScreenVertex, texcoord))
     });
 
@@ -60,8 +60,37 @@ namespace engine::render {
     constexpr auto uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    constexpr auto sceneWidth = 1920 / 4;
+    constexpr auto sceneWidth = 1920 / 2;
     constexpr auto sceneHeight = 1080 / 2;
+
+    void Context::updateViews() {
+        float widthRatio = float(internalWidth) / float(displayWidth);
+        float heightRatio = float(internalHeight) / float(displayHeight);
+
+        float x = 1.f;
+        float y = 1.f;
+
+        if (widthRatio < heightRatio) {
+            x = widthRatio / heightRatio;
+        } else {
+            y = heightRatio / widthRatio;
+        }
+
+        auto left = displayWidth * (1.f - x) / 2.f;
+        auto top = displayHeight * (1.f - y) / 2.f;
+        auto width = displayWidth * x;
+        auto height = displayHeight * y;
+
+        sceneView.viewport.TopLeftX = left;
+        sceneView.viewport.TopLeftY = top;
+        sceneView.viewport.Width = width;
+        sceneView.viewport.Height = height;
+
+        sceneView.scissor.left = LONG(left);
+        sceneView.scissor.top = LONG(top);
+        sceneView.scissor.right = LONG(left + width);
+        sceneView.scissor.bottom = LONG(top + height);
+    }
 
     void Context::createDevice(Context::Create& info) {
         create = info;
@@ -110,7 +139,7 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        sceneView = View(internalWidth, internalHeight);
+        postView = View(displayWidth, displayHeight);
         updateViews();
 
         {
@@ -153,7 +182,7 @@ namespace engine::render {
 
             device->CreateRenderTargetView(sceneTarget.get(), nullptr, rtvHeap.cpuHandle(0));
             device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Post));
-            sceneTarget.rename(L"d3d12-intermediate-target");
+            sceneTarget.rename(L"intermediate-target");
         }
 
         frames = new Frame[frameCount];
@@ -162,7 +191,7 @@ namespace engine::render {
                 auto &frame = frames[i];
                 
                 check(swapchain->GetBuffer(i, IID_PPV_ARGS(&frame.target)), "failed to get swapchain buffer");
-                device->CreateRenderTargetView(frame.target.get(), nullptr, rtvHeap.cpuHandle(i));
+                device->CreateRenderTargetView(frame.target.get(), nullptr, rtvHeap.cpuHandle(i + 1));
                 
                 for (auto alloc = 0; alloc < Allocator::Total; alloc++) {
                     auto &allocator = frame.allocators[alloc];
@@ -211,7 +240,7 @@ namespace engine::render {
 
     constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {
         {
-            .Filter = D3D12_FILTER_MIN_MAG_MIP_POINT,
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
             .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
             .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
             .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -425,9 +454,6 @@ namespace engine::render {
         /// common scene resources
         auto draw = ImGui::GetDrawData();
         auto target = getTarget().get();
-        const auto toTarget = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        const auto toPresent = CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        auto rtvHandle = rtvHeap.cpuHandle(frameIndex);
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
         /// scene resources
@@ -454,15 +480,16 @@ namespace engine::render {
             sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
             sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Scene));
 
+            sceneList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
 
+            auto rtvHandle = rtvHeap.cpuHandle(0);
             sceneList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
             sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
             
-            sceneList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             sceneList->IASetVertexBuffers(0, 1, &vertexBufferView);
             sceneList->IASetIndexBuffer(&indexBufferView);
 
@@ -485,9 +512,6 @@ namespace engine::render {
 
             postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
 
-            postList->RSSetScissorRects(1, &postView.scissor);
-            postList->RSSetViewports(1, &postView.viewport);
-
             D3D12_RESOURCE_BARRIER inTransitions[] = {
                 CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
                 CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
@@ -496,9 +520,16 @@ namespace engine::render {
             postList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
 
             postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Post));
-            postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            postList->IASetVertexBuffers(0, 1, &screenBufferView);
+            // postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            postList->RSSetScissorRects(1, &postView.scissor);
+            postList->RSSetViewports(1, &postView.viewport);
 
+            auto rtvHandle = rtvHeap.cpuHandle(frameIndex + 1);
+            postList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+
+            postList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
+            postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            postList->IASetVertexBuffers(0, 1, &screenBufferView);
             postList->DrawInstanced(4, 1, 0, 0);
 
             D3D12_RESOURCE_BARRIER outTransitions[] = {
@@ -541,35 +572,6 @@ namespace engine::render {
         for (auto &resource : copyResources) {
             resource.tryDrop("copy-resource");
         }
-    }
-
-    void Context::updateViews() {
-        float widthRatio = float(internalWidth) / float(displayWidth);
-        float heightRatio = float(internalHeight) / float(displayHeight);
-
-        float x = 1.f;
-        float y = 1.f;
-
-        if (widthRatio < heightRatio) {
-            x = widthRatio / heightRatio;
-        } else {
-            y = heightRatio / widthRatio;
-        }
-
-        auto left = displayWidth * (1.f - x) / 2.f;
-        auto top = displayHeight * (1.f - y) / 2.f;
-        auto width = displayWidth * x;
-        auto height = displayHeight * y;
-
-        postView.viewport.TopLeftX = left;
-        postView.viewport.TopLeftY = top;
-        postView.viewport.Width = width;
-        postView.viewport.Height = height;
-
-        postView.scissor.left = LONG(left);
-        postView.scissor.top = LONG(top);
-        postView.scissor.right = LONG(left + width);
-        postView.scissor.bottom = LONG(top + height);
     }
 
     void Context::waitForGPU(Com<ID3D12CommandQueue> queue) {
