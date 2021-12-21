@@ -29,6 +29,11 @@ constexpr float ascentSpeed = 5.f;
 constexpr float rotateSpeed = 3.f;
 
 struct InputManager {
+    InputManager() {
+        camera.move(-5.f, 0.f, 0.f);
+        camera.rotate(1.5f, 0.f);
+    }
+
     void handleEvent(system::Window::Event event) {
         switch (event.type) {
         case WM_KEYDOWN: mnk.pushPress(event.wparam); break;
@@ -66,7 +71,7 @@ struct InputManager {
     xinput::Device device{0, ldeadzone, rdeadzone, ltrigger, rtrigger};
     input::MnK mnk{0.1f};
 
-    input::Camera camera{{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
+    input::Camera camera{{0.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
     util::Timer timer = util::createTimer();
 };
 

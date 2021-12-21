@@ -547,7 +547,9 @@ namespace engine::render {
             auto rtvHandle = rtvHeap.cpuHandle(frameIndex + 1);
             postList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
-            postList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
+            float borderColour[] = { 0.f, 0.f, 0.f, 1.f };
+
+            postList->ClearRenderTargetView(rtvHandle, borderColour, 0, nullptr);
             postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             postList->IASetVertexBuffers(0, 1, &screenBufferView);
             postList->DrawInstanced(4, 1, 0, 0);
