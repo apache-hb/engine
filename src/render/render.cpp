@@ -60,8 +60,8 @@ namespace engine::render {
     constexpr auto uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    constexpr auto sceneWidth = 1920 / 2;
-    constexpr auto sceneHeight = 1080 / 2;
+    constexpr auto sceneWidth = 1920 * 2;
+    constexpr auto sceneHeight = 1080 * 2;
 
     void Context::updateViews() {
         float widthRatio = float(internalWidth) / float(displayWidth);
@@ -91,6 +91,8 @@ namespace engine::render {
         sceneView.scissor.right = LONG(left + width);
         sceneView.scissor.bottom = LONG(top + height);
 
+        postView = View(displayWidth, displayHeight);
+
         log::render->info("resolution info");
         log::render->info("  display: {}x{}", displayWidth, displayHeight);
         log::render->info("  internal: {}x{}", internalWidth, internalHeight);
@@ -108,8 +110,8 @@ namespace engine::render {
             postView.viewport.TopLeftX, postView.viewport.TopLeftY, 
             postView.viewport.Width, postView.viewport.Height
         );
-        log::render->info("    scissor: {}x{} {}x{}", 
-            postView.scissor.left, postView.scissor.top, 
+        log::render->info("    scissor: {}x{} {}x{}",
+            postView.scissor.left, postView.scissor.top,
             postView.scissor.right, postView.scissor.bottom
         );
     }
@@ -161,7 +163,6 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        postView = View(displayWidth, displayHeight);
         updateViews();
 
         {
@@ -202,7 +203,7 @@ namespace engine::render {
             );
             check(hr, "failed to create intermediate target");
 
-            device->CreateRenderTargetView(sceneTarget.get(), nullptr, rtvHeap.cpuHandle(0));
+            device->CreateRenderTargetView(sceneTarget.get(), nullptr, getIntermediateHandle());
             device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Post));
             sceneTarget.rename(L"intermediate-target");
         }
@@ -213,7 +214,7 @@ namespace engine::render {
                 auto &frame = frames[i];
                 
                 check(swapchain->GetBuffer(i, IID_PPV_ARGS(&frame.target)), "failed to get swapchain buffer");
-                device->CreateRenderTargetView(frame.target.get(), nullptr, rtvHeap.cpuHandle(i + 1));
+                device->CreateRenderTargetView(frame.target.get(), nullptr, getTargetHandle(i));
                 
                 for (auto alloc = 0; alloc < Allocator::Total; alloc++) {
                     auto &allocator = frame.allocators[alloc];
@@ -507,7 +508,8 @@ namespace engine::render {
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
 
-            auto rtvHandle = rtvHeap.cpuHandle(0);
+            /// render to our intermediate target
+            auto rtvHandle = getIntermediateHandle();
             sceneList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
@@ -544,11 +546,13 @@ namespace engine::render {
             postList->RSSetScissorRects(1, &postView.scissor);
             postList->RSSetViewports(1, &postView.viewport);
 
-            auto rtvHandle = rtvHeap.cpuHandle(frameIndex + 1);
+            /// render to the back buffer
+            auto rtvHandle = getTargetHandle(frameIndex);
             postList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
             float borderColour[] = { 0.f, 0.f, 0.f, 1.f };
 
+            /// draw fullscreen quad with texture on it
             postList->ClearRenderTargetView(rtvHandle, borderColour, 0, nullptr);
             postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
             postList->IASetVertexBuffers(0, 1, &screenBufferView);

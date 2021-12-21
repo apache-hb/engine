@@ -171,6 +171,14 @@ namespace engine::render {
             return create.frames + 1; // +1 for intermediate frame
         }
     
+        auto getIntermediateHandle() {
+            return rtvHeap.cpuHandle(0);
+        }
+        
+        auto getTargetHandle(size_t frame) {
+            return rtvHeap.cpuHandle(frame + 1);
+        }
+
         auto getTextureSlotGpuHandle(size_t index) {
             return cbvSrvHeap.gpuHandle(index + Resource::Total);
         }
