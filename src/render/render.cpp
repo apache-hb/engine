@@ -147,7 +147,6 @@ namespace engine::render {
         internalAspect = float(internalWidth) / float(internalHeight);
 
         device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
-        mipMapTool = MipMapTool(device);
 
         scene = loader::objScene("resources\\sponza\\sponza.obj");
 
@@ -156,6 +155,7 @@ namespace engine::render {
 
         directQueue = device.newCommandQueue(L"direct-queue", { D3D12_COMMAND_LIST_TYPE_DIRECT });
         copyQueue = device.newCommandQueue(L"copy-queue", { D3D12_COMMAND_LIST_TYPE_COPY });
+        computeQueue = device.newCommandQueue(L"compute-queue", { D3D12_COMMAND_LIST_TYPE_COMPUTE });
 
         {
             /// create swap chain
@@ -222,7 +222,7 @@ namespace engine::render {
             check(hr, "failed to create intermediate target");
 
             device->CreateRenderTargetView(sceneTarget.get(), nullptr, getIntermediateHandle());
-            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Intermediate));
+            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resources::Intermediate));
             sceneTarget.rename(L"intermediate-target");
         }
 
@@ -269,6 +269,7 @@ namespace engine::render {
         swapchain.tryDrop("swapchain");
         directQueue.tryDrop("direct-queue");
         copyQueue.tryDrop("copy-queue");
+        computeQueue.tryDrop("compute-queue");
         device.tryDrop("device");
     }
 
@@ -417,7 +418,7 @@ namespace engine::render {
                 .BufferLocation = constBuffer->GetGPUVirtualAddress(),
                 .SizeInBytes = constBufferSize
             };
-            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resource::Camera));
+            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resources::Camera));
 
             /// map the constant buffer into visible memory
             CD3DX12_RANGE readRange(0, 0);
@@ -431,13 +432,11 @@ namespace engine::render {
             textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
         }
 
-        mipMapTool.createMipMaps(textures);
-
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
             DXGI_FORMAT_R8G8B8A8_UNORM, cbvSrvHeap.get(),
-            cbvSrvHeap.cpuHandle(Resource::ImGui),
-            cbvSrvHeap.gpuHandle(Resource::ImGui)
+            cbvSrvHeap.cpuHandle(Resources::ImGui),
+            cbvSrvHeap.gpuHandle(Resources::ImGui)
         );
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -447,9 +446,6 @@ namespace engine::render {
         }
 
         flushCopyQueue();
-        mipMapTool.flush([&](auto queue) {
-            waitForGPU(queue);
-        });
 
         sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](auto bundle) {
             bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -550,7 +546,7 @@ namespace engine::render {
         {
             sceneList->SetGraphicsRootSignature(sceneRootSignature.get());
             sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Camera));
+            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resources::Camera));
 
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
@@ -591,7 +587,7 @@ namespace engine::render {
             
             postList->SetGraphicsRootSignature(postRootSignature.get());
             postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Intermediate));
+            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resources::Intermediate));
             
             postList->ExecuteBundle(postCommandBundle.get());
 
@@ -634,7 +630,7 @@ namespace engine::render {
         }
     }
 
-    void Context::waitForGPU(Com<ID3D12CommandQueue> queue) {
+    void Context::waitForGPU(Object<ID3D12CommandQueue> queue) {
         UINT64 &value = frames[frameIndex].fenceValue;
         check(queue->Signal(fence.get(), value), "failed to signal fence");
 
@@ -644,7 +640,7 @@ namespace engine::render {
         value += 1;
     }
 
-    void Context::nextFrame(Com<ID3D12CommandQueue> queue) {
+    void Context::nextFrame(Object<ID3D12CommandQueue> queue) {
         UINT64 value = frames[frameIndex].fenceValue;
         check(queue->Signal(fence.get(), value), "failed to signal fence");
         

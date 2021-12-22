@@ -3,7 +3,7 @@
 #include "render/util.h"
 
 namespace engine::render {
-    struct DescriptorHeap : Com<ID3D12DescriptorHeap>{
+    struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
         DescriptorHeap() = default;
         DescriptorHeap(ID3D12Device *device, std::wstring_view name, const D3D12_DESCRIPTOR_HEAP_DESC& desc);
 

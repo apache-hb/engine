@@ -1,13 +1,11 @@
 #pragma once
 
-#include "render/util.h"
+#include "resource.h"
 
 namespace engine::render {
-    struct Texture : Com<ID3D12Resource> {
-        using Super = Com<ID3D12Resource>;
-
+    struct Texture : Resource {
         struct Create {
-            Super texture;
+            Resource texture;
             size_t mipLevels;
             DXGI_FORMAT format;
             Resolution resolution;
@@ -15,7 +13,7 @@ namespace engine::render {
 
         Texture() = default;
         Texture(Create create)
-            : Super(create.texture)
+            : Resource(create.texture)
             , mipLevels(create.mipLevels)
             , format(create.format)
             , resolution(create.resolution)

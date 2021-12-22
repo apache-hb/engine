@@ -9,8 +9,8 @@
 
 namespace engine::render {
     template<typename T>
-    struct Device : Com<T> {
-        using Super = Com<T>;
+    struct Device : Object<T> {
+        using Super = Object<T>;
         using Super::Super;
 
         Device() = default;
@@ -23,15 +23,15 @@ namespace engine::render {
             return DescriptorHeap(Super::get(), name, desc);
         }
 
-        Com<ID3D12CommandQueue> newCommandQueue(std::wstring_view name, const D3D12_COMMAND_QUEUE_DESC& desc) {
-            Com<ID3D12CommandQueue> queue;
+        Object<ID3D12CommandQueue> newCommandQueue(std::wstring_view name, const D3D12_COMMAND_QUEUE_DESC& desc) {
+            Object<ID3D12CommandQueue> queue;
             check(Super::get()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)), "failed to create command queue");
             queue.rename(name);
             return queue;
         }
 
-        Com<ID3D12GraphicsCommandList> newCommandList(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator* alloc, ID3D12PipelineState* pipeline = nullptr) {
-            Com<ID3D12GraphicsCommandList> list;
+        Object<ID3D12GraphicsCommandList> newCommandList(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator* alloc, ID3D12PipelineState* pipeline = nullptr) {
+            Object<ID3D12GraphicsCommandList> list;
             check(Super::get()->CreateCommandList(0, type, alloc, pipeline, IID_PPV_ARGS(&list)), "failed to create command list");
             list.rename(name);
             return list;
@@ -40,7 +40,7 @@ namespace engine::render {
         template<typename F>
         CommandBundle newCommandBundle(std::wstring_view name, ID3D12PipelineState* state, F&& func) {
             /// create an allocator for just this list
-            Com<ID3D12CommandAllocator> allocator;
+            Object<ID3D12CommandAllocator> allocator;
             check(Super::get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_BUNDLE, IID_PPV_ARGS(&allocator)), "failed to create command allocator");
             
             /// create the actual bundle
@@ -53,14 +53,14 @@ namespace engine::render {
             return CommandBundle(list, allocator);
         }
 
-        Com<ID3D12RootSignature> newRootSignature(std::wstring_view name, Com<ID3DBlob> signature) {
-            Com<ID3D12RootSignature> result;
+        Object<ID3D12RootSignature> newRootSignature(std::wstring_view name, Com<ID3DBlob> signature) {
+            Object<ID3D12RootSignature> result;
             check(Super::get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&result)), "failed to create root signature");
             result.rename(name);
             return result;
         }
 
-        Com<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
+        Object<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
                 .pRootSignature = root,
                 .VS = library.vertex(),
@@ -77,7 +77,7 @@ namespace engine::render {
                 .SampleDesc = { 1 }
             };
 
-            Com<ID3D12PipelineState> result;
+            Object<ID3D12PipelineState> result;
 
             check(Super::get()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&result)), "failed to create graphics pipeline state");
             result.rename(name);
@@ -85,13 +85,13 @@ namespace engine::render {
             return result;
         }
 
-        Com<ID3D12PipelineState> newComputePSO(std::wstring_view name, ComputeLibrary& library, ID3D12RootSignature* root) {
+        Object<ID3D12PipelineState> newComputePSO(std::wstring_view name, ComputeLibrary& library, ID3D12RootSignature* root) {
             D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {
                 .pRootSignature = root,
                 .CS = library.shader()
             };
 
-            Com<ID3D12PipelineState> result;
+            Object<ID3D12PipelineState> result;
 
             check(Super::get()->CreateComputePipelineState(&desc, IID_PPV_ARGS(&result)), "failed to create compute pipeline state");
             result.rename(name);

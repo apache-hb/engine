@@ -51,12 +51,12 @@ namespace engine::render {
         }
     }
     
-    Com<ID3D12Resource> Context::uploadBuffer(const void *data, size_t size, std::wstring_view name) {
+    Resource Context::uploadBuffer(const void *data, size_t size, std::wstring_view name) {
         const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
         const auto uploadDesc = createUploadDesc(data, size);
 
-        Com<ID3D12Resource> defaultResource;
-        Com<ID3D12Resource> uploadResource;
+        Resource defaultResource;
+        Resource uploadResource;
 
         HRESULT hrDefault = device->CreateCommittedResource(
             &defaultProps, D3D12_HEAP_FLAG_NONE,
@@ -100,8 +100,8 @@ namespace engine::render {
         const auto textureDesc = createTextureUploadDesc(data.data(), texWidth, texHeight, bpp);
         const auto srvDesc = createSRVDesc(format);
 
-        Com<ID3D12Resource> defaultResource;
-        Com<ID3D12Resource> uploadResource;
+        Resource defaultResource;
+        Resource uploadResource;
 
         HRESULT hrDefault = device->CreateCommittedResource(
             &defaultProps, D3D12_HEAP_FLAG_NONE,

@@ -20,8 +20,6 @@ src = [
     'src/render/objects/heap.cpp',
     'src/render/objects/bundle.cpp',
 
-    'src/render/tools/mipmap.cpp',
-
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/timer.cpp',

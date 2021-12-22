@@ -7,6 +7,8 @@
 #include <dxgi1_6.h>
 #include <vector>
 #include <span>
+#include <concepts>
+#include <type_traits>
 #include <DirectXMath.h>
 
 #define cbuffer struct __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
@@ -34,6 +36,12 @@ namespace engine::render {
     void check(HRESULT hr, const std::string& message = "", std::source_location location = std::source_location::current());
 
     template<typename T>
+    concept IsComObject = std::is_convertible_v<T*, IUnknown*>;
+
+    template<typename T>
+    concept IsD3D12Object = std::is_convertible_v<T*, ID3D12Object*>;
+
+    template<IsComObject T>
     struct Com {
         using Self = T;
         Com(T *self = nullptr) : self(self) { }
@@ -41,10 +49,6 @@ namespace engine::render {
         Com& operator=(T *self) { this->self = self; return *this; }
 
         static Com<T> invalid() { return Com<T>(nullptr); }
-
-        void rename(std::wstring_view name) {
-            self->SetName(name.data());
-        }
 
         void set(Com<T> other) {
             self = other.get();
@@ -77,7 +81,7 @@ namespace engine::render {
 
         auto release() { return self->Release(); }
 
-        template<typename O>
+        template<IsComObject O>
         Com<O> as() {
             O *other = nullptr;
             if (HRESULT hr = self->QueryInterface(IID_PPV_ARGS(&other)); FAILED(hr)) {
@@ -87,6 +91,16 @@ namespace engine::render {
         }
     private:
         T *self;
+    };
+
+    template<IsD3D12Object T>
+    struct Object : Com<T> {
+        using Super = Com<T>;
+        using Super::Super;
+
+        void rename(std::wstring_view name) {
+            Super::get()->SetName(name.data());
+        }
     };
 
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target);
