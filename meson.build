@@ -3,6 +3,7 @@ project('engine', [ 'c', 'cpp' ],
         'cpp_std=c++latest',
         'warning_level=3',
         'werror=true',
+        'b_vscrt=static_from_buildtype', # needs to be `md` for dlss to work
         'default_library=static'
     ]
 )
@@ -75,6 +76,7 @@ endif
 if dlss
     ndk = subproject('ndk').get_variable('ndk')
     deps += [ ndk ]
+    src += [ 'src/render/dlss/dlss.cpp' ]
     args += [ '-DENABLE_DLSS=1' ]
 else
     args += [ '-DENABLE_DLSS=0' ]

@@ -7,7 +7,7 @@ option('agility-sdk',
 option('dlss-sdk',
     description : 'enable use of the dlss sdk',
     type : 'feature',
-    value : 'enabled'
+    value : 'disabled'
 )
 
 option('debug-d3d12',
