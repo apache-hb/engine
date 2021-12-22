@@ -43,7 +43,7 @@ namespace engine::render {
     };
 
     struct Factory {
-        Factory(bool debug = false);
+        Factory();
         
         std::span<Adapter> adapters();
         Adapter adapter(size_t index);

@@ -1,5 +1,5 @@
 #include "util.h"
-#include "factory.h"
+#include "debug/debug.h"
 
 #include "util/strings.h"
 
@@ -20,13 +20,11 @@ namespace engine::render {
         if (FAILED(hr)) { throw render::Error(hr, message, location); }
     }
 
-#define COMPILE_FLAGS 0
-
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target) {
         Com<ID3DBlob> shader;
         Com<ID3DBlob> error;
 
-        HRESULT hr = D3DCompileFromFile(path.data(), nullptr, nullptr, entry.data(), target.data(), COMPILE_FLAGS, 0, &shader, &error);
+        HRESULT hr = D3DCompileFromFile(path.data(), nullptr, nullptr, entry.data(), target.data(), DEFAULT_SHADER_FLAGS, 0, &shader, &error);
         if (FAILED(hr)) {
             auto msg = error.valid() ? (const char*)error->GetBufferPointer() : "no error message";
             throw render::Error(hr, std::format("failed to compile shader {} {}\n{}", entry, target, msg));

@@ -79,7 +79,7 @@ struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
 
     MainWindow() {
-        factory = new render::Factory(DXGI_CREATE_FACTORY_DEBUG);
+        factory = new render::Factory();
         context = new render::Context(factory);
     }
 
@@ -88,7 +88,8 @@ struct MainWindow final : WindowCallbacks {
         render::Context::Create info = {
             .adapter = factory->adapter(0),
             .window = ctx,
-            .frames = frames
+            .frames = frames,
+            .resolution = { 1280, 720 }
         };
 
         context->createDevice(info);

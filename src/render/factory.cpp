@@ -1,4 +1,5 @@
 #include "factory.h"
+#include "debug/debug.h"
 
 #include "util/strings.h"
 
@@ -51,8 +52,8 @@ namespace engine::render {
         return desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE;
     }
 
-    Factory::Factory(bool debug) {
-        UINT flags = debug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+    Factory::Factory() {
+        UINT flags = DEFAULT_FACTORY_FLAGS;
 
         check(CreateDXGIFactory2(flags, IID_PPV_ARGS(&self)), "failed to create DXGI factory");
 

@@ -7,27 +7,6 @@
 #include <filesystem>
 #include <unordered_map>
 
-template<>
-struct std::hash<engine::loader::Vertex> {
-    size_t operator()(const engine::loader::Vertex &vertex) const {
-        return std::hash<float>()(vertex.position.x) ^
-            std::hash<float>()(vertex.position.y) ^
-            std::hash<float>()(vertex.position.z) ^
-            std::hash<float>()(vertex.normal.x) ^
-            std::hash<float>()(vertex.normal.y) ^
-            std::hash<float>()(vertex.normal.z) ^
-            std::hash<float>()(vertex.texcoord.x) ^
-            std::hash<float>()(vertex.texcoord.y);
-    }
-};
-
-template<>
-struct std::equal_to<engine::loader::Vertex> {
-    bool operator()(const engine::loader::Vertex &lhs, const engine::loader::Vertex &rhs) const {
-        return memcmp(&lhs, &rhs, sizeof(engine::loader::Vertex)) == 0;
-    }
-};
-
 namespace {
     constexpr auto pixelSize = 4;
 

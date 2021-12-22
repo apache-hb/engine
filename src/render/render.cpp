@@ -60,9 +60,6 @@ namespace engine::render {
     constexpr auto uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-    constexpr auto sceneWidth = 1920 * 2;
-    constexpr auto sceneHeight = 1080 * 2;
-
     void Context::updateViews() {
         float widthRatio = float(internalWidth) / float(displayWidth);
         float heightRatio = float(internalHeight) / float(displayHeight);
@@ -133,22 +130,22 @@ namespace engine::render {
 
     void Context::createDevice(Context::Create& info) {
         create = info;
-        scene = loader::objScene("resources\\utah-teapot.obj");
-
         auto adapter = create.adapter;
         auto window = create.window;
         auto frameCount = create.frames;
+        auto res = create.resolution;
 
         auto hwnd = window->getHandle();
 
         std::tie(displayWidth, displayHeight) = window->getClientSize();
         displayAspect = window->getClientAspectRatio();
 
-        internalWidth = sceneWidth;
-        internalHeight = sceneHeight;
+        internalWidth = res.width;
+        internalHeight = res.height;
         internalAspect = float(internalWidth) / float(internalHeight);
 
         device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
+        scene = loader::objScene("resources\\sponza\\sponza.obj");
 
         attachInfoQueue();
         updateViews();
@@ -156,8 +153,6 @@ namespace engine::render {
         directQueue = device.newCommandQueue(L"direct-queue", { D3D12_COMMAND_LIST_TYPE_DIRECT });
         copyQueue = device.newCommandQueue(L"copy-queue", { D3D12_COMMAND_LIST_TYPE_COPY });
 
-        /// correct
-        /// lines up with fullscreen sample
         {
             /// create swap chain
             DXGI_SWAP_CHAIN_DESC1 desc = {
@@ -171,7 +166,7 @@ namespace engine::render {
                 .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
             };
 
-            auto swapchain1 = factory.createSwapChain(directQueue, hwnd, desc);
+            auto swapchain1 = factory->createSwapChain(directQueue, hwnd, desc);
 
             if (!(swapchain = swapchain1.as<IDXGISwapChain3>()).valid()) {
                 throw engine::Error("failed to create swapchain");
@@ -542,7 +537,7 @@ namespace engine::render {
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
             sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-            
+           
             sceneList->IASetVertexBuffers(0, 1, &vertexBufferView);
             sceneList->IASetIndexBuffer(&indexBufferView);
 
@@ -607,7 +602,7 @@ namespace engine::render {
 
         flushQueue();
 
-        check(swapchain->Present(0, factory.presentFlags()), "failed to present swapchain");
+        check(swapchain->Present(0, factory->presentFlags()), "failed to present swapchain");
 
         nextFrame(directQueue);
     }

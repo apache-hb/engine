@@ -58,9 +58,10 @@ namespace engine::render {
             Adapter adapter;
             system::Window *window;
             UINT frames;
+            Resolution resolution;
         };
         
-        Context(Factory factory)
+        Context(Factory* factory)
             : factory(factory)
         { }
 
@@ -96,7 +97,7 @@ namespace engine::render {
         void waitForGPU(Com<ID3D12CommandQueue> queue);
         void nextFrame(Com<ID3D12CommandQueue> queue);
 
-        Factory factory;
+        Factory* factory;
         Create create;
 
         struct Frame {

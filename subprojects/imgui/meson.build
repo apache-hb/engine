@@ -12,11 +12,11 @@ src = [
 
 inc = [ '.', 'imgui', 'imgui/backends' ]
 
-imgui = library('imgui', src,
+libimgui = library('imgui', src,
     include_directories : inc
 )
 
-imgui_dep = declare_dependency(
-    link_with : imgui,
+imgui = declare_dependency(
+    link_with : libimgui,
     include_directories : inc
 )

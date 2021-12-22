@@ -3,8 +3,8 @@
 namespace engine::render {
     ShaderLibrary::ShaderLibrary(Create create): create(create) {
         auto path = create.path;
-        vsBlob = compileShader(path, create.vsMain, "vs_5_0");
-        psBlob = compileShader(path, create.psMain, "ps_5_0");
+        vsBlob = compileShader(path, create.vsMain, "vs_5_1");
+        psBlob = compileShader(path, create.psMain, "ps_5_1");
     }
 
     CD3DX12_SHADER_BYTECODE ShaderLibrary::vertex() {

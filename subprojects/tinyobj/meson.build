@@ -1,8 +1,8 @@
 project('tinyobj', 'cpp')
 
-tinyobj = library('tinyobj', 'tinyobj.cpp')
+libtinyobj = library('tinyobj', 'tinyobj.cpp')
 
-tinyobj_dep = declare_dependency(
-    link_with : tinyobj,
+tinyobj = declare_dependency(
+    link_with : libtinyobj,
     include_directories : '.'
 )

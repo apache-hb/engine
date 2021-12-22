@@ -41,18 +41,13 @@ args = [
     '/wd4324' # C4324: structure was padded due to alignment specifier
 ]
 
-if get_option('agility-sdk').enabled()
-    src += [ 'src/render/agility.cpp' ]
-    args += [ '-DAGILITY=1' ]
-else
-    args += [ '-DAGILITY=0' ]
-endif
+imgui = subproject('imgui').get_variable('imgui')
+tinyobj = subproject('tinyobj').get_variable('tinyobj')
+queue = subproject('atomic-queue').get_variable('queue')
+stb = subproject('stb').get_variable('stb')
+d3d12 = subproject('d3d12').get_variable('d3d12')
 
-if get_option('debug-d3d12').enabled()
-    args += [ '-DD3D12_DEBUG=1' ]
-else
-    args += [ '-DD3D12_DEBUG=0' ]
-endif
+deps = [ imgui, tinyobj, queue, stb, d3d12 ]
 
 links = [ 
     'd3d12.lib', 
@@ -62,13 +57,34 @@ links = [
     'xinput.lib'
 ]
 
-imgui = subproject('imgui').get_variable('imgui_dep')
-tinyobj = subproject('tinyobj').get_variable('tinyobj_dep')
-queue = subproject('atomic-queue').get_variable('queue')
-stb = subproject('stb').get_variable('stb')
-d3d12 = subproject('d3d12').get_variable('d3d12')
+agility = get_option('agility-sdk').enabled()
+dlss = get_option('dlss-sdk').enabled()
+debugd3d12 = get_option('debug-d3d12').enabled()
 
-deps = [ imgui, tinyobj, queue, stb, d3d12 ]
+message('agility-sdk: @0@'.format(agility))
+message('dlss-sdk: @0@'.format(dlss))
+message('debug-d3d12: @0@'.format(debugd3d12))
+
+if agility
+    src += [ 'src/render/agility.cpp' ]
+    args += [ '-DENABLE_AGILITY=1' ]
+else
+    args += [ '-DENABLE_AGILITY=0' ]
+endif
+
+if dlss
+    ndk = subproject('ndk').get_variable('ndk')
+    deps += [ ndk ]
+    args += [ '-DENABLE_DLSS=1' ]
+else
+    args += [ '-DENABLE_DLSS=0' ]
+endif
+
+if debugd3d12
+    args += [ '-DD3D12_DEBUG=1' ]
+else
+    args += [ '-DD3D12_DEBUG=0' ]
+endif
 
 executable('engine', src,
     include_directories : 'src',
