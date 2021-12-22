@@ -10,6 +10,7 @@
 #include "system/system.h"
 #include "assets/loader.h"
 #include "input/camera.h"
+#include "tools/mipmap.h"
 
 namespace engine::render {
     namespace Resource {
@@ -85,7 +86,6 @@ namespace engine::render {
 
     private:
         void attachInfoQueue();
-        D3D_ROOT_SIGNATURE_VERSION rootVersion();
 
         void updateViews();
 
@@ -100,6 +100,8 @@ namespace engine::render {
         Factory* factory;
         Create create;
 
+        MipMapTool mipMapTool;
+
         struct Frame {
             Com<ID3D12Resource> target;
             Com<ID3D12CommandAllocator> allocators[Allocator::Total];
@@ -107,7 +109,7 @@ namespace engine::render {
         };
 
         Com<ID3D12Resource> uploadBuffer(const void *data, size_t size, std::wstring_view name = L"resource");
-        Com<ID3D12Resource> uploadTexture(const loader::Texture& texture, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name = L"texture");
+        Texture uploadTexture(const loader::Texture& texture, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name = L"texture");
 
         template<typename T>
         Com<ID3D12Resource> uploadSpan(const std::span<T>& data, std::wstring_view name = L"resource") {
@@ -210,7 +212,7 @@ namespace engine::render {
 
         Com<ID3D12Resource> depthStencil;
 
-        std::vector<Com<ID3D12Resource>> textures;
+        std::vector<Texture> textures;
 
         loader::Scene scene;
 

@@ -90,6 +90,15 @@ namespace engine::render {
     };
 
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target);
+    
+    struct RootCreate {
+        D3D_ROOT_SIGNATURE_VERSION version;
+        std::span<CD3DX12_ROOT_PARAMETER1> params;
+        std::span<D3D12_STATIC_SAMPLER_DESC> samplers;
+        D3D12_ROOT_SIGNATURE_FLAGS flags;
+    };
+
+    Com<ID3DBlob> compileRootSignature(const RootCreate& create);
 
     struct Scissor : D3D12_RECT {
         using Super = D3D12_RECT;

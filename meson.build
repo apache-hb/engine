@@ -16,8 +16,11 @@ src = [
     'src/render/factory.cpp',
 
     'src/render/objects/library.cpp',
+    'src/render/objects/compute.cpp',
     'src/render/objects/heap.cpp',
     'src/render/objects/bundle.cpp',
+
+    'src/render/tools/mipmap.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',

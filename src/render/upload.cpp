@@ -88,7 +88,7 @@ namespace engine::render {
         return defaultResource;
     }
 
-    Com<ID3D12Resource> Context::uploadTexture(const loader::Texture& tex, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name) {
+    Texture Context::uploadTexture(const loader::Texture& tex, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name) {
         log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
         
         const auto texWidth = UINT(tex.width);
@@ -129,6 +129,11 @@ namespace engine::render {
     
         copyResources.push_back(uploadResource);
 
-        return defaultResource;
+        return Texture({
+            .texture = defaultResource,
+            .mipLevels = 1,
+            .format = format,
+            .resolution = { LONG(texWidth), LONG(texHeight) }
+        });
     }
 }

@@ -10,7 +10,7 @@
 namespace {
     constexpr auto pixelSize = 4;
 
-    engine::loader::Texture generateTexture(size_t width, size_t height) {
+    engine::loader::Texture invalidTexture(size_t width, size_t height) {
         const size_t size = width * height * pixelSize;
 
         std::vector<UINT8> texture(size);
@@ -49,11 +49,13 @@ namespace engine::loader {
         log::loader->info("\t{} shapes", shapes.size());
         log::loader->info("\t{} vertices", attrib.vertices.size() / 3);
 
+        materials.push_back(tinyobj::material_t()); // add the "default" material
+
         for (const auto& mat : materials) {
             auto texname = base/mat.diffuse_texname;
             auto tex = image(texname.string());
             if (tex.pixels.size() == 0) {
-                scene.textures.push_back(generateTexture(512, 512));
+                scene.textures.push_back(invalidTexture(512, 512));
             } else {
                 scene.textures.push_back(tex);
             }

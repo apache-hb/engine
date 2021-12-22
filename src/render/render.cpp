@@ -39,7 +39,7 @@ namespace engine::render {
     });
 
     constexpr ShaderLibrary::Create sceneCreate = {
-        .path = L"resources\\scene-shader.hlsl",
+        .path = L"resources\\shaders\\scene-shader.hlsl",
         .vsMain = "vsMain",
         .psMain = "psMain",
         .layout = { sceneInput }
@@ -51,7 +51,7 @@ namespace engine::render {
     });
 
     constexpr ShaderLibrary::Create postCreate = {
-        .path = L"resources\\post-shader.hlsl",
+        .path = L"resources\\shaders\\post-shader.hlsl",
         .vsMain = "vsMain",
         .psMain = "psMain",
         .layout = { postInput }
@@ -147,6 +147,8 @@ namespace engine::render {
         internalAspect = float(internalWidth) / float(internalHeight);
 
         device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
+        mipMapTool = MipMapTool(device);
+
         scene = loader::objScene("resources\\sponza\\sponza.obj");
 
         attachInfoQueue();
@@ -280,7 +282,7 @@ namespace engine::render {
         sceneShaders = ShaderLibrary(sceneCreate);
         postShaders = ShaderLibrary(postCreate);
 
-        auto version = rootVersion();
+        auto version = device.getHighestRootVersion();
 
         // create our scene root signature
         // consists of a constant buffer with camera data 
@@ -300,8 +302,8 @@ namespace engine::render {
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
             }};
-            CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
-            CD3DX12_ROOT_PARAMETER1 parameters[2];
+            std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges;
+            std::array<CD3DX12_ROOT_PARAMETER1, 2> parameters;
 
             ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // constant buffer data
             ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
@@ -309,16 +311,12 @@ namespace engine::render {
             parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX); // constant buffer
             parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
-            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(textureSamplers)), textureSamplers, rootSignatureFlags);
-        
-            Com<ID3DBlob> signature;
-            Com<ID3DBlob> error;
-
-            HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
-            if (FAILED(hr)) {
-                throw render::Error(hr, (char*)error->GetBufferPointer());
-            }
+            auto signature = compileRootSignature({
+                .version = version, 
+                .params = { parameters }, 
+                .samplers = { textureSamplers },
+                .flags = rootSignatureFlags
+            });
 
             sceneRootSignature = device.newRootSignature(L"scene-root-signature", signature);
         }
@@ -338,28 +336,24 @@ namespace engine::render {
                 .RegisterSpace = 0,
                 .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
             }};
-            CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
-            CD3DX12_ROOT_PARAMETER1 parameters[1];
+            std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges;
+            std::array<CD3DX12_ROOT_PARAMETER1, 1> parameters;
 
             ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // texture data
             parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
-            CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(postSamplers)), postSamplers, rootSignatureFlags);
-
-            Com<ID3DBlob> signature;
-            Com<ID3DBlob> error;
-
-            HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
-            if (FAILED(hr)) {
-                throw render::Error(hr, (char*)error->GetBufferPointer());
-            }
+            auto signature = compileRootSignature({
+                .version = version,
+                .params = { parameters },
+                .samplers = { postSamplers },
+                .flags = rootSignatureFlags
+            });
 
             postRootSignature = device.newRootSignature(L"post-root-signature", signature);
         }
 
-        scenePipelineState = device.newPipelineState(L"scene-pipeline-state", sceneShaders, sceneRootSignature.get());
-        postPipelineState = device.newPipelineState(L"post-pipeline-state", postShaders, postRootSignature.get());
+        scenePipelineState = device.newGraphicsPSO(L"scene-pipeline-state", sceneShaders, sceneRootSignature.get());
+        postPipelineState = device.newGraphicsPSO(L"post-pipeline-state", postShaders, postRootSignature.get());
 
         /// create all the needed command lists
 
@@ -437,6 +431,8 @@ namespace engine::render {
             textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
         }
 
+        mipMapTool.createMipMaps(textures);
+
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
             DXGI_FORMAT_R8G8B8A8_UNORM, cbvSrvHeap.get(),
@@ -451,6 +447,9 @@ namespace engine::render {
         }
 
         flushCopyQueue();
+        mipMapTool.flush([&](auto queue) {
+            waitForGPU(queue);
+        });
 
         sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](auto bundle) {
             bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -698,15 +697,5 @@ namespace engine::render {
     
         log::render->info("registered message callback with cookie {}", cookie);
         infoQueue.release();
-    }
-
-    D3D_ROOT_SIGNATURE_VERSION Context::rootVersion() {
-        D3D12_FEATURE_DATA_ROOT_SIGNATURE features = { .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1 };
-
-        if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &features, sizeof(features)))) {
-            features.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-        }
-
-        return features.HighestVersion;
     }
 }

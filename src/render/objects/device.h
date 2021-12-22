@@ -1,7 +1,10 @@
 #pragma once
 
+#include "render/debug/debug.h"
+
 #include "heap.h"
 #include "library.h"
+#include "compute.h"
 #include "bundle.h"
 
 namespace engine::render {
@@ -9,6 +12,12 @@ namespace engine::render {
     struct Device : Com<T> {
         using Super = Com<T>;
         using Super::Super;
+
+        Device() = default;
+        Device(T* device) 
+            : Super(device)
+            , rootVersion(highestRootVersion())
+        { }
 
         DescriptorHeap newHeap(std::wstring_view name, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
             return DescriptorHeap(Super::get(), name, desc);
@@ -51,7 +60,7 @@ namespace engine::render {
             return result;
         }
 
-        Com<ID3D12PipelineState> newPipelineState(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
+        Com<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
                 .pRootSignature = root,
                 .VS = library.vertex(),
@@ -75,5 +84,34 @@ namespace engine::render {
 
             return result;
         }
+
+        Com<ID3D12PipelineState> newComputePSO(std::wstring_view name, ComputeLibrary& library, ID3D12RootSignature* root) {
+            D3D12_COMPUTE_PIPELINE_STATE_DESC desc = {
+                .pRootSignature = root,
+                .CS = library.shader()
+            };
+
+            Com<ID3D12PipelineState> result;
+
+            check(Super::get()->CreateComputePipelineState(&desc, IID_PPV_ARGS(&result)), "failed to create compute pipeline state");
+            result.rename(name);
+
+            return result;
+        }
+
+        D3D_ROOT_SIGNATURE_VERSION getHighestRootVersion() const { return rootVersion; }
+
+    private:
+        D3D_ROOT_SIGNATURE_VERSION highestRootVersion() {
+            D3D12_FEATURE_DATA_ROOT_SIGNATURE features = { .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1 };
+
+            if (FAILED(Super::get()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &features, sizeof(features)))) {
+                features.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+            }
+
+            return features.HighestVersion;
+        }
+
+        D3D_ROOT_SIGNATURE_VERSION rootVersion;
     };
 }
