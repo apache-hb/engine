@@ -64,6 +64,10 @@ namespace engine::loader {
 
             size_t firstIndex = scene.indices.size();
 
+            size_t skip = 0;
+            size_t face = 0;
+            size_t material = 0;
+
             for (const auto& index : mesh.indices) {
                 auto vidx = index.vertex_index;
                 auto nidx = index.normal_index;
@@ -86,7 +90,16 @@ namespace engine::loader {
                     attrib.texcoords[2 * tidx + 1]
                 );
                 
-                Vertex vertexData = { vertex, normal, texcoord };
+                if (skip > 0) {
+                    skip -= 1;
+                } else {
+                    skip = mesh.num_face_vertices[face];
+                    material = mesh.material_ids[face];
+
+                    face += 1;
+                }
+
+                Vertex vertexData = { vertex, normal, texcoord, UINT(material) };
 
                 scene.vertices.push_back(vertexData);
                 scene.indices.push_back(UINT(scene.vertices.size() - 1));
@@ -96,7 +109,7 @@ namespace engine::loader {
 
             size_t totalIndices = lastIndex - firstIndex + 1;
 
-            scene.objects.push_back({ firstIndex, totalIndices, size_t(mesh.material_ids[0]) });
+            scene.objects.push_back({ firstIndex, totalIndices });
         }
 
         return scene;

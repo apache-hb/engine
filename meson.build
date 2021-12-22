@@ -13,9 +13,11 @@ src = [
     'src/render/render.cpp',
     'src/render/upload.cpp',
     'src/render/debug.cpp',
-    'src/render/library.cpp',
-    'src/render/heap.cpp',
     'src/render/factory.cpp',
+
+    'src/render/objects/library.cpp',
+    'src/render/objects/heap.cpp',
+    'src/render/objects/bundle.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',

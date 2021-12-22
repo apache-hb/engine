@@ -1,7 +1,7 @@
 #pragma once
 
 #include "util.h"
-#include "device.h"
+#include "objects/device.h"
 
 namespace engine::render {
     struct Output {
@@ -21,7 +21,20 @@ namespace engine::render {
         template<typename T>
         Device<T> newDevice(D3D_FEATURE_LEVEL level, std::wstring_view name) {
             T* device = nullptr;
-            check(D3D12CreateDevice(self.get(), level, IID_PPV_ARGS(&device)), "failed to create device");
+            HRESULT hr = D3D12CreateDevice(self.get(), level, IID_PPV_ARGS(&device));
+            
+            if (FAILED(hr)) {
+
+#if ENABLE_AGILITY
+                // special case this error, the default error message doesnt make much sense
+                if (hr == D3D12_ERROR_INVALID_REDIST) {
+                    throw render::Error(hr, "failed to create device, driver does not support D3D12 Agility SDK");
+                }
+#endif
+                
+                throw render::Error(hr, "failed to create device");
+            }
+
             Device<T> result(device);
             result.rename(name);
             return result;

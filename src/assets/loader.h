@@ -14,6 +14,7 @@ namespace engine::loader {
         XMFLOAT3 position;
         XMFLOAT3 normal;
         XMFLOAT2 texcoord;
+        UINT texindex;
     };
 
     struct Model {
@@ -41,7 +42,6 @@ namespace engine::loader {
         struct Object {
             size_t offset; // offset into the indices
             size_t length; // number of indicies
-            size_t texture; // index into the texture buffer
         };
 
         std::vector<Object> objects;

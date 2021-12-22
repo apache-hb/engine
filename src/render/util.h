@@ -25,7 +25,7 @@ namespace engine::render {
         HRESULT error() const { return code; }
 
         virtual std::string query() const override {
-            return std::format("hresult: {}\n{}", toString(code), what());
+            return std::format("hresult(0x{:x}): {}\n{}", code & ULONG_MAX, toString(code), what());
         }
     private:
         HRESULT code;

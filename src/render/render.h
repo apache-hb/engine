@@ -3,9 +3,9 @@
 #include <span>
 
 #include "util.h"
-#include "library.h"
-#include "device.h"
-#include "heap.h"
+#include "objects/library.h"
+#include "objects/device.h"
+#include "objects/heap.h"
 #include "factory.h"
 #include "system/system.h"
 #include "assets/loader.h"
@@ -219,6 +219,9 @@ namespace engine::render {
 
         Com<ID3D12GraphicsCommandList> sceneCommandList;
         Com<ID3D12GraphicsCommandList> postCommandList;
+
+        CommandBundle sceneCommandBundle;
+        CommandBundle postCommandBundle;
 
         Com<ID3D12RootSignature> sceneRootSignature;
         Com<ID3D12PipelineState> scenePipelineState;

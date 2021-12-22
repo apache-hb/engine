@@ -26,6 +26,7 @@ namespace engine::render {
     constexpr auto swapSampleCount = 1;
     constexpr auto swapSampleQuality = 0;
     constexpr float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    constexpr float borderColour[] = { 0.f, 0.f, 0.f, 1.f };
     const auto clearValue = CD3DX12_CLEAR_VALUE(swapFormat, clearColour);
 
     /// shader libraries
@@ -33,7 +34,8 @@ namespace engine::render {
     constexpr auto sceneInput = std::to_array({
         shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, position)),
         shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
-        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord))
+        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord)),
+        shaderInput("TEXINDEX", DXGI_FORMAT_R32_UINT, offsetof(loader::Vertex, texindex))
     });
 
     constexpr ShaderLibrary::Create sceneCreate = {
@@ -302,7 +304,7 @@ namespace engine::render {
             CD3DX12_ROOT_PARAMETER1 parameters[2];
 
             ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // constant buffer data
-            ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
+            ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
 
             parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX); // constant buffer
             parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
@@ -449,6 +451,27 @@ namespace engine::render {
         }
 
         flushCopyQueue();
+
+        sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](auto bundle) {
+            bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            bundle->IASetVertexBuffers(0, 1, &vertexBufferView);
+            bundle->IASetIndexBuffer(&indexBufferView);
+
+            for (size_t i = 0; i < scene.objects.size(); i++) {
+                const auto& obj = scene.objects[i];
+                const auto start = obj.offset;
+                const auto count = obj.length;
+
+                bundle->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
+            }
+        });
+
+        postCommandBundle = device.newCommandBundle(L"post-command-bundle", postPipelineState.get(), [&](auto bundle) {
+            /// draw fullscreen quad with texture on it
+            bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+            bundle->IASetVertexBuffers(0, 1, &screenBufferView);
+            bundle->DrawInstanced(4, 1, 0, 0);
+        });
     }
 
     void Context::destroyAssets() {
@@ -473,6 +496,9 @@ namespace engine::render {
 
         postRootSignature.tryDrop("post-root-signature");
         postPipelineState.tryDrop("post-pipeline-state");
+
+        sceneCommandBundle.tryDrop("scene-command-bundle");
+        postCommandBundle.tryDrop("post-command-bundle");
 
         sceneCommandList.tryDrop("scene-command-list");
         postCommandList.tryDrop("post-command-list");
@@ -527,7 +553,6 @@ namespace engine::render {
             sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
             sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Camera));
 
-            sceneList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
 
@@ -537,56 +562,41 @@ namespace engine::render {
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
             sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-           
-            sceneList->IASetVertexBuffers(0, 1, &vertexBufferView);
-            sceneList->IASetIndexBuffer(&indexBufferView);
+            sceneList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(0));
 
-            for (size_t i = 0; i < scene.objects.size(); i++) {
-                const auto& obj = scene.objects[i];
-                const auto start = obj.offset;
-                const auto count = obj.length;
-
-                sceneList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(obj.texture));
-                sceneList->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
-            }
+            sceneList->ExecuteBundle(sceneCommandBundle.get());
         }
 
         /// post command list
 
         {
-            postList->SetGraphicsRootSignature(postRootSignature.get());
-
-            postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-
             D3D12_RESOURCE_BARRIER inTransitions[] = {
                 CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
                 CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
             };
 
+            D3D12_RESOURCE_BARRIER outTransitions[] = {
+                CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
+                CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
+            };
+
             postList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
 
-            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Intermediate));
             postList->RSSetScissorRects(1, &postView.scissor);
             postList->RSSetViewports(1, &postView.viewport);
 
             /// render to the back buffer
             auto rtvHandle = getTargetHandle(frameIndex);
             postList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-
-            float borderColour[] = { 0.f, 0.f, 0.f, 1.f };
-
-            /// draw fullscreen quad with texture on it
             postList->ClearRenderTargetView(rtvHandle, borderColour, 0, nullptr);
-            postList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-            postList->IASetVertexBuffers(0, 1, &screenBufferView);
-            postList->DrawInstanced(4, 1, 0, 0);
+            
+            postList->SetGraphicsRootSignature(postRootSignature.get());
+            postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
+            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Intermediate));
+            
+            postList->ExecuteBundle(postCommandBundle.get());
 
             ImGui_ImplDX12_RenderDrawData(draw, postList);
-
-            D3D12_RESOURCE_BARRIER outTransitions[] = {
-                CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
-                CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
-            };
 
             postList->ResourceBarrier(UINT(std::size(outTransitions)), outTransitions);
         }
