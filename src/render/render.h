@@ -14,8 +14,8 @@
 namespace engine::render {
     namespace Resource {
         enum Index : int {
-            Scene, /// scene render target
-            Post, /// post processing render target
+            Camera, /// camera projection data
+            Intermediate, /// intermediate scaling render target
             ImGui, /// render target for imgui
             Total
         };
@@ -68,6 +68,8 @@ namespace engine::render {
             destroyAssets();
             destroyDevice();
         }
+
+        void changeInternalResolution(Resolution resolution);
 
         void createDevice(Create& info);
         void destroyDevice();
@@ -174,7 +176,7 @@ namespace engine::render {
         auto getIntermediateHandle() {
             return rtvHeap.cpuHandle(0);
         }
-        
+
         auto getTargetHandle(size_t frame) {
             return rtvHeap.cpuHandle(frame + 1);
         }

@@ -117,6 +117,13 @@ namespace engine::render {
         Viewport viewport{0.f, 0.f};
     };
 
+    struct Resolution {
+        LONG width;
+        LONG height;
+
+        float aspect() const { return float(width) / float(height); }
+    };
+
     using Colour = XMFLOAT4;
 
     namespace colour {

@@ -76,22 +76,37 @@ namespace engine::render {
             y = heightRatio / widthRatio;
         }
 
-        auto left = displayWidth * (1.f - x) / 2.f;
-        auto top = displayHeight * (1.f - y) / 2.f;
-        auto width = displayWidth * x;
+        /// correct
+        /// lines up with fullscreen sample
+
+        auto left   = displayWidth * (1.f - x) / 2.f;
+        auto top    = displayHeight * (1.f - y) / 2.f;
+        auto width  = displayWidth * x;
         auto height = displayHeight * y;
 
-        sceneView.viewport.TopLeftX = left;
-        sceneView.viewport.TopLeftY = top;
-        sceneView.viewport.Width = width;
-        sceneView.viewport.Height = height;
+        /// update post viewport
+        postView.viewport.TopLeftX  = FLOAT(left);
+        postView.viewport.TopLeftY  = FLOAT(top);
+        postView.viewport.Width     = FLOAT(width);
+        postView.viewport.Height    = FLOAT(height);
 
-        sceneView.scissor.left = LONG(left);
-        sceneView.scissor.top = LONG(top);
-        sceneView.scissor.right = LONG(left + width);
-        sceneView.scissor.bottom = LONG(top + height);
+        /// update post scissor
+        postView.scissor.left       = LONG(left);
+        postView.scissor.top        = LONG(top);
+        postView.scissor.right      = LONG(left + width);
+        postView.scissor.bottom     = LONG(top + height);
 
-        postView = View(displayWidth, displayHeight);
+        /// update scene viewport
+        sceneView.viewport.TopLeftX = 0;
+        sceneView.viewport.TopLeftY = 0;
+        sceneView.viewport.Width    = FLOAT(internalWidth);
+        sceneView.viewport.Height   = FLOAT(internalHeight);
+
+        /// update scene scissor
+        sceneView.scissor.left      = 0;
+        sceneView.scissor.top       = 0;
+        sceneView.scissor.right     = LONG(internalWidth);
+        sceneView.scissor.bottom    = LONG(internalHeight);
 
         log::render->info("resolution info");
         log::render->info("  display: {}x{}", displayWidth, displayHeight);
@@ -136,11 +151,15 @@ namespace engine::render {
         device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
 
         attachInfoQueue();
+        updateViews();
 
         directQueue = device.newCommandQueue(L"direct-queue", { D3D12_COMMAND_LIST_TYPE_DIRECT });
         copyQueue = device.newCommandQueue(L"copy-queue", { D3D12_COMMAND_LIST_TYPE_COPY });
 
+        /// correct
+        /// lines up with fullscreen sample
         {
+            /// create swap chain
             DXGI_SWAP_CHAIN_DESC1 desc = {
                 .Width = UINT(displayWidth),
                 .Height = UINT(displayHeight),
@@ -162,8 +181,6 @@ namespace engine::render {
 
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
-
-        updateViews();
 
         {
             D3D12_DESCRIPTOR_HEAP_DESC desc = {
@@ -189,6 +206,8 @@ namespace engine::render {
 
         /// create the intermediate render target
         {
+            /// correct
+            /// lines up with fullscreen sample
             const auto targetDesc = CD3DX12_RESOURCE_DESC::Tex2D(
                 swapFormat, internalWidth, internalHeight,
                 1u, 1u,
@@ -204,7 +223,7 @@ namespace engine::render {
             check(hr, "failed to create intermediate target");
 
             device->CreateRenderTargetView(sceneTarget.get(), nullptr, getIntermediateHandle());
-            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Post));
+            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resource::Intermediate));
             sceneTarget.rename(L"intermediate-target");
         }
 
@@ -260,22 +279,6 @@ namespace engine::render {
         D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
         D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-    constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {
-        {
-            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-            .MinLOD = 0.0f,
-            .MaxLOD = D3D12_FLOAT32_MAX,
-            .ShaderRegister = 0,
-            .RegisterSpace = 0,
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-        }
-    };
-
     void Context::createAssets() {
         sceneShaders = ShaderLibrary(sceneCreate);
         postShaders = ShaderLibrary(postCreate);
@@ -287,6 +290,19 @@ namespace engine::render {
         // an srv for the model texture
         // and a sampler
         {
+            D3D12_STATIC_SAMPLER_DESC textureSamplers[] = {{
+                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+                .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+                .MinLOD = 0.0f,
+                .MaxLOD = D3D12_FLOAT32_MAX,
+                .ShaderRegister = 0,
+                .RegisterSpace = 0,
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+            }};
             CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
             CD3DX12_ROOT_PARAMETER1 parameters[2];
 
@@ -297,7 +313,7 @@ namespace engine::render {
             parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(samplers)), samplers, rootSignatureFlags);
+            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(textureSamplers)), textureSamplers, rootSignatureFlags);
         
             Com<ID3DBlob> signature;
             Com<ID3DBlob> error;
@@ -312,6 +328,19 @@ namespace engine::render {
 
         // create our post root signature
         {
+            D3D12_STATIC_SAMPLER_DESC postSamplers[] = {{
+                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+                .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+                .MinLOD = 0.0f,
+                .MaxLOD = D3D12_FLOAT32_MAX,
+                .ShaderRegister = 0,
+                .RegisterSpace = 0,
+                .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+            }};
             CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
             CD3DX12_ROOT_PARAMETER1 parameters[1];
 
@@ -319,7 +348,7 @@ namespace engine::render {
             parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // texture
 
             CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(samplers)), samplers, rootSignatureFlags);
+            desc.Init_1_1(UINT(std::size(parameters)), parameters, UINT(std::size(postSamplers)), postSamplers, rootSignatureFlags);
 
             Com<ID3DBlob> signature;
             Com<ID3DBlob> error;
@@ -397,7 +426,7 @@ namespace engine::render {
                 .BufferLocation = constBuffer->GetGPUVirtualAddress(),
                 .SizeInBytes = constBufferSize
             };
-            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resource::Scene));
+            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resource::Camera));
 
             /// map the constant buffer into visible memory
             CD3DX12_RANGE readRange(0, 0);
@@ -492,17 +521,16 @@ namespace engine::render {
         /// common setup
 
         check(sceneAlloc->Reset(), "failed to reset scene command allocator");
-        check(sceneList->Reset(sceneAlloc.get(), scenePipelineState.get()), "failed to reset scene command list");
-
         check(postAlloc->Reset(), "failed to reset post command allocator");
-        check(postList->Reset(postAlloc.get(), postPipelineState.get()), "failed to reset post command list");
 
+        check(sceneList->Reset(sceneAlloc.get(), scenePipelineState.get()), "failed to reset scene command list");
+        check(postList->Reset(postAlloc.get(), postPipelineState.get()), "failed to reset post command list");
 
         /// scene command list
         {
             sceneList->SetGraphicsRootSignature(sceneRootSignature.get());
             sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Scene));
+            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Camera));
 
             sceneList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             sceneList->RSSetViewports(1, &sceneView.viewport);
@@ -542,7 +570,7 @@ namespace engine::render {
 
             postList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
 
-            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Post));
+            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resource::Intermediate));
             postList->RSSetScissorRects(1, &postView.scissor);
             postList->RSSetViewports(1, &postView.viewport);
 
