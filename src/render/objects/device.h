@@ -60,6 +60,10 @@ namespace engine::render {
             return result;
         }
 
+        Object<ID3D12RootSignature> compileRootSignature(std::wstring_view name, D3D_ROOT_SIGNATURE_VERSION version, const RootCreate& create) {
+            return newRootSignature(name, render::compileRootSignature(version, create));
+        }
+
         Object<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
             D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
                 .pRootSignature = root,

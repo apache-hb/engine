@@ -14,7 +14,7 @@ cbuffer BindsBuffer : register(b1) {
 
 /// we use bindless textures so this is all we need
 /// `tex` is used to index into this in the pixel shader
-Texture2D textures[] : register(t0);
+Texture2D textures[] : register(t0, space1);
 SamplerState texSampler : register(s0);
 
 struct PSInput {

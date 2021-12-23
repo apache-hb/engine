@@ -32,30 +32,108 @@ namespace engine::render {
 
     /// shader libraries
 
-    constexpr auto sceneInput = std::to_array({
-        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0),
-        //shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
-        //shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord))
-    });
+    namespace scene {
+        constexpr auto cbvRanges = std::to_array({
+            cbvRange(0, 1) // b0
+        });
 
-    constexpr ShaderLibrary::Create sceneCreate = {
-        .path = L"resources\\shaders\\scene-shader.hlsl",
-        .vsMain = "vsMain",
-        .psMain = "psMain",
-        .layout = { sceneInput }
-    };
+        constexpr auto srvRanges = std::to_array({
+            srvRange(0, UINT_MAX, 1) // t0[]
+        });
 
-    constexpr auto postInput = std::to_array({
-        shaderInput("POSITION", DXGI_FORMAT_R32G32B32A32_FLOAT, offsetof(ScreenVertex, position)),
-        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(ScreenVertex, texcoord))
-    });
+        constexpr auto params = std::to_array({
+            tableParameter(D3D12_SHADER_VISIBILITY_VERTEX, cbvRanges), // b0
+            root32BitParameter(D3D12_SHADER_VISIBILITY_PIXEL, 1, 1), // b1
+            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges) // t[]
+        });
 
-    constexpr ShaderLibrary::Create postCreate = {
-        .path = L"resources\\shaders\\post-shader.hlsl",
-        .vsMain = "vsMain",
-        .psMain = "psMain",
-        .layout = { postInput }
-    };
+        constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0.0f,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+        }};
+
+        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+        constexpr auto input = std::to_array({
+            shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0),
+            shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, UINT_MAX),
+            shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, UINT_MAX)
+        });
+
+        constexpr ShaderLibrary::Create create = {
+            .path = L"resources\\shaders\\scene-shader.hlsl",
+            .vsMain = "vsMain",
+            .psMain = "psMain",
+            .layout = { input }
+        };
+
+        constexpr RootCreate root = {
+            .params = params,
+            .samplers = samplers,
+            .flags = flags
+        };
+    }
+
+    namespace post {
+        constexpr auto ranges = std::to_array({
+            srvRange(1, 0)
+        });
+
+        constexpr auto params = std::to_array({
+            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, ranges)
+        });
+
+        D3D12_STATIC_SAMPLER_DESC samplers[] = {{
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0.0f,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+        }};
+
+        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+
+        constexpr auto input = std::to_array({
+            shaderInput("POSITION", DXGI_FORMAT_R32G32B32A32_FLOAT, offsetof(ScreenVertex, position)),
+            shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(ScreenVertex, texcoord))
+        });
+
+        constexpr ShaderLibrary::Create create = {
+            .path = L"resources\\shaders\\post-shader.hlsl",
+            .vsMain = "vsMain",
+            .psMain = "psMain",
+            .layout = { input }
+        };
+
+        constexpr RootCreate root = {
+            .params = params,
+            .samplers = samplers,
+            .flags = flags
+        };
+    }
 
     /// buffer property constants
 
@@ -172,8 +250,6 @@ namespace engine::render {
 
         /// create the intermediate render target
         {
-            /// correct
-            /// lines up with fullscreen sample
             const auto targetDesc = CD3DX12_RESOURCE_DESC::Tex2D(
                 swapFormat, internalWidth, internalHeight,
                 1u, 1u,
@@ -240,107 +316,14 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
-    namespace scene {
-        constexpr auto cbvRanges = std::to_array({
-            cbvRange(1, 0)
-        });
-
-        constexpr auto srvRanges = std::to_array({
-            srvRange(UINT_MAX, 0)
-        });
-
-        constexpr auto params = std::to_array({
-            tableParameter(D3D12_SHADER_VISIBILITY_VERTEX, cbvRanges),
-            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges)
-        });
-
-        constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
-            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-            .MinLOD = 0.0f,
-            .MaxLOD = D3D12_FLOAT32_MAX,
-            .ShaderRegister = 0,
-            .RegisterSpace = 0,
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-        }};
-
-        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
-            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-    }
-
-    namespace post {
-        constexpr auto ranges = std::to_array({
-            srvRange(1, 0)
-        });
-
-        constexpr auto params = std::to_array({
-            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, ranges)
-        });
-
-        D3D12_STATIC_SAMPLER_DESC samplers[] = {{
-            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-            .MinLOD = 0.0f,
-            .MaxLOD = D3D12_FLOAT32_MAX,
-            .ShaderRegister = 0,
-            .RegisterSpace = 0,
-            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-        }};
-
-        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
-            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-    }
-
     void Context::createAssets() {
-        scene = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
-
-        createBuffers();
-
-        sceneShaders = ShaderLibrary(sceneCreate);
-        postShaders = ShaderLibrary(postCreate);
+        sceneShaders = ShaderLibrary(scene::create);
+        postShaders = ShaderLibrary(post::create);
 
         auto version = device.getHighestRootVersion();
 
-        // create our scene root signature
-        // consists of a constant buffer with camera data 
-        // an srv for the model texture
-        // and a sampler
-        {   
-            auto signature = compileRootSignature({
-                .version = version,
-                .params = scene::params, 
-                .samplers = scene::samplers,
-                .flags = scene::flags
-            });
-
-            sceneRootSignature = device.newRootSignature(L"scene-root-signature", signature);
-        }
-
-        // create our post root signature
-        {
-            auto signature = compileRootSignature({
-                .version = version,
-                .params = post::params,
-                .samplers = post::samplers,
-                .flags = post::flags
-            });
-
-            postRootSignature = device.newRootSignature(L"post-root-signature", signature);
-        }
+        sceneRootSignature = device.compileRootSignature(L"scene-root-signature", version, scene::root);
+        postRootSignature = device.compileRootSignature(L"post-root-signature", version, post::root);
 
         scenePipelineState = device.newGraphicsPSO(L"scene-pipeline-state", sceneShaders, sceneRootSignature.get());
         postPipelineState = device.newGraphicsPSO(L"post-pipeline-state", postShaders, postRootSignature.get());
@@ -359,6 +342,9 @@ namespace engine::render {
         check(postCommandList->Close(), "failed to close post command list");
 
         /// upload all our needed geometry
+        scene = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
+
+        createBuffers();
 
         for (auto& buffer : scene.buffers) {
             uploadVertexBuffer(std::span(buffer.data), L"buffer");

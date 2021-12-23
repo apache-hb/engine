@@ -33,7 +33,7 @@ namespace engine::render {
         return shader;
     }
 
-    Com<ID3DBlob> compileRootSignature(const RootCreate& create) {
+    Com<ID3DBlob> compileRootSignature(D3D_ROOT_SIGNATURE_VERSION version, const RootCreate& create) {
         auto params = create.params;
         auto samplers = create.samplers;
         
@@ -43,7 +43,7 @@ namespace engine::render {
         Com<ID3DBlob> signature;
         Com<ID3DBlob> error;
 
-        HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, create.version, &signature, &error);
+        HRESULT hr = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
         if (FAILED(hr)) {
             auto msg = error.valid() ? (const char*)error->GetBufferPointer() : "no error message";
             throw render::Error(hr, std::format("failed to serialize root signature\n{}", msg));
