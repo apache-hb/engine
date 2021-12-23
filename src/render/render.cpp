@@ -42,9 +42,9 @@ namespace engine::render {
         });
 
         constexpr auto params = std::to_array({
-            tableParameter(D3D12_SHADER_VISIBILITY_VERTEX, cbvRanges), // b0
-            root32BitParameter(D3D12_SHADER_VISIBILITY_PIXEL, 1, 1), // b1
-            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges) // t[]
+            tableParameter(visibility::Vertex, cbvRanges), // b0
+            //root32BitParameter(D3D12_SHADER_VISIBILITY_PIXEL, 1, 1), // b1
+            //tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges) // t[]
         });
 
         constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
