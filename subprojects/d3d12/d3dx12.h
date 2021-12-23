@@ -12,12 +12,6 @@
 
 #if defined( __cplusplus )
 
-#if __cpp_constexpr >= 200704
-#   define D3DX12_CONSTEXPR_DECL constexpr
-#else
-#   define D3DX12_CONSTEXPR_DECL
-#endif
-
 struct CD3DX12_DEFAULT {};
 extern const DECLSPEC_SELECTANY CD3DX12_DEFAULT D3D12_DEFAULT;
 
@@ -407,23 +401,23 @@ struct CD3DX12_RESOURCE_ALLOCATION_INFO : public D3D12_RESOURCE_ALLOCATION_INFO
 struct CD3DX12_HEAP_PROPERTIES : public D3D12_HEAP_PROPERTIES
 {
     CD3DX12_HEAP_PROPERTIES() = default;
-    explicit D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(const D3D12_HEAP_PROPERTIES &o) noexcept :
+    explicit constexpr CD3DX12_HEAP_PROPERTIES(const D3D12_HEAP_PROPERTIES &o) noexcept :
         D3D12_HEAP_PROPERTIES(o)
     {}
-    D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(
+    constexpr CD3DX12_HEAP_PROPERTIES(
         D3D12_CPU_PAGE_PROPERTY cpuPageProperty,
         D3D12_MEMORY_POOL memoryPoolPreference,
         UINT creationNodeMask = 1,
         UINT nodeMask = 1 ) noexcept :
         D3D12_HEAP_PROPERTIES({ D3D12_HEAP_TYPE_CUSTOM, cpuPageProperty, memoryPoolPreference, creationNodeMask, nodeMask })
     {}
-    explicit D3DX12_CONSTEXPR_DECL CD3DX12_HEAP_PROPERTIES(
+    explicit constexpr CD3DX12_HEAP_PROPERTIES(
         D3D12_HEAP_TYPE type,
         UINT creationNodeMask = 1,
         UINT nodeMask = 1 ) noexcept :
         D3D12_HEAP_PROPERTIES({ type, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, creationNodeMask, nodeMask })
     {}
-    D3DX12_CONSTEXPR_DECL bool IsCPUAccessible() const noexcept
+    constexpr bool IsCPUAccessible() const noexcept
     {
         return Type == D3D12_HEAP_TYPE_UPLOAD || Type == D3D12_HEAP_TYPE_READBACK || (Type == D3D12_HEAP_TYPE_CUSTOM &&
             (CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE || CPUPageProperty == D3D12_CPU_PAGE_PROPERTY_WRITE_BACK));
@@ -1235,10 +1229,10 @@ struct CD3DX12_ROOT_SIGNATURE_DESC : public D3D12_ROOT_SIGNATURE_DESC
 struct CD3DX12_DESCRIPTOR_RANGE1 : public D3D12_DESCRIPTOR_RANGE1
 {
     CD3DX12_DESCRIPTOR_RANGE1() = default;
-    explicit CD3DX12_DESCRIPTOR_RANGE1(const D3D12_DESCRIPTOR_RANGE1 &o) noexcept :
+    explicit constexpr CD3DX12_DESCRIPTOR_RANGE1(const D3D12_DESCRIPTOR_RANGE1 &o) noexcept :
         D3D12_DESCRIPTOR_RANGE1(o)
     {}
-    CD3DX12_DESCRIPTOR_RANGE1(
+    constexpr CD3DX12_DESCRIPTOR_RANGE1(
         D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
         UINT numDescriptors,
         UINT baseShaderRegister,
@@ -1250,7 +1244,7 @@ struct CD3DX12_DESCRIPTOR_RANGE1 : public D3D12_DESCRIPTOR_RANGE1
         Init(rangeType, numDescriptors, baseShaderRegister, registerSpace, flags, offsetInDescriptorsFromTableStart);
     }
 
-    inline void Init(
+    constexpr void Init(
         D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
         UINT numDescriptors,
         UINT baseShaderRegister,
@@ -1262,7 +1256,7 @@ struct CD3DX12_DESCRIPTOR_RANGE1 : public D3D12_DESCRIPTOR_RANGE1
         Init(*this, rangeType, numDescriptors, baseShaderRegister, registerSpace, flags, offsetInDescriptorsFromTableStart);
     }
 
-    static inline void Init(
+    static constexpr void Init(
         _Out_ D3D12_DESCRIPTOR_RANGE1 &range,
         D3D12_DESCRIPTOR_RANGE_TYPE rangeType,
         UINT numDescriptors,
@@ -1351,7 +1345,7 @@ struct CD3DX12_ROOT_DESCRIPTOR1 : public D3D12_ROOT_DESCRIPTOR1
 struct CD3DX12_ROOT_PARAMETER1 : public D3D12_ROOT_PARAMETER1
 {
     CD3DX12_ROOT_PARAMETER1() = default;
-    explicit CD3DX12_ROOT_PARAMETER1(const D3D12_ROOT_PARAMETER1 &o) noexcept :
+    explicit constexpr CD3DX12_ROOT_PARAMETER1(const D3D12_ROOT_PARAMETER1 &o) noexcept :
         D3D12_ROOT_PARAMETER1(o)
     {}
 
@@ -5019,7 +5013,6 @@ inline HRESULT CD3DX12FeatureSupport::QueryProtectedResourceSessionTypes(UINT No
 
 #endif // #ifndef D3DX12_NO_CHECK_FEATURE_SUPPORT_CLASS
 
-#undef D3DX12_CONSTEXPR_DECL
 #undef D3DX12_COM_PTR
 #undef D3DX12_COM_PTR_GET
 #undef D3DX12_COM_PTR_ADDRESSOF

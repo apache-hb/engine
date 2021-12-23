@@ -4,47 +4,19 @@
 #include <vector>
 #include <span>
 #include <string_view>
-#include <windows.h>
-#include <DirectXMath.h>
+#include <source_location>
+
+#include "gltf/tinygltf.h"
 
 namespace engine::loader {
-    using namespace DirectX;
-
-    struct Vertex {
-        XMFLOAT3 position;
-        XMFLOAT3 normal;
-        XMFLOAT2 texcoord;
-        UINT texindex;
-    };
-
-    struct Model {
-        std::vector<Vertex> vertices;
-        std::vector<DWORD> indices;
-    };
+    namespace gltf = tinygltf;
 
     struct Texture {
         size_t width;
         size_t height;
         size_t bpp;
 
-        std::vector<UINT8> pixels;
-    };
-
-    struct Scene {
-        // all verticies that make up the scene
-        std::vector<Vertex> vertices;
-
-        // all indicies into the verticies
-        std::vector<DWORD> indices;
-
-        std::vector<Texture> textures;
-
-        struct Object {
-            size_t offset; // offset into the indices
-            size_t length; // number of indicies
-        };
-
-        std::vector<Object> objects;
+        std::vector<uint8_t> pixels;
     };
 
     struct LoadError : engine::Error {
@@ -57,7 +29,7 @@ namespace engine::loader {
         std::string warning;
     };
 
-    Scene objScene(std::string_view path);
+    gltf::Model gltfScene(std::string_view path);
 
     Texture image(std::string_view path);
 }

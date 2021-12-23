@@ -1,6 +1,7 @@
 #include "render.h"
 
 #include "assets/loader.h"
+#include "objects/signature.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -32,10 +33,9 @@ namespace engine::render {
     /// shader libraries
 
     constexpr auto sceneInput = std::to_array({
-        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, position)),
-        shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
-        shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord)),
-        shaderInput("TEXINDEX", DXGI_FORMAT_R32_UINT, offsetof(loader::Vertex, texindex))
+        shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0),
+        //shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, offsetof(loader::Vertex, normal)),
+        //shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, offsetof(loader::Vertex, texcoord))
     });
 
     constexpr ShaderLibrary::Create sceneCreate = {
@@ -75,9 +75,6 @@ namespace engine::render {
             y = heightRatio / widthRatio;
         }
 
-        /// correct
-        /// lines up with fullscreen sample
-
         auto left   = displayWidth * (1.f - x) / 2.f;
         auto top    = displayHeight * (1.f - y) / 2.f;
         auto width  = displayWidth * x;
@@ -106,28 +103,6 @@ namespace engine::render {
         sceneView.scissor.top       = 0;
         sceneView.scissor.right     = LONG(internalWidth);
         sceneView.scissor.bottom    = LONG(internalHeight);
-
-        log::render->info("resolution info");
-        log::render->info("  display: {}x{}", displayWidth, displayHeight);
-        log::render->info("  internal: {}x{}", internalWidth, internalHeight);
-        log::render->info("  scene view:");
-        log::render->info("    viewport: {}x{} {}x{}", 
-            sceneView.viewport.TopLeftX, sceneView.viewport.TopLeftY, 
-            sceneView.viewport.Width, sceneView.viewport.Height
-        );
-        log::render->info("    scissor: {}x{} {}x{}", 
-            sceneView.scissor.left, sceneView.scissor.top, 
-            sceneView.scissor.right, sceneView.scissor.bottom
-        );
-        log::render->info("  post view:");
-        log::render->info("    viewport: {}x{} {}x{}", 
-            postView.viewport.TopLeftX, postView.viewport.TopLeftY, 
-            postView.viewport.Width, postView.viewport.Height
-        );
-        log::render->info("    scissor: {}x{} {}x{}",
-            postView.scissor.left, postView.scissor.top,
-            postView.scissor.right, postView.scissor.bottom
-        );
     }
 
     void Context::createDevice(Context::Create& info) {
@@ -147,8 +122,6 @@ namespace engine::render {
         internalAspect = float(internalWidth) / float(internalHeight);
 
         device = adapter.newDevice<ID3D12Device4>(D3D_FEATURE_LEVEL_11_0, L"render-device");
-
-        scene = loader::objScene("resources\\sponza\\sponza.obj");
 
         attachInfoQueue();
         updateViews();
@@ -181,23 +154,17 @@ namespace engine::render {
             frameIndex = swapchain->GetCurrentBackBufferIndex();
         }
 
-        {
-            D3D12_DESCRIPTOR_HEAP_DESC desc = {
-                .Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-                .NumDescriptors = 1
-            };
+        dsvHeap = device.newHeap(L"dsv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+            .NumDescriptors = 1
+        });
 
-            check(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&dsvHeap)), "failed to create DSV descriptor heap");
-        
-            dsvHeap.rename(L"d3d12-dsv-heap");
-        }
-
-        rtvHeap = device.newHeap(L"d3d12-rtv-heap", {
+        rtvHeap = device.newHeap(L"rtv-heap", {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             .NumDescriptors = requiredRtvHeapEntries()
         });
 
-        cbvSrvHeap = device.newHeap(L"d3d12-cbv-srv-heap", {
+        cbvSrvHeap = device.newHeap(L"cbv-srv-heap", {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
             .NumDescriptors = requiredCbvSrvHeapEntries(),
             .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
@@ -273,13 +240,76 @@ namespace engine::render {
         device.tryDrop("device");
     }
 
-    constexpr D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+    namespace scene {
+        constexpr auto cbvRanges = std::to_array({
+            cbvRange(1, 0)
+        });
+
+        constexpr auto srvRanges = std::to_array({
+            srvRange(UINT_MAX, 0)
+        });
+
+        constexpr auto params = std::to_array({
+            tableParameter(D3D12_SHADER_VISIBILITY_VERTEX, cbvRanges),
+            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges)
+        });
+
+        constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0.0f,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+        }};
+
+        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+    }
+
+    namespace post {
+        constexpr auto ranges = std::to_array({
+            srvRange(1, 0)
+        });
+
+        constexpr auto params = std::to_array({
+            tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, ranges)
+        });
+
+        D3D12_STATIC_SAMPLER_DESC samplers[] = {{
+            .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+            .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+            .MinLOD = 0.0f,
+            .MaxLOD = D3D12_FLOAT32_MAX,
+            .ShaderRegister = 0,
+            .RegisterSpace = 0,
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+        }};
+
+        constexpr D3D12_ROOT_SIGNATURE_FLAGS flags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+    }
 
     void Context::createAssets() {
+        scene = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
+
+        createBuffers();
+
         sceneShaders = ShaderLibrary(sceneCreate);
         postShaders = ShaderLibrary(postCreate);
 
@@ -289,34 +319,12 @@ namespace engine::render {
         // consists of a constant buffer with camera data 
         // an srv for the model texture
         // and a sampler
-        {
-            D3D12_STATIC_SAMPLER_DESC textureSamplers[] = {{
-                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-                .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-                .MinLOD = 0.0f,
-                .MaxLOD = D3D12_FLOAT32_MAX,
-                .ShaderRegister = 0,
-                .RegisterSpace = 0,
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-            }};
-            std::array<CD3DX12_DESCRIPTOR_RANGE1, 2> ranges;
-            std::array<CD3DX12_ROOT_PARAMETER1, 2> parameters;
-
-            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // constant buffer data
-            ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC); // texture data
-
-            parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX); // constant buffer
-            parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL); // texture
-
+        {   
             auto signature = compileRootSignature({
-                .version = version, 
-                .params = { parameters }, 
-                .samplers = { textureSamplers },
-                .flags = rootSignatureFlags
+                .version = version,
+                .params = scene::params, 
+                .samplers = scene::samplers,
+                .flags = scene::flags
             });
 
             sceneRootSignature = device.newRootSignature(L"scene-root-signature", signature);
@@ -324,30 +332,11 @@ namespace engine::render {
 
         // create our post root signature
         {
-            D3D12_STATIC_SAMPLER_DESC postSamplers[] = {{
-                .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-                .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-                .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-                .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-                .MinLOD = 0.0f,
-                .MaxLOD = D3D12_FLOAT32_MAX,
-                .ShaderRegister = 0,
-                .RegisterSpace = 0,
-                .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-            }};
-            std::array<CD3DX12_DESCRIPTOR_RANGE1, 1> ranges;
-            std::array<CD3DX12_ROOT_PARAMETER1, 1> parameters;
-
-            ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // texture data
-            parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL); // texture
-
             auto signature = compileRootSignature({
                 .version = version,
-                .params = { parameters },
-                .samplers = { postSamplers },
-                .flags = rootSignatureFlags
+                .params = post::params,
+                .samplers = post::samplers,
+                .flags = post::flags
             });
 
             postRootSignature = device.newRootSignature(L"post-root-signature", signature);
@@ -371,11 +360,19 @@ namespace engine::render {
 
         /// upload all our needed geometry
 
-        std::tie(vertexBuffer, vertexBufferView) = uploadVertexBuffer(std::span(scene.vertices), L"model-vertex-data");
-        std::tie(indexBuffer, indexBufferView) = uploadIndexBuffer(std::span(scene.indices), DXGI_FORMAT_R32_UINT, L"model-index-data");
+        for (auto& buffer : scene.buffers) {
+            uploadVertexBuffer(std::span(buffer.data), L"buffer");
+        }
+
+        for (auto& views : scene.bufferViews) {
+            log::render->info("buffer view: {}", views.target);
+        }
+
+        //std::tie(vertexBuffer, vertexBufferView) = uploadVertexBuffer(std::span(scene.vertices), L"model-vertex-data");
+        //std::tie(indexBuffer, indexBufferView) = uploadIndexBuffer(std::span(scene.indices), DXGI_FORMAT_R32_UINT, L"model-index-data");
 
         // upload our screen quad
-        std::tie(screenBuffer, screenBufferView) = uploadVertexBuffer(std::span(screenQuad.data(), screenQuad.size()), L"screen-quad");
+        screenBuffer = uploadVertexBuffer(std::span(screenQuad.data(), screenQuad.size()), L"screen-quad");
 
         {
             D3D12_DEPTH_STENCIL_VIEW_DESC desc = {
@@ -426,11 +423,12 @@ namespace engine::render {
         }
 
         /// upload all our textures to the gpu
-        textures.resize(scene.textures.size());
-        for (size_t i = 0; i < scene.textures.size(); i++) {
-            const auto& tex = scene.textures[i];
-            textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
-        }
+        
+        // textures.resize(scene.textures.size());
+        // for (size_t i = 0; i < scene.textures.size(); i++) {
+        //     const auto& tex = scene.textures[i];
+        //     textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
+        // }
 
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
@@ -447,7 +445,8 @@ namespace engine::render {
 
         flushCopyQueue();
 
-        sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](auto bundle) {
+        sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](UNUSED auto bundle) {
+#if 0
             bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             bundle->IASetVertexBuffers(0, 1, &vertexBufferView);
             bundle->IASetIndexBuffer(&indexBufferView);
@@ -459,12 +458,13 @@ namespace engine::render {
 
                 bundle->DrawIndexedInstanced(UINT(count), 1, UINT(start), 0, 0);
             }
+#endif
         });
 
         postCommandBundle = device.newCommandBundle(L"post-command-bundle", postPipelineState.get(), [&](auto bundle) {
             /// draw fullscreen quad with texture on it
             bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-            bundle->IASetVertexBuffers(0, 1, &screenBufferView);
+            bundle->IASetVertexBuffers(0, 1, &screenBuffer.view);
             bundle->DrawInstanced(4, 1, 0, 0);
         });
     }
@@ -483,8 +483,6 @@ namespace engine::render {
 
         depthStencil.tryDrop("depth-stencil");
         constBuffer.tryDrop("const-buffer");
-        indexBuffer.tryDrop("index-buffer");
-        vertexBuffer.tryDrop("vertex-buffer");
 
         sceneRootSignature.tryDrop("scene-root-signature");
         scenePipelineState.tryDrop("scene-pipeline-state");

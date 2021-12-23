@@ -107,8 +107,8 @@ namespace engine::render {
     
     struct RootCreate {
         D3D_ROOT_SIGNATURE_VERSION version;
-        std::span<CD3DX12_ROOT_PARAMETER1> params;
-        std::span<D3D12_STATIC_SAMPLER_DESC> samplers;
+        std::span<const CD3DX12_ROOT_PARAMETER1> params;
+        std::span<const D3D12_STATIC_SAMPLER_DESC> samplers;
         D3D12_ROOT_SIGNATURE_FLAGS flags;
     };
 

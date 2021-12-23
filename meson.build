@@ -9,12 +9,17 @@ project('engine', [ 'c', 'cpp' ],
 )
 
 src = [ 
+    # render utility objects
     'src/render/util.cpp',
-    'src/render/render.cpp',
-    'src/render/upload.cpp',
     'src/render/debug.cpp',
     'src/render/factory.cpp',
 
+    # core render objects
+    'src/render/render.cpp',
+    'src/render/upload.cpp',
+    'src/render/scene.cpp',
+
+    # d3d wrapper objects
     'src/render/objects/library.cpp',
     'src/render/objects/compute.cpp',
     'src/render/objects/heap.cpp',
@@ -25,7 +30,7 @@ src = [
     'src/util/timer.cpp',
     'src/util/win32.cpp',
 
-    'src/assets/obj.cpp',
+    'src/assets/gltf.cpp',
     'src/assets/image.cpp',
 
     'src/system/window.cpp',
@@ -50,8 +55,9 @@ tinyobj = subproject('tinyobj').get_variable('tinyobj')
 queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
+gltf = subproject('gltf').get_variable('gltf')
 
-deps = [ imgui, tinyobj, queue, stb, d3d12 ]
+deps = [ imgui, queue, stb, d3d12, tinyobj, gltf ]
 
 links = [ 
     'd3d12.lib', 
