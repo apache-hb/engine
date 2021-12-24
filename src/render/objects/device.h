@@ -1,5 +1,7 @@
 #pragma once
 
+#include "util/strings.h"
+
 #include "render/debug/debug.h"
 
 #include "heap.h"
@@ -55,13 +57,18 @@ namespace engine::render {
 
         Object<ID3D12RootSignature> newRootSignature(std::wstring_view name, Com<ID3DBlob> signature) {
             Object<ID3D12RootSignature> result;
-            check(Super::get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&result)), "failed to create root signature");
+            check(Super::get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&result)), L"failed to create root signature");
             result.rename(name);
             return result;
         }
 
         Object<ID3D12RootSignature> compileRootSignature(std::wstring_view name, D3D_ROOT_SIGNATURE_VERSION version, const RootCreate& create) {
-            return newRootSignature(name, render::compileRootSignature(version, create));
+            try {
+                return newRootSignature(name, render::compileRootSignature(version, create));
+            } catch (const render::Error& error) {
+                log::render->warn("failed to compile root signature: {}", strings::encode(name));
+                throw error;
+            }
         }
 
         Object<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, ShaderLibrary& library, ID3D12RootSignature* root) {
@@ -104,6 +111,26 @@ namespace engine::render {
         }
 
         D3D_ROOT_SIGNATURE_VERSION getHighestRootVersion() const { return rootVersion; }
+
+        struct FootprintInfo {
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+            UINT rowCount;
+            UINT64 rowSize;
+            UINT64 size;
+        };
+
+        FootprintInfo getFootprint(Resource resource) const {
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+            UINT rowCount;
+            UINT64 rowSize;
+            UINT64 size;
+            
+            auto desc = resource->GetDesc();
+
+            Super::get()->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, &rowCount, &rowSize, &size);
+            
+            return { footprint, rowCount, rowSize, size };
+        }
 
     private:
         D3D_ROOT_SIGNATURE_VERSION highestRootVersion() {

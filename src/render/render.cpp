@@ -43,8 +43,8 @@ namespace engine::render {
 
         constexpr auto params = std::to_array({
             tableParameter(visibility::Vertex, cbvRanges), // b0
-            //root32BitParameter(D3D12_SHADER_VISIBILITY_PIXEL, 1, 1), // b1
-            //tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, srvRanges) // t[]
+            root32BitParameter(visibility::Pixel, 1, 1), // b1
+            tableParameter(visibility::Pixel, srvRanges) // t[]
         });
 
         constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
@@ -89,14 +89,14 @@ namespace engine::render {
 
     namespace post {
         constexpr auto ranges = std::to_array({
-            srvRange(1, 0)
+            srvRange(0, 1)
         });
 
         constexpr auto params = std::to_array({
             tableParameter(D3D12_SHADER_VISIBILITY_PIXEL, ranges)
         });
 
-        D3D12_STATIC_SAMPLER_DESC samplers[] = {{
+        constexpr D3D12_STATIC_SAMPLER_DESC samplers[] = {{
             .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
             .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
             .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -153,34 +153,14 @@ namespace engine::render {
             y = heightRatio / widthRatio;
         }
 
-        auto left   = displayWidth * (1.f - x) / 2.f;
-        auto top    = displayHeight * (1.f - y) / 2.f;
-        auto width  = displayWidth * x;
-        auto height = displayHeight * y;
+        auto left   = float(displayWidth) * (1.f - x) / 2.f;
+        auto top    = float(displayHeight) * (1.f - y) / 2.f;
+        auto width  = float(displayWidth * x);
+        auto height = float(displayHeight * y);
 
-        /// update post viewport
-        postView.viewport.TopLeftX  = FLOAT(left);
-        postView.viewport.TopLeftY  = FLOAT(top);
-        postView.viewport.Width     = FLOAT(width);
-        postView.viewport.Height    = FLOAT(height);
-
-        /// update post scissor
-        postView.scissor.left       = LONG(left);
-        postView.scissor.top        = LONG(top);
-        postView.scissor.right      = LONG(left + width);
-        postView.scissor.bottom     = LONG(top + height);
-
-        /// update scene viewport
-        sceneView.viewport.TopLeftX = 0;
-        sceneView.viewport.TopLeftY = 0;
-        sceneView.viewport.Width    = FLOAT(internalWidth);
-        sceneView.viewport.Height   = FLOAT(internalHeight);
-
-        /// update scene scissor
-        sceneView.scissor.left      = 0;
-        sceneView.scissor.top       = 0;
-        sceneView.scissor.right     = LONG(internalWidth);
-        sceneView.scissor.bottom    = LONG(internalHeight);
+        /// update views
+        postView    = View(top, left, width, height);
+        sceneView   = View(0, 0, FLOAT(internalWidth), FLOAT(internalHeight));
     }
 
     void Context::createDevice(Context::Create& info) {
@@ -240,12 +220,6 @@ namespace engine::render {
         rtvHeap = device.newHeap(L"rtv-heap", {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             .NumDescriptors = requiredRtvHeapEntries()
-        });
-
-        cbvSrvHeap = device.newHeap(L"cbv-srv-heap", {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors = requiredCbvSrvHeapEntries(),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
         });
 
         /// create the intermediate render target
@@ -342,23 +316,22 @@ namespace engine::render {
         check(postCommandList->Close(), "failed to close post command list");
 
         /// upload all our needed geometry
-        scene = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
+        gltf = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
 
         createBuffers();
-
-        for (auto& buffer : scene.buffers) {
-            uploadVertexBuffer(std::span(buffer.data), L"buffer");
-        }
-
-        for (auto& views : scene.bufferViews) {
-            log::render->info("buffer view: {}", views.target);
-        }
+        createImages();
 
         //std::tie(vertexBuffer, vertexBufferView) = uploadVertexBuffer(std::span(scene.vertices), L"model-vertex-data");
         //std::tie(indexBuffer, indexBufferView) = uploadIndexBuffer(std::span(scene.indices), DXGI_FORMAT_R32_UINT, L"model-index-data");
 
         // upload our screen quad
         screenBuffer = uploadVertexBuffer(std::span(screenQuad.data(), screenQuad.size()), L"screen-quad");
+
+        cbvSrvHeap = device.newHeap(L"cbv-srv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = requiredCbvSrvHeapEntries(),
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        });
 
         {
             D3D12_DEPTH_STENCIL_VIEW_DESC desc = {
@@ -461,10 +434,6 @@ namespace engine::render {
         ImGui_ImplDX12_Shutdown();
         ImGui_ImplWin32_Shutdown();
 
-        for (auto& texture : textures) {
-            texture.tryDrop("texture");
-        }
-
         screenBuffer.tryDrop("screen-buffer");
 
         depthStencil.tryDrop("depth-stencil");
@@ -537,7 +506,7 @@ namespace engine::render {
 
             /// render to our intermediate target
             auto rtvHandle = getIntermediateHandle();
-            sceneList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+            sceneList->OMSetRenderTargets(1, &rtvHandle, false, &dsvHandle);
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
             sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
@@ -566,7 +535,7 @@ namespace engine::render {
 
             /// render to the back buffer
             auto rtvHandle = getTargetHandle(frameIndex);
-            postList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+            postList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
             postList->ClearRenderTargetView(rtvHandle, borderColour, 0, nullptr);
             
             postList->SetGraphicsRootSignature(postRootSignature.get());

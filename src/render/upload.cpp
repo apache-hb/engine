@@ -14,14 +14,6 @@ namespace engine::render {
         };
     }
 
-    constexpr D3D12_SUBRESOURCE_DATA createTextureUploadDesc(const void *data, size_t width, size_t height, size_t bpp) {
-        return { 
-            .pData = data,
-            .RowPitch = LONG_PTR(width * bpp),
-            .SlicePitch = LONG_PTR(width * height * bpp)
-        };
-    }
-
     constexpr D3D12_RESOURCE_DESC createResourceDesc(UINT width, UINT height, DXGI_FORMAT format) {
         return {
             .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -30,7 +22,8 @@ namespace engine::render {
             .DepthOrArraySize = 1,
             .MipLevels = 1,
             .Format = format,
-            .SampleDesc = { 1, 0 }
+            .SampleDesc = { 1, 0 },
+            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR
         };
     }
 
@@ -80,20 +73,17 @@ namespace engine::render {
         return defaultResource;
     }
 
-    Texture Context::uploadTexture(const loader::Texture& tex, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name) {
+    Resource Context::uploadTexture(const Image& tex, std::wstring_view name) {
         log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
         
-        const auto texWidth = UINT(tex.width);
-        const auto texHeight = UINT(tex.height);
-        const auto bpp = UINT(tex.bpp);
-        const auto& data = tex.pixels;
+        const auto& [width, height, component, data] = tex;
         const auto format = DXGI_FORMAT_R8G8B8A8_UNORM; // TODO: this is configurable
-        const auto desc = createResourceDesc(texWidth, texHeight, format);
-        const auto textureDesc = createTextureUploadDesc(data.data(), texWidth, texHeight, bpp);
-        const auto srvDesc = createSRVDesc(format);
+        const auto desc = createResourceDesc(width, height, format);
 
         Resource defaultResource;
         Resource uploadResource;
+
+        /// create our staging and destination resource
 
         HRESULT hrDefault = device->CreateCommittedResource(
             &defaultProps, D3D12_HEAP_FLAG_NONE,
@@ -102,8 +92,8 @@ namespace engine::render {
         );
         check(hrDefault, "failed to create default resource");
 
-        const auto textureSize = GetRequiredIntermediateSize(defaultResource.get(), 0, 1);
-        const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(textureSize);
+        const auto [footprint, rowCount, rowSize, size] = device.getFootprint(defaultResource);
+        const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
         HRESULT hrUpload = device->CreateCommittedResource(
             &uploadProps, D3D12_HEAP_FLAG_NONE,
@@ -112,20 +102,46 @@ namespace engine::render {
         );
         check(hrUpload, "failed to create upload resource");
 
+        /// rename our resources to be kind to the debugger
+
+#if D3D12_DEBUG
         defaultResource.rename(name.data());
         uploadResource.rename(std::format(L"upload-texture-{}", name).data());
+#endif
 
-        UpdateSubresources(copyCommandList.get(), defaultResource.get(), uploadResource.get(), 0, 0, 1, &textureDesc);
-    
-        device->CreateShaderResourceView(defaultResource.get(), &srvDesc, handle);
-    
+        /// copy over our data into the staging buffer
+        uint8_t *ptr;
+        check(uploadResource->Map(0, nullptr, &ptr), "failed to map upload resource");
+
+        for (auto i = 0; i < rowCount; i++) {
+            auto src = ptr + rowSize * i;
+            auto dst = data.data() + width * component * i;
+            auto range = width * component;
+
+            memcpy(ptr + rowSize * i, dst, range);
+        }
+
+        uploadResource->Unmap(0, nullptr);
+
+        D3D12_TEXTURE_COPY_LOCATION dst = {
+            .pResource = defaultResource.get(),
+            .Type = D3D12_TEXTURE_COPY_TYPE_INDEX,
+            .SubresourceIndex = 0
+        };
+
+        D3D12_TEXTURE_COPY_LOCATION src = {
+            .pResource = uploadResource.get(),
+            .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+            .PlacedFootprint = footprint
+        };
+
+        // record our copy for this texture
+        copyCommandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+        // mark the upload buffer for discarding
+        // TODO: eventually this might be cached instead
         copyResources.push_back(uploadResource);
 
-        return Texture({
-            .texture = defaultResource,
-            .mipLevels = 1,
-            .format = format,
-            .resolution = { LONG(texWidth), LONG(texHeight) }
-        });
+        return defaultResource;
     }
 }

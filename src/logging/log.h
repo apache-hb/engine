@@ -38,10 +38,6 @@ namespace engine::log {
             log(FATAL, std::vformat(message, std::make_format_args(args...)));
         }
 
-        void infof(const char *message, ...);
-        void warnf(const char *message, ...);
-        void fatalf(const char *message, ...);
-
         virtual void send(Level report, std::string_view message) = 0;
         virtual void tick() { }
 

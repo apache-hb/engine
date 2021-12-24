@@ -29,30 +29,6 @@ namespace engine::log {
         }
     }
 
-    void Channel::infof(const char *message, ...) {
-        va_list args;
-        va_start(args, message);
-        auto msg = strings::cformatv(message, args);
-        va_end(args);
-        log(INFO, msg);
-    }
-
-    void Channel::warnf(const char *message, ...) {
-        va_list args;
-        va_start(args, message);
-        auto msg = strings::cformatv(message, args);
-        va_end(args);
-        log(WARN, msg);
-    }
-
-    void Channel::fatalf(const char * message, ...) {
-        va_list args;
-        va_start(args, message);
-        auto msg = strings::cformatv(message, args);
-        va_end(args);
-        log(FATAL, msg);
-    }
-
     namespace {
         std::string_view levelString(Level level) {
             switch (level) {

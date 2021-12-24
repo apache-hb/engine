@@ -11,14 +11,6 @@
 namespace engine::loader {
     namespace gltf = tinygltf;
 
-    struct Texture {
-        size_t width;
-        size_t height;
-        size_t bpp;
-
-        std::vector<uint8_t> pixels;
-    };
-
     struct LoadError : engine::Error {
         LoadError(std::string error, std::string warn, std::source_location location = std::source_location::current())
             : engine::Error(error, location)
@@ -30,6 +22,4 @@ namespace engine::loader {
     };
 
     gltf::Model gltfScene(std::string_view path);
-
-    Texture image(std::string_view path);
 }

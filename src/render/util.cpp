@@ -20,6 +20,10 @@ namespace engine::render {
         if (FAILED(hr)) { throw render::Error(hr, message, location); }
     }
 
+    void check(HRESULT hr, std::wstring_view message, std::source_location location) {
+        check(hr, strings::encode(message), location);
+    }
+
     Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target) {
         Com<ID3DBlob> shader;
         Com<ID3DBlob> error;

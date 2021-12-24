@@ -19,8 +19,7 @@ SamplerState texSampler : register(s0);
 
 struct PSInput {
     float4 position : SV_POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD;
+    float2 texcoord : TEXCOORD;
 };
 
 float4 perspective(float3 position) {
@@ -31,16 +30,15 @@ float4 perspective(float3 position) {
     return pos;
 }
 
-PSInput vsMain(float3 position : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD) {    
+PSInput vsMain(float3 position : POSITION, float2 texcoord : TEXCOORD) {    
     PSInput result;
 
     result.position = perspective(position);
-    result.normal = normal;
-    result.uv = uv;
+    result.texcoord = texcoord;
 
     return result;
 }
 
 float4 psMain(PSInput input) : SV_TARGET {
-    return textures[textureIndex].Sample(texSampler, input.uv);
+    return textures[textureIndex].Sample(texSampler, input.texcoord);
 }

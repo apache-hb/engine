@@ -34,6 +34,7 @@ namespace engine::render {
     };
 
     void check(HRESULT hr, const std::string& message = "", std::source_location location = std::source_location::current());
+    void check(HRESULT hr, std::wstring_view message = L"", std::source_location location = std::source_location::current());
 
     template<typename T>
     concept IsComObject = std::is_convertible_v<T*, IUnknown*>;
@@ -116,27 +117,27 @@ namespace engine::render {
     struct Scissor : D3D12_RECT {
         using Super = D3D12_RECT;
 
-        Scissor(LONG width, LONG height)
-            : Super({ 0, 0, width, height })
+        Scissor(LONG top, LONG left, LONG width, LONG height)
+            : Super({ top, left, width, height })
         { }
     };
 
     struct Viewport : D3D12_VIEWPORT {
         using Super = D3D12_VIEWPORT;
-        Viewport(FLOAT width, FLOAT height)
-            : Super({ 0.f, 0.f, width, height, 0.f, 1.f })
+        Viewport(FLOAT top, FLOAT left, FLOAT width, FLOAT height)
+            : Super({ top, left, width, height, 0.f, 1.f })
         { }
     };
 
     struct View {
         View() = default;
-        View(LONG width, LONG height)
-            : scissor({ width, height })
-            , viewport({ FLOAT(width), FLOAT(height) })
+        View(FLOAT top, FLOAT left, FLOAT width, FLOAT height)
+            : scissor(LONG(top), LONG(left), LONG(width + left), LONG(height + top))
+            , viewport(top, left, width, height)
         { }
 
-        Scissor scissor{0, 0};
-        Viewport viewport{0.f, 0.f};
+        Scissor scissor{0, 0, 0, 0};
+        Viewport viewport{0.f, 0.f, 0.f, 0.f};
     };
 
     struct Resolution {

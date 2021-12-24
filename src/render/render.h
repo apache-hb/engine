@@ -99,12 +99,14 @@ namespace engine::render {
 
         void createBuffers();
         void createImages();
-        void createMaterials();
-        void createNodes();
+        void createMeshes();
 
-        struct SceneData {
-            std::vector<VertexBuffer> vertexBuffers;
-            std::vector<IndexBuffer> indexBuffers;
+        struct Image {
+            size_t width;
+            size_t height;
+            size_t component;
+            
+            std::vector<unsigned char> data;
         };
 
         struct Frame {
@@ -115,8 +117,10 @@ namespace engine::render {
 
         Factory* factory;
         Create create;
-        loader::gltf::Model scene;
-        SceneData sceneData;
+        loader::gltf::Model gltf;
+
+        std::vector<Resource> buffers;
+        std::vector<Resource> textures;
 
         View sceneView;
         View postView;
@@ -155,8 +159,6 @@ namespace engine::render {
 
         Resource depthStencil;
 
-        std::vector<Texture> textures;
-
         /// frame data
         Frame *frames;
 
@@ -192,7 +194,7 @@ namespace engine::render {
         ///
         
         UINT requiredCbvSrvHeapEntries() const {
-            return UINT(scene.textures.size() + Resources::Total);
+            return (textures.size() + Resources::Total);
         }
 
         /// render target resource layout
@@ -227,7 +229,7 @@ namespace engine::render {
         ///
 
         Resource uploadBuffer(const void *data, size_t size, std::wstring_view name = L"resource");
-        Texture uploadTexture(const loader::Texture& texture, const D3D12_CPU_DESCRIPTOR_HANDLE& handle, std::wstring_view name = L"texture");
+        Resource uploadTexture(const Image& texture, std::wstring_view name = L"texture");
 
         template<typename T>
         Resource uploadSpan(const std::span<T>& data, std::wstring_view name = L"resource") {
@@ -237,11 +239,14 @@ namespace engine::render {
         template<typename T>
         VertexBuffer uploadVertexBuffer(const std::span<T>& data, std::wstring_view name = L"vertex-resource") {
             auto resource = uploadSpan(data, name);
-            return VertexBuffer(resource, {
-                .BufferLocation = resource->GetGPUVirtualAddress(),
-                .SizeInBytes = UINT(data.size() * sizeof(T)),
-                .StrideInBytes = sizeof(T)
-            });
+            return VertexBuffer {
+                .resource = resource, 
+                .view = {
+                    .BufferLocation = resource->GetGPUVirtualAddress(),
+                    .SizeInBytes = UINT(data.size() * sizeof(T)),
+                    .StrideInBytes = sizeof(T)
+                }
+            };
         }
 
         template<typename T>

@@ -3,7 +3,7 @@
 #include "resource.h"
 
 namespace engine::render {
-    struct Texture : Resource {
+    struct TextureBuffer : Resource {
         struct Create {
             Resource texture;
             size_t mipLevels;
@@ -11,8 +11,8 @@ namespace engine::render {
             Resolution resolution;
         };
 
-        Texture() = default;
-        Texture(Create create)
+        TextureBuffer() = default;
+        TextureBuffer(Create create)
             : Resource(create.texture)
             , mipLevels(create.mipLevels)
             , format(create.format)

@@ -10,7 +10,14 @@ namespace engine::render {
     }
 
     constexpr CD3DX12_DESCRIPTOR_RANGE1 cbvRange(UINT reg, UINT count, UINT space = 0, D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC) {
-        return CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, count, reg, space, flags);
+        return CD3DX12_DESCRIPTOR_RANGE1({
+            .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV,
+            .NumDescriptors = count,
+            .BaseShaderRegister = reg,
+            .RegisterSpace = space,
+            .Flags = flags,
+            .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
+        });
     }
 
     constexpr CD3DX12_DESCRIPTOR_RANGE1 srvRange(UINT reg, UINT count, UINT space = 0, D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC) {

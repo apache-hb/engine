@@ -31,7 +31,6 @@ src = [
     'src/util/win32.cpp',
 
     'src/assets/gltf.cpp',
-    'src/assets/image.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',

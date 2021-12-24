@@ -8,23 +8,21 @@ namespace engine::render {
         using Super::Super;
     };
 
-    struct VertexBuffer : Resource {
-        VertexBuffer() = default;
-        VertexBuffer(Resource res, D3D12_VERTEX_BUFFER_VIEW view)
-            : Resource(res)
-            , view(view)
-        { }
-
+    struct VertexBuffer {
+        Resource resource;
         D3D12_VERTEX_BUFFER_VIEW view;
+
+        void tryDrop(std::string_view name = "") {
+            resource.tryDrop(name);
+        }
     };
 
-    struct IndexBuffer : Resource {
-        IndexBuffer() = default;
-        IndexBuffer(Resource res, D3D12_INDEX_BUFFER_VIEW view)
-            : Resource(res)
-            , view(view)
-        { }
-
+    struct IndexBuffer {
+        Resource resource;
         D3D12_INDEX_BUFFER_VIEW view;
+
+        void tryDrop(std::string_view name = "") {
+            resource.tryDrop(name);
+        }
     };
 }
