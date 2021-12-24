@@ -221,6 +221,12 @@ namespace engine::render {
             .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             .NumDescriptors = requiredRtvHeapEntries()
         });
+        
+        postCbvHeap = device.newHeap(L"post-cbv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = requiredPostCbvHeapEntries(),
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        });
 
         /// create the intermediate render target
         {
@@ -239,7 +245,7 @@ namespace engine::render {
             check(hr, "failed to create intermediate target");
 
             device->CreateRenderTargetView(sceneTarget.get(), nullptr, getIntermediateHandle());
-            device->CreateShaderResourceView(sceneTarget.get(), nullptr, cbvSrvHeap.cpuHandle(Resources::Intermediate));
+            device->CreateShaderResourceView(sceneTarget.get(), nullptr, postCbvHeap.cpuHandle(PostResources::Intermediate));
             sceneTarget.rename(L"intermediate-target");
         }
 
@@ -281,7 +287,7 @@ namespace engine::render {
 
         sceneTarget.tryDrop("scene-target");
         dsvHeap.tryDrop("dsv-heap");
-        cbvSrvHeap.tryDrop("cbv-srv-heap");
+        postCbvHeap.tryDrop("post-cbv-heap");
         rtvHeap.tryDrop("rtv-heap");
         swapchain.tryDrop("swapchain");
         directQueue.tryDrop("direct-queue");
@@ -315,23 +321,11 @@ namespace engine::render {
         check(sceneCommandList->Close(), "failed to close scene command list");
         check(postCommandList->Close(), "failed to close post command list");
 
-        /// upload all our needed geometry
-        gltf = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
-
-        createBuffers();
-        createImages();
-
         //std::tie(vertexBuffer, vertexBufferView) = uploadVertexBuffer(std::span(scene.vertices), L"model-vertex-data");
         //std::tie(indexBuffer, indexBufferView) = uploadIndexBuffer(std::span(scene.indices), DXGI_FORMAT_R32_UINT, L"model-index-data");
 
         // upload our screen quad
         screenBuffer = uploadVertexBuffer(std::span(screenQuad.data(), screenQuad.size()), L"screen-quad");
-
-        cbvSrvHeap = device.newHeap(L"cbv-srv-heap", {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors = requiredCbvSrvHeapEntries(),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-        });
 
         {
             D3D12_DEPTH_STENCIL_VIEW_DESC desc = {
@@ -374,26 +368,25 @@ namespace engine::render {
                 .BufferLocation = constBuffer->GetGPUVirtualAddress(),
                 .SizeInBytes = constBufferSize
             };
-            device->CreateConstantBufferView(&desc, cbvSrvHeap.cpuHandle(Resources::Camera));
+            device->CreateConstantBufferView(&desc, sceneCbvSrvHeap.cpuHandle(SceneResources::Camera));
 
             /// map the constant buffer into visible memory
             CD3DX12_RANGE readRange(0, 0);
             check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
         }
 
-        /// upload all our textures to the gpu
-        
-        // textures.resize(scene.textures.size());
-        // for (size_t i = 0; i < scene.textures.size(); i++) {
-        //     const auto& tex = scene.textures[i];
-        //     textures[i] = uploadTexture(tex, getTextureSlotCpuHandle(i), std::format(L"texture-{}", i));
-        // }
+        /// upload all our needed geometry
+        gltf = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
+
+        createBuffers();
+        createImages();
+        createMeshes();
 
         ImGui_ImplWin32_Init(create.window->getHandle());
         ImGui_ImplDX12_Init(device.get(), create.frames,
-            DXGI_FORMAT_R8G8B8A8_UNORM, cbvSrvHeap.get(),
-            cbvSrvHeap.cpuHandle(Resources::ImGui),
-            cbvSrvHeap.gpuHandle(Resources::ImGui)
+            DXGI_FORMAT_R8G8B8A8_UNORM, postCbvHeap.get(),
+            postCbvHeap.cpuHandle(PostResources::ImGui),
+            postCbvHeap.gpuHandle(PostResources::ImGui)
         );
 
         check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
@@ -403,6 +396,12 @@ namespace engine::render {
         }
 
         flushCopyQueue();
+
+        sceneCbvSrvHeap = device.newHeap(L"scene-cbv-srv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = textures.size(),
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        });
 
         sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](UNUSED auto bundle) {
 #if 0
@@ -479,11 +478,12 @@ namespace engine::render {
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle(dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
         /// scene resources
-        ID3D12DescriptorHeap *heaps[] = { cbvSrvHeap.get() };
+        ID3D12DescriptorHeap *sceneHeaps[] = { sceneCbvSrvHeap.get() };
         auto sceneAlloc = getAllocator(Allocator::Scene);
         auto *sceneList = sceneCommandList.get();
 
         /// post resources
+        ID3D12DescriptorHeap *postHeaps[] = { postCbvHeap.get() };
         auto postAlloc = getAllocator(Allocator::Post);
         auto *postList = postCommandList.get();
 
@@ -498,8 +498,8 @@ namespace engine::render {
         /// scene command list
         {
             sceneList->SetGraphicsRootSignature(sceneRootSignature.get());
-            sceneList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-            sceneList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resources::Camera));
+            sceneList->SetDescriptorHeaps(UINT(std::size(sceneHeaps)), sceneHeaps);
+            sceneList->SetGraphicsRootDescriptorTable(0, sceneCbvSrvHeap.gpuHandle(SceneResources::Camera));
 
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
@@ -539,8 +539,8 @@ namespace engine::render {
             postList->ClearRenderTargetView(rtvHandle, borderColour, 0, nullptr);
             
             postList->SetGraphicsRootSignature(postRootSignature.get());
-            postList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-            postList->SetGraphicsRootDescriptorTable(0, cbvSrvHeap.gpuHandle(Resources::Intermediate));
+            postList->SetDescriptorHeaps(UINT(std::size(postHeaps)), postHeaps);
+            postList->SetGraphicsRootDescriptorTable(0, postCbvHeap.gpuHandle(PostResources::Intermediate));
             
             postList->ExecuteBundle(postCommandBundle.get());
 

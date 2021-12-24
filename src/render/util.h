@@ -58,9 +58,11 @@ namespace engine::render {
         operator bool() const { return self != nullptr; }
         bool valid() const { return self != nullptr; }
 
-        T *operator->() { return self; }
-        T *operator*() { return self; }
-        T **operator&() { return &self; }
+        T* operator->() { return self; }
+        T* operator*() { return self; }
+        T** operator&() { return &self; }
+
+        const T* operator->() const { return self; }
 
         T *get() { return self; }
         T **addr() { return &self; }

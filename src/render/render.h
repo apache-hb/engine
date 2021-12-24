@@ -13,9 +13,15 @@
 #include "input/camera.h"
 
 namespace engine::render {
-    namespace Resources {
+    namespace SceneResources {
         enum Index : int {
             Camera, /// camera projection data
+            Total
+        };
+    }
+
+    namespace PostResources {
+        enum Index : int {
             Intermediate, /// intermediate scaling render target
             ImGui, /// render target for imgui
             Total
@@ -142,10 +148,7 @@ namespace engine::render {
         LONG displayWidth;
         LONG displayHeight;
 
-        Object<ID3D12DescriptorHeap> dsvHeap;
-        
         DescriptorHeap rtvHeap;
-        DescriptorHeap cbvSrvHeap;
 
         /// resource copying state
         Object<ID3D12GraphicsCommandList> copyCommandList;        
@@ -162,22 +165,37 @@ namespace engine::render {
         /// frame data
         Frame *frames;
 
-        Object<ID3D12GraphicsCommandList> sceneCommandList;
+
+        /// post specific resources
+        CommandBundle postCommandBundle;
         Object<ID3D12GraphicsCommandList> postCommandList;
 
-        CommandBundle sceneCommandBundle;
-        CommandBundle postCommandBundle;
-
-        Object<ID3D12RootSignature> sceneRootSignature;
-        Object<ID3D12PipelineState> scenePipelineState;
-
+        ShaderLibrary postShaders;
         Object<ID3D12RootSignature> postRootSignature;
         Object<ID3D12PipelineState> postPipelineState;
 
-        ShaderLibrary sceneShaders;
-        ShaderLibrary postShaders;
+        DescriptorHeap postCbvHeap;
 
+
+        /// scene specific resources
+        CommandBundle sceneCommandBundle;
+        Object<ID3D12GraphicsCommandList> sceneCommandList;
+
+        ShaderLibrary sceneShaders;
+        Object<ID3D12RootSignature> sceneRootSignature;
+        Object<ID3D12PipelineState> scenePipelineState;
+
+        /// all our textures currently go into this heap
+        DescriptorHeap sceneCbvSrvHeap;
+        Object<ID3D12DescriptorHeap> dsvHeap;
+
+        // our intermediate render target
+        // the scene draws to this rather than to the swapchain
         Resource sceneTarget;
+
+        // camera data
+        Resource constBuffer;
+        void *constBufferPtr;
 
         auto &getAllocator(Allocator::Index type, size_t index = SIZE_MAX) noexcept {
             if (index == SIZE_MAX) { index = frameIndex; }
@@ -193,8 +211,8 @@ namespace engine::render {
         /// slot accessing functions
         ///
         
-        UINT requiredCbvSrvHeapEntries() const {
-            return (textures.size() + Resources::Total);
+        UINT requiredPostCbvHeapEntries() const {
+            return PostResources::Total;
         }
 
         /// render target resource layout

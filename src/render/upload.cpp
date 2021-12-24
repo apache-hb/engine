@@ -60,13 +60,11 @@ namespace engine::render {
         defaultResource.rename(name.data());
         uploadResource.rename(std::format(L"upload-resource-{}", name).data());
 
-        void *uploadBufferPtr;
-        CD3DX12_RANGE readRange(0, 0);
-        check(uploadResource->Map(0, &readRange, &uploadBufferPtr), "failed to map upload resource");
-        memcpy(uploadBufferPtr, data, size);
-        uploadResource->Unmap(0, nullptr);
+        void *ptr = uploadResource.map(0, nullptr);
+        memcpy(ptr, data, size);
+        uploadResource.unmap(0);
 
-        UpdateSubresources(copyCommandList.get(), defaultResource.get(), uploadResource.get(), 0, 0, 1, &uploadDesc);
+        copyCommandList->CopyBufferRegion(defaultResource.get(), 0, uploadResource.get(), 0, size);
 
         copyResources.push_back(uploadResource);
 
@@ -77,8 +75,7 @@ namespace engine::render {
         log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
         
         const auto& [width, height, component, data] = tex;
-        const auto format = DXGI_FORMAT_R8G8B8A8_UNORM; // TODO: this is configurable
-        const auto desc = createResourceDesc(width, height, format);
+        const auto desc = createResourceDesc(UINT(width), UINT(height), DXGI_FORMAT_R8G8B8A8_UNORM);
 
         Resource defaultResource;
         Resource uploadResource;
@@ -110,22 +107,21 @@ namespace engine::render {
 #endif
 
         /// copy over our data into the staging buffer
-        uint8_t *ptr;
-        check(uploadResource->Map(0, nullptr, &ptr), "failed to map upload resource");
+        auto ptr = reinterpret_cast<uint8_t*>(uploadResource.map(0));
 
-        for (auto i = 0; i < rowCount; i++) {
-            auto src = ptr + rowSize * i;
-            auto dst = data.data() + width * component * i;
+        for (auto i = 0u; i < rowCount; i++) {
+            auto dst = ptr + rowSize * i;
+            auto src = data.data() + width * component * i;
             auto range = width * component;
 
-            memcpy(ptr + rowSize * i, dst, range);
+            memcpy(dst, src, range);
         }
 
-        uploadResource->Unmap(0, nullptr);
+        uploadResource.unmap(0);
 
         D3D12_TEXTURE_COPY_LOCATION dst = {
             .pResource = defaultResource.get(),
-            .Type = D3D12_TEXTURE_COPY_TYPE_INDEX,
+            .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
             .SubresourceIndex = 0
         };
 

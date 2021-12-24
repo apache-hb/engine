@@ -8,6 +8,7 @@
 #include "library.h"
 #include "compute.h"
 #include "bundle.h"
+#include "resource.h"
 
 namespace engine::render {
     template<typename T>
@@ -119,7 +120,7 @@ namespace engine::render {
             UINT64 size;
         };
 
-        FootprintInfo getFootprint(Resource resource) const {
+        FootprintInfo getFootprint(Resource resource) {
             D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
             UINT rowCount;
             UINT64 rowSize;

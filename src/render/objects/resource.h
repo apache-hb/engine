@@ -6,6 +6,16 @@ namespace engine::render {
     struct Resource : Object<ID3D12Resource> {
         using Super = Object<ID3D12Resource>;
         using Super::Super;
+
+        void *map(UINT subResource, D3D12_RANGE *range = nullptr) {
+            void *data;
+            check(get()->Map(subResource, range, &data), "failed to map resource");
+            return data;
+        }
+
+        void unmap(UINT subResource, D3D12_RANGE *range = nullptr) {
+            get()->Unmap(subResource, range);
+        }
     };
 
     struct VertexBuffer {
