@@ -1,6 +1,7 @@
 #include "logging/log.h"
 #include "system/system.h"
 #include "render/render.h"
+#include "render/debug/debug.h"
 #include "util/strings.h"
 #include "util/timer.h"
 #include "input/inputx.h"
@@ -78,12 +79,22 @@ struct InputManager {
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
 
+#if 0
     MainWindow() {
         factory = new render::Factory();
         context = new render::Context(factory);
     }
+#endif
 
-    virtual void onCreate(system::Window *ctx) override {
+    virtual void onCreate(system::Window *window) override {
+        context = new render::Context({
+            .factory = render::Factory(),
+            .currentAdapter = 0,
+            .window = window,
+            .backBuffers = 2,
+            .resolution = { 1920, 1080 }
+        });
+#if 0
         const auto frames = 2;
         render::Context::Create info = {
             .adapter = factory->adapter(0),
@@ -94,7 +105,6 @@ struct MainWindow final : WindowCallbacks {
 
         context->createDevice(info);
         context->createAssets();
-
         input = new std::jthread([this](auto stop) {
             while (!stop.stop_requested()) {
                 if (hasEvent()) { 
@@ -117,19 +127,26 @@ struct MainWindow final : WindowCallbacks {
                 log::global->fatal("unknown error");
             }
         });
+#endif
     }
 
     virtual void onDestroy() override {
+#if 0
         delete input;
         delete draw;
+#endif
+
         delete context;
     }
 
 private:
+#if 0
     std::jthread *draw;
     std::jthread *input;
 
     render::Factory *factory;
+#endif
+
     render::Context *context;
 
     InputManager manager;

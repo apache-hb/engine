@@ -11,13 +11,17 @@ project('engine', [ 'c', 'cpp' ],
 src = [ 
     # render utility objects
     'src/render/util.cpp',
-    'src/render/debug.cpp',
     'src/render/factory.cpp',
+
+    'src/render/debug/debug.cpp',
 
     # core render objects
     'src/render/render.cpp',
     'src/render/upload.cpp',
     'src/render/scene.cpp',
+
+    # scene rendering
+    'src/render/scene/scene.cpp',
 
     # d3d wrapper objects
     'src/render/objects/library.cpp',
@@ -75,7 +79,7 @@ message('dlss-sdk: @0@'.format(dlss))
 message('debug-d3d12: @0@'.format(debugd3d12))
 
 if agility
-    src += [ 'src/render/agility.cpp' ]
+    src += [ 'src/render/agility/agility.cpp' ]
     args += [ '-DENABLE_AGILITY=1' ]
 else
     args += [ '-DENABLE_AGILITY=0' ]

@@ -1,7 +1,7 @@
 option('agility-sdk',
     description : 'enable use of the agility sdk',
     type : 'feature',
-    value : 'disabled'
+    value : 'enabled'
 )
 
 option('dlss-sdk',

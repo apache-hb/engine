@@ -4,20 +4,24 @@
 #include "util/units.h"
 #include "util/strings.h"
 #include "logging/log.h"
-#include "d3dx12.h"
+
+#include <d3dx12.h>
 #include <dxgi1_6.h>
+
 #include <vector>
 #include <span>
 #include <concepts>
 #include <type_traits>
-#include <DirectXMath.h>
 
 #define cbuffer struct __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
 
 namespace engine::render {
-    using namespace DirectX;
+#pragma region helper functions and error handling
 
     std::string toString(HRESULT hr);
+
+    void check(HRESULT hr, std::string_view message = "", std::source_location location = std::source_location::current());
+    void check(HRESULT hr, std::wstring_view message = L"", std::source_location location = std::source_location::current());
 
     struct Error : engine::Error {
         Error(HRESULT hr, std::string message = "", std::source_location location = std::source_location::current())
@@ -27,21 +31,24 @@ namespace engine::render {
 
         HRESULT error() const { return code; }
 
-        virtual std::string query() const override {
-            return std::format("hresult(0x{:x}): {}\n{}", code & ULONG_MAX, toString(code), what());
-        }
+        virtual std::string query() const override;
     private:
         HRESULT code;
     };
 
-    void check(HRESULT hr, const std::string& message = "", std::source_location location = std::source_location::current());
-    void check(HRESULT hr, std::wstring_view message = L"", std::source_location location = std::source_location::current());
+
+
+#pragma region concepts
 
     template<typename T>
     concept IsComObject = std::is_convertible_v<T*, IUnknown*>;
 
     template<typename T>
     concept IsD3D12Object = std::is_convertible_v<T*, ID3D12Object*>;
+
+
+
+#pragma region com and object wrappers
 
     template<IsComObject T>
     struct Com {
@@ -88,9 +95,12 @@ namespace engine::render {
         template<IsComObject O>
         Com<O> as() {
             O *other = nullptr;
+            
             if (HRESULT hr = self->QueryInterface(IID_PPV_ARGS(&other)); FAILED(hr)) {
                 return Com<O>::invalid();
             }
+
+            release();
             return Com<O>(other);
         }
     private:
@@ -111,16 +121,10 @@ namespace engine::render {
         }
     };
 
-    Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target, const std::span<D3D_SHADER_MACRO>& macros = {});
+
+
+#pragma region scissor and viewport managment
     
-    struct RootCreate {
-        std::span<const CD3DX12_ROOT_PARAMETER1> params;
-        std::span<const D3D12_STATIC_SAMPLER_DESC> samplers;
-        D3D12_ROOT_SIGNATURE_FLAGS flags;
-    };
-
-    Com<ID3DBlob> compileRootSignature(D3D_ROOT_SIGNATURE_VERSION version, const RootCreate& create);
-
     struct Scissor : D3D12_RECT {
         using Super = D3D12_RECT;
 
@@ -148,28 +152,11 @@ namespace engine::render {
     };
 
     struct Resolution {
-        LONG width;
-        LONG height;
+        UINT width;
+        UINT height;
 
-        float aspect() const { return float(width) / float(height); }
-    };
-
-    using Colour = XMFLOAT4;
-
-    namespace colour {
-        constexpr Colour red = { 1.f, 0.f, 0.f, 1.f };
-        constexpr Colour orange = { 1.f, 0.5f, 0.f, 1.f };
-        constexpr Colour yellow = { 1.f, 1.f, 0.f, 1.f };
-        constexpr Colour green = { 0.f, 1.f, 0.f, 1.f };
-        constexpr Colour blue = { 0.f, 0.f, 1.f, 1.f };
-        constexpr Colour indigo = { 0.f, 0.f, 1.f, 1.f };
-        constexpr Colour violet = { 1.f, 0.f, 1.f, 1.f };
-        constexpr Colour white = { 1.f, 1.f, 1.f, 1.f };
-    }
-
-    cbuffer ConstBuffer {
-        XMFLOAT4X4 model;
-        XMFLOAT4X4 view;
-        XMFLOAT4X4 projection;
+        float aspectRatio() const {
+            return float(width) / float(height);
+        }
     };
 }

@@ -1,0 +1,7 @@
+#pragma once
+
+#if D3D12_DEBUG
+#   define DEFAULT_FACTORY_FLAGS DXGI_CREATE_FACTORY_DEBUG
+#else
+#   define DEFAULT_FACTORY_FLAGS 0
+#endif

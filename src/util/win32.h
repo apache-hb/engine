@@ -7,6 +7,8 @@
 
 #include <format>
 
+#define DLLEXPORT __declspec(dllexport)
+
 namespace engine::win32 {
     std::string toString(DWORD err);
     
