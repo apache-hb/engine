@@ -77,6 +77,14 @@ namespace engine::render {
             destroyDevice();
         }
 
+        struct Image {
+            size_t width;
+            size_t height;
+            size_t component;
+            
+            std::vector<unsigned char> data;
+        };
+
         void changeInternalResolution(Resolution resolution);
 
         void createDevice(Create& info);
@@ -90,13 +98,7 @@ namespace engine::render {
 
         ConstBuffer constBufferData;
 
-        assets::Scene loadScene(std::string_view path);
-        
     private:
-        std::vector<assets::Image> loadImages(std::string_view path, const assets::gltf::Model& gltf);
-        std::vector<assets::Mesh> loadMeshes(std::string_view path, const assets::gltf::Model& gltf);
-        assets::Mesh loadMesh(std::string_view path, const assets::gltf::Model& gltf, const assets::gltf::Mesh& gltf);
-
         void attachInfoQueue();
 
         void updateViews();
@@ -108,14 +110,6 @@ namespace engine::render {
 
         void waitForGPU(Object<ID3D12CommandQueue> queue);
         void nextFrame(Object<ID3D12CommandQueue> queue);
-
-        struct Image {
-            size_t width;
-            size_t height;
-            size_t component;
-            
-            std::vector<unsigned char> data;
-        };
 
         struct Frame {
             Resource target;

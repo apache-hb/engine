@@ -1,6 +1,7 @@
 #pragma once
 
 #include "render/objects/device.h"
+#include "assets/loader.h"
 
 namespace engine::render {
     struct Context;
@@ -32,9 +33,16 @@ namespace engine::assets {
     };
 
     struct Scene {
-        Scene(render::Context* context, std::string_view path);
+        Scene(render::Context* ctx, std::string_view path);
 
     private:
+        void loadImages();
+
+        render::Context* context;
+        std::string_view name;
+
+        assets::gltf::Model model;
+
         render::DescriptorHeap srvHeap;
 
         std::vector<Image> images;
