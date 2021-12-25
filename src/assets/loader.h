@@ -8,7 +8,7 @@
 
 #include "gltf/tinygltf.h"
 
-namespace engine::loader {
+namespace engine::assets {
     namespace gltf = tinygltf;
 
     struct LoadError : engine::Error {

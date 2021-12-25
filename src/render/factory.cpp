@@ -10,7 +10,7 @@ namespace engine::render {
     }
 
     std::string Output::name() const {
-        return strings::encode(desc.DeviceName);
+        return strings::narrow(desc.DeviceName);
     }
 
     RECT Output::coords() const {
@@ -29,7 +29,7 @@ namespace engine::render {
     }
 
     std::string Adapter::name() const {
-        return strings::encode(desc.Description);
+        return strings::narrow(desc.Description);
     }
 
     units::Memory Adapter::videoMemory() const {

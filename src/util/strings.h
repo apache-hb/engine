@@ -11,5 +11,6 @@ namespace engine::strings {
     std::string cformatv(const char *fmt, va_list args);
     std::vector<std::string_view> split(std::string_view str, std::string_view sep);
 
-    std::string encode(std::wstring_view str);
+    std::string narrow(std::wstring_view str);
+    std::wstring widen(std::string_view str);
 }

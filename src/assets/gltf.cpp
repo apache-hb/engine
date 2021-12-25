@@ -1,6 +1,6 @@
 #include "loader.h"
 
-namespace engine::loader {
+namespace engine::assets {
     gltf::Model gltfScene(std::string_view path) {
         gltf::Model model;
         gltf::TinyGLTF loader;

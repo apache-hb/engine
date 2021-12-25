@@ -68,9 +68,9 @@ namespace engine::render {
             D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
         constexpr auto input = std::to_array({
-            shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT, 0),
-            shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT, UINT_MAX),
-            shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT, UINT_MAX)
+            shaderInput("POSITION", DXGI_FORMAT_R32G32B32_FLOAT),
+            shaderInput("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT),
+            shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT)
         });
 
         constexpr ShaderLibrary::Create create = {
@@ -351,6 +351,27 @@ namespace engine::render {
             device->CreateDepthStencilView(depthStencil.get(), &desc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
         }
 
+        ImGui_ImplWin32_Init(create.window->getHandle());
+        ImGui_ImplDX12_Init(device.get(), create.frames,
+            DXGI_FORMAT_R8G8B8A8_UNORM, postCbvHeap.get(),
+            postCbvHeap.cpuHandle(PostResources::ImGui),
+            postCbvHeap.gpuHandle(PostResources::ImGui)
+        );
+
+        check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
+        frames[frameIndex].fenceValue = 1;
+        if ((fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr)) == nullptr) {
+            throw win32::Error("failed to create fence event");
+        }
+
+        flushCopyQueue();
+
+        sceneCbvSrvHeap = device.newHeap(L"scene-cbv-srv-heap", {
+            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = requiredSceneCbvSrvHeapEntries(),
+            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        });
+
         {
             UINT constBufferSize = sizeof(constBufferData);
             const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(constBufferSize);
@@ -375,35 +396,8 @@ namespace engine::render {
             check(constBuffer->Map(0, &readRange, &constBufferPtr), "failed to map constant buffer");
         }
 
-        /// upload all our needed geometry
-        gltf = loader::gltfScene("resources\\sponza-gltf\\Sponza.gltf");
-
-        createBuffers();
-        createImages();
-        createMeshes();
-
-        ImGui_ImplWin32_Init(create.window->getHandle());
-        ImGui_ImplDX12_Init(device.get(), create.frames,
-            DXGI_FORMAT_R8G8B8A8_UNORM, postCbvHeap.get(),
-            postCbvHeap.cpuHandle(PostResources::ImGui),
-            postCbvHeap.gpuHandle(PostResources::ImGui)
-        );
-
-        check(device->CreateFence(frames[frameIndex].fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)), "failed to create fence");
-        frames[frameIndex].fenceValue = 1;
-        if ((fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr)) == nullptr) {
-            throw win32::Error("failed to create fence event");
-        }
-
-        flushCopyQueue();
-
-        sceneCbvSrvHeap = device.newHeap(L"scene-cbv-srv-heap", {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors = textures.size(),
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-        });
-
         sceneCommandBundle = device.newCommandBundle(L"scene-command-bundle", scenePipelineState.get(), [&](UNUSED auto bundle) {
+
 #if 0
             bundle->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             bundle->IASetVertexBuffers(0, 1, &vertexBufferView);
@@ -499,7 +493,6 @@ namespace engine::render {
         {
             sceneList->SetGraphicsRootSignature(sceneRootSignature.get());
             sceneList->SetDescriptorHeaps(UINT(std::size(sceneHeaps)), sceneHeaps);
-            sceneList->SetGraphicsRootDescriptorTable(0, sceneCbvSrvHeap.gpuHandle(SceneResources::Camera));
 
             sceneList->RSSetViewports(1, &sceneView.viewport);
             sceneList->RSSetScissorRects(1, &sceneView.scissor);
@@ -510,7 +503,12 @@ namespace engine::render {
 
             sceneList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
             sceneList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
-            sceneList->SetGraphicsRootDescriptorTable(1, getTextureSlotGpuHandle(0));
+            
+            // index 0 contains the camera const buffer
+            // index 1 contains the texture index, it is set later
+            // index 2 contains all textures
+            sceneList->SetGraphicsRootDescriptorTable(0, sceneCbvSrvHeap.gpuHandle(SceneResources::Camera));
+            sceneList->SetGraphicsRootDescriptorTable(2, getTextureSlotGpuHandle(0));
 
             sceneList->ExecuteBundle(sceneCommandBundle.get());
         }

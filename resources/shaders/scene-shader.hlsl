@@ -1,3 +1,5 @@
+#include "gltf-compat.hlsli"
+
 /// only needs to be bound for the vertex shader stage
 /// contains the basic model view projection matricies
 cbuffer CameraBuffer : register(b0) {
@@ -19,7 +21,9 @@ SamplerState texSampler : register(s0);
 
 struct PSInput {
     float4 position : SV_POSITION;
-    float2 texcoord : TEXCOORD;
+    float3 normal : NORMAL;
+    float4 tangent : TANGENT;
+    float2 uv : TEXCOORD;
 };
 
 float4 perspective(float3 position) {
@@ -30,15 +34,17 @@ float4 perspective(float3 position) {
     return pos;
 }
 
-PSInput vsMain(float3 position : POSITION, float2 texcoord : TEXCOORD) {    
+PSInput vsMain(float3 position : POSITION NORMAL_ARG(normal) TANGENT_ARG(tangent) TEXCOORD_ARG(uv)) {    
     PSInput result;
 
     result.position = perspective(position);
-    result.texcoord = texcoord;
+    result.normal = GET_NORMAL(normal);
+    result.tangent = GET_TANGENT(tangent);
+    result.uv = GET_TEXCOORD(uv);
 
     return result;
 }
 
 float4 psMain(PSInput input) : SV_TARGET {
-    return textures[textureIndex].Sample(texSampler, input.texcoord);
+    return textures[textureIndex].Sample(texSampler, input.uv);
 }

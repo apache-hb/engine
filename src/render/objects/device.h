@@ -33,8 +33,8 @@ namespace engine::render {
             return queue;
         }
 
-        Object<ID3D12GraphicsCommandList> newCommandList(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator* alloc, ID3D12PipelineState* pipeline = nullptr) {
-            Object<ID3D12GraphicsCommandList> list;
+        Commands newCommandList(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type, ID3D12CommandAllocator* alloc, ID3D12PipelineState* pipeline = nullptr) {
+            Commands list;
             check(Super::get()->CreateCommandList(0, type, alloc, pipeline, IID_PPV_ARGS(&list)), "failed to create command list");
             list.rename(name);
             return list;
@@ -67,7 +67,7 @@ namespace engine::render {
             try {
                 return newRootSignature(name, render::compileRootSignature(version, create));
             } catch (const render::Error& error) {
-                log::render->warn("failed to compile root signature: {}", strings::encode(name));
+                log::render->warn("failed to compile root signature: {}", strings::narrow(name));
                 throw error;
             }
         }

@@ -1,5 +1,6 @@
 #include "strings.h"
 #include "error.h"
+#include "win32.h"
 
 #include <stdarg.h>
 #include <sstream>
@@ -59,7 +60,7 @@ namespace engine::strings {
         return result;
     }
 
-    std::string encode(std::wstring_view str) {
+    std::string narrow(std::wstring_view str) {
         std::string result(str.size() + 1, '\0');
         size_t size = result.size();
 
@@ -69,6 +70,13 @@ namespace engine::strings {
         }
 
         result.resize(size);
+        return result;
+    }
+
+    std::wstring widen(std::string_view str) {
+        auto needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), nullptr, 0);
+        std::wstring result(needed, '\0');
+        MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), result.data(), (int)result.size());
         return result;
     }
 }

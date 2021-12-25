@@ -1,10 +1,11 @@
 #pragma once
 
-#include "render/util.h"
+#include "commands.h"
 
 namespace engine::render {
-    struct CommandBundle : Object<ID3D12GraphicsCommandList> {
-        using Super = Object<ID3D12GraphicsCommandList>;
+    struct CommandBundle : Commands {
+        using Super = Commands;
+        using Super::Super;
 
         CommandBundle() = default;
         CommandBundle(Super super, Object<ID3D12CommandAllocator> allocator)

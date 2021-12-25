@@ -7,7 +7,7 @@
 
 namespace engine::render::ndk {
     std::string toString(NVSDK_NGX_Result result) {
-        return strings::encode(GetNGXResultAsString(result));
+        return strings::narrow(GetNGXResultAsString(result));
     }
 
     void nvCheck(NVSDK_NGX_Result result, std::string_view message, std::source_location location = std::source_location::current()) {

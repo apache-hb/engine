@@ -22,8 +22,7 @@ namespace engine::render {
             .DepthOrArraySize = 1,
             .MipLevels = 1,
             .Format = format,
-            .SampleDesc = { 1, 0 },
-            .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR
+            .SampleDesc = { 1, 0 }
         };
     }
 
@@ -37,6 +36,8 @@ namespace engine::render {
     }
     
     Resource Context::uploadBuffer(const void *data, size_t size, std::wstring_view name) {
+        log::render->info("uploading buffer {}", strings::narrow(name));
+        
         const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
         const auto uploadDesc = createUploadDesc(data, size);
 
@@ -71,8 +72,8 @@ namespace engine::render {
         return defaultResource;
     }
 
-    Resource Context::uploadTexture(const Image& tex, std::wstring_view name) {
-        log::render->info(strings::encode(std::format(L"uploading texture {}", name)));
+    Resource Context::uploadTexture(std::wstring_view name, const Image& tex) {
+        log::render->info("uploading texture {}", strings::narrow(name));
         
         const auto& [width, height, component, data] = tex;
         const auto desc = createResourceDesc(UINT(width), UINT(height), DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -87,7 +88,7 @@ namespace engine::render {
             &desc, D3D12_RESOURCE_STATE_COPY_DEST,
             nullptr, IID_PPV_ARGS(&defaultResource)
         );
-        check(hrDefault, "failed to create default resource");
+        check(hrDefault, "failed to create default texture resource");
 
         const auto [footprint, rowCount, rowSize, size] = device.getFootprint(defaultResource);
         const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
@@ -97,7 +98,7 @@ namespace engine::render {
             &bufferSize, D3D12_RESOURCE_STATE_GENERIC_READ,
             nullptr, IID_PPV_ARGS(&uploadResource)
         );
-        check(hrUpload, "failed to create upload resource");
+        check(hrUpload, "failed to create upload texture resource");
 
         /// rename our resources to be kind to the debugger
 

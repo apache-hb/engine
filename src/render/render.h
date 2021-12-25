@@ -6,11 +6,11 @@
 #include "objects/library.h"
 #include "objects/device.h"
 #include "objects/heap.h"
-#include "objects/texture.h"
 #include "factory.h"
 #include "system/system.h"
 #include "assets/loader.h"
 #include "input/camera.h"
+#include "scene/scene.h"
 
 namespace engine::render {
     namespace SceneResources {
@@ -90,7 +90,13 @@ namespace engine::render {
 
         ConstBuffer constBufferData;
 
+        assets::Scene loadScene(std::string_view path);
+        
     private:
+        std::vector<assets::Image> loadImages(std::string_view path, const assets::gltf::Model& gltf);
+        std::vector<assets::Mesh> loadMeshes(std::string_view path, const assets::gltf::Model& gltf);
+        assets::Mesh loadMesh(std::string_view path, const assets::gltf::Model& gltf, const assets::gltf::Mesh& gltf);
+
         void attachInfoQueue();
 
         void updateViews();
@@ -102,10 +108,6 @@ namespace engine::render {
 
         void waitForGPU(Object<ID3D12CommandQueue> queue);
         void nextFrame(Object<ID3D12CommandQueue> queue);
-
-        void createBuffers();
-        void createImages();
-        void createMeshes();
 
         struct Image {
             size_t width;
@@ -123,7 +125,6 @@ namespace engine::render {
 
         Factory* factory;
         Create create;
-        loader::gltf::Model gltf;
 
         std::vector<Resource> buffers;
         std::vector<Resource> textures;
@@ -154,17 +155,8 @@ namespace engine::render {
         Object<ID3D12GraphicsCommandList> copyCommandList;        
         std::vector<Resource> copyResources;
 
-        /// resources
-        Resource constBuffer;
-        void *constBufferPtr;
-
-        VertexBuffer screenBuffer;
-
-        Resource depthStencil;
-
         /// frame data
         Frame *frames;
-
 
         /// post specific resources
         CommandBundle postCommandBundle;
@@ -175,7 +167,7 @@ namespace engine::render {
         Object<ID3D12PipelineState> postPipelineState;
 
         DescriptorHeap postCbvHeap;
-
+        VertexBuffer screenBuffer;
 
         /// scene specific resources
         CommandBundle sceneCommandBundle;
@@ -191,6 +183,7 @@ namespace engine::render {
 
         // our intermediate render target
         // the scene draws to this rather than to the swapchain
+        Resource depthStencil;
         Resource sceneTarget;
 
         // camera data
@@ -215,6 +208,10 @@ namespace engine::render {
             return PostResources::Total;
         }
 
+        UINT requiredSceneCbvSrvHeapEntries() const {
+            return UINT(textures.size() + SceneResources::Total);
+        }
+
         /// render target resource layout
         /// 
         /// --------------------------------------------------
@@ -233,11 +230,11 @@ namespace engine::render {
         }
 
         auto getTextureSlotGpuHandle(size_t index) {
-            return cbvSrvHeap.gpuHandle(index + Resources::Total);
+            return sceneCbvSrvHeap.gpuHandle(index + SceneResources::Total);
         }
 
         auto getTextureSlotCpuHandle(size_t index) {
-            return cbvSrvHeap.cpuHandle(index + Resources::Total);
+            return sceneCbvSrvHeap.cpuHandle(index + SceneResources::Total);
         }
 
 
@@ -247,7 +244,7 @@ namespace engine::render {
         ///
 
         Resource uploadBuffer(const void *data, size_t size, std::wstring_view name = L"resource");
-        Resource uploadTexture(const Image& texture, std::wstring_view name = L"texture");
+        Resource uploadTexture(std::wstring_view name, const Image& texture);
 
         template<typename T>
         Resource uploadSpan(const std::span<T>& data, std::wstring_view name = L"resource") {

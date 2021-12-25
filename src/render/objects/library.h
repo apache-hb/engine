@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <span>
 #include <string_view>
 #include "render/util.h"
@@ -26,7 +27,7 @@ namespace engine::render {
         };
 
         ShaderLibrary() = default;
-        ShaderLibrary(Create create);
+        ShaderLibrary(Create create, const std::map<std::string_view, std::string_view>& defines = {});
 
         D3D12_INPUT_LAYOUT_DESC layout() const;
 

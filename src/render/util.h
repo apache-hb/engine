@@ -2,6 +2,7 @@
 
 #include "util/error.h"
 #include "util/units.h"
+#include "util/strings.h"
 #include "logging/log.h"
 #include "d3dx12.h"
 #include <dxgi1_6.h>
@@ -104,9 +105,13 @@ namespace engine::render {
         void rename(std::wstring_view name) {
             Super::get()->SetName(name.data());
         }
+
+        void rename(std::string_view name) {
+            rename(strings::widen(name));
+        }
     };
 
-    Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target);
+    Com<ID3DBlob> compileShader(std::wstring_view path, std::string_view entry, std::string_view target, const std::span<D3D_SHADER_MACRO>& macros = {});
     
     struct RootCreate {
         std::span<const CD3DX12_ROOT_PARAMETER1> params;
