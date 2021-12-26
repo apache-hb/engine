@@ -152,6 +152,7 @@ private:
     InputManager manager;
 };
 
+#if 0
 void initImGui(size_t dpi) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -161,6 +162,7 @@ void initImGui(size_t dpi) {
     io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
     io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
 }
+#endif
 
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
@@ -178,13 +180,18 @@ int runEngine(HINSTANCE instance, int show) {
 
     auto window = system::createWindow(instance, create, &callbacks);
 
+#if 0
     initImGui(window.getDpi());
+#endif
 
     window.run(show);
 
+    render::debug::report();
     render::debug::disable();
 
+#if 0
     ImGui::DestroyContext();
+#endif
 
     return 0;
 }

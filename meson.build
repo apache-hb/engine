@@ -16,9 +16,9 @@ src = [
     'src/render/debug/debug.cpp',
 
     # core render objects
-    'src/render/render.cpp',
-    'src/render/upload.cpp',
-    'src/render/scene.cpp',
+    'src/render/context/context.cpp',
+    'src/render/context/lifetime.cpp',
+    'src/render/context/access.cpp',
 
     # scene rendering
     'src/render/scene/scene.cpp',

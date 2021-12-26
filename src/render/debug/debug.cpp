@@ -10,11 +10,11 @@ namespace engine::render::debug {
 
     void enable() {
         if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)); FAILED(hr)) {
-            log::render->warn("failed to get DXGI debug interface: {}", toString(hr));
+            log::render->warn("failed to get dxgi debug interface: {}", toString(hr));
         }
 
         if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&d3dDebug)); FAILED(hr)) {
-            log::render->warn("failed to get D3D12 debug interface: {}", toString(hr));
+            log::render->warn("failed to get d3d12 debug interface: {}", toString(hr));
         }
 
         if (d3dDebug) { d3dDebug->EnableDebugLayer(); }
@@ -22,7 +22,6 @@ namespace engine::render::debug {
 
     void disable() {
         d3dDebug.tryDrop("d3d-debug");
-        dxgiDebug.tryDrop("dxgi-debug");
     }
 
     void report() {

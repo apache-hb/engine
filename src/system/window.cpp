@@ -16,8 +16,8 @@ namespace {
         LPARAM lparam
     )
     {
-        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
-            return true;
+        //if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
+        //    return true;
 
         auto *self = reinterpret_cast<engine::system::Window::Callbacks*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 

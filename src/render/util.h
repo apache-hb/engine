@@ -54,10 +54,15 @@ namespace engine::render {
     struct Com {
         using Self = T;
         Com(T *self = nullptr) : self(self) { }
-        Com& operator=(const Com&) = default;
-        Com& operator=(T *self) { this->self = self; return *this; }
+        Com(Com&& other) : self(other.self) { other.self = nullptr; }
 
-        static Com<T> invalid() { return Com<T>(nullptr); }
+        /// no moves
+        Com(const Com&) = default;
+        Com& operator=(const Com&) = default;
+
+        Com& operator=(T* self) { this->self = self; return *this; }
+
+        static Com invalid() { return Com(nullptr); }
 
         void set(Com<T> other) {
             self = other.get();
@@ -152,6 +157,12 @@ namespace engine::render {
     };
 
     struct Resolution {
+        Resolution() = default;
+        Resolution(UINT width, UINT height)
+            : width(width)
+            , height(height)
+        { }
+
         UINT width;
         UINT height;
 
