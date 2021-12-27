@@ -26,6 +26,7 @@ namespace engine::render {
     }
 
 
+
     ///
     /// calculated values
     ///
@@ -38,7 +39,11 @@ namespace engine::render {
         return CbvResources::Total;
     }
 
-    Object<ID3D12Resource>& Context::getIntermediateTarget() {
+    UINT Context::getCurrentFrameIndex() const {
+        return frameIndex;
+    }
+
+    Resource& Context::getIntermediateTarget() {
         return intermediateRenderTarget;
     }
 
@@ -46,7 +51,25 @@ namespace engine::render {
         return rtvHeap.cpuHandle(0);
     }
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getIntermediateCbvHandle() {
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getIntermediateCbvCpuHandle() {
         return cbvHeap.cpuHandle(CbvResources::Intermediate);
+    }
+    
+    CD3DX12_GPU_DESCRIPTOR_HANDLE Context::getIntermediateCbvGpuHandle() {
+        return cbvHeap.gpuHandle(CbvResources::Intermediate);
+    }
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getRenderTargetCpuHandle(UINT index) {
+        return rtvHeap.cpuHandle(index + 1); // +1 for the intermediate target
+    }
+
+    CD3DX12_GPU_DESCRIPTOR_HANDLE Context::getRenderTargetGpuHandle(UINT index) {
+        return rtvHeap.gpuHandle(index + 1); // +1 for the intermediate target
+    }
+
+
+    Object<ID3D12CommandAllocator> Context::getAllocator(Allocator::Index type, size_t index) {
+        UINT idx = index == SIZE_MAX ? getCurrentFrameIndex() : UINT(index);
+        return frameData[idx].allocators[type];
     }
 }

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "factory.h"
-
+#include "objects/library.h"
+#include "objects/commands.h"
+#include "objects/resources.h"
 #include "system/system.h"
 
 namespace engine::render {
@@ -11,6 +13,30 @@ namespace engine::render {
             ImGui,
             Total
         };
+    }
+
+    namespace Allocator {
+        enum Index : int {
+            Direct,
+            Copy,
+            Total
+        };
+
+        constexpr D3D12_COMMAND_LIST_TYPE type(Index index) {
+            switch (index) {
+            case Direct: return commands::kDirect;
+            case Copy: return commands::kCopy;
+            default: throw engine::Error("invalid allocator index");
+            }
+        }
+
+        constexpr std::wstring_view name(Index index) {
+            switch (index) {
+            case Direct: return L"direct";
+            case Copy: return L"copy";
+            default: throw engine::Error("invalid allocator index");
+            }
+        }
     }
 
     struct Context {
@@ -60,6 +86,16 @@ namespace engine::render {
         void setResolution(Resolution newResolution);
 
 
+        ///
+        /// resource uploading
+        ///
+
+        template<typename T>
+        VertexBuffer uploadVertexBuffer(std::wstring_view name, std::span<const T> data) {
+            return uploadVertexData(name, data.data(), UINT(data.size() * sizeof(T)), sizeof(T));
+        }
+
+
         /// 
         /// rendering
         ///
@@ -73,9 +109,14 @@ namespace engine::render {
         bool present() noexcept;
 
     private:
-        ///
-        /// create and destroy methods. context/lifetime.cpp
-        ///
+
+        void populate();
+
+#pragma region lifetime management (context/lifetime.cpp)
+
+        /// create or destroy resources that depend on nothing
+        void createContext();
+        void destroyContext();
 
         /// create or destroy resources that depend on the adapter
         /// this is basically everything as the device depends on the adapter
@@ -90,16 +131,30 @@ namespace engine::render {
         void createBuffers();
         void destroyBuffers();
 
-        /// create or destroy resources that depend on the window resolution
-        /// this is things such as the intermediate render target
-        void createResolutionResources();
-        void destroyResolutionResources();
+        /// create or destroy copy pipeline
+        void createCopyPipeline();
+        void destroyCopyPipeline();
+
+        /// create or destroy pipeline objects
+        void createPipeline();
+        void destroyPipeline();
 
 
 
-        ///
-        /// resource access methods. context/access.cpp
-        ///
+#pragma region sync methods (context/context.cpp)
+
+        void waitForGpu(Queue queue);
+        void nextFrame(Queue queue);
+
+
+
+#pragma region resource uploading methods (context/upload.cpp)
+
+        Resource uploadData(std::wstring_view name, const void* data, UINT size);
+        VertexBuffer uploadVertexData(std::wstring_view name, const void* data, UINT size, UINT stride);
+
+
+#pragma region resource access (context/access.cpp)
 
         Factory& getFactory();
         Adapter& getAdapter();
@@ -110,17 +165,22 @@ namespace engine::render {
 
 
 
-        ///
-        /// calucated resource access methods. context/access.cpp
-        ///
+#pragma region calculated resource access (context/access.cpp)
 
         UINT requiredRtvHeapSize() const;
         UINT requiredCbvHeapSize() const;
+        UINT getCurrentFrameIndex() const;
 
-        Object<ID3D12Resource>& getIntermediateTarget();
+        Resource& getIntermediateTarget();
         CD3DX12_CPU_DESCRIPTOR_HANDLE getIntermediateRtvHandle();
-        CD3DX12_CPU_DESCRIPTOR_HANDLE getIntermediateCbvHandle();
 
+        CD3DX12_CPU_DESCRIPTOR_HANDLE getIntermediateCbvCpuHandle();
+        CD3DX12_GPU_DESCRIPTOR_HANDLE getIntermediateCbvGpuHandle();
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE getRenderTargetCpuHandle(UINT index);
+        CD3DX12_GPU_DESCRIPTOR_HANDLE getRenderTargetGpuHandle(UINT index);
+
+        Object<ID3D12CommandAllocator> getAllocator(Allocator::Index type, size_t index = SIZE_MAX);
 
 
         ///
@@ -130,7 +190,10 @@ namespace engine::render {
         /// per-frame information
         struct FrameData {
             /// the back buffer resource we are currently rendering to
-            Object<ID3D12Resource> finalTarget;
+            Resource target;
+
+            /// all of this frames allocators
+            Object<ID3D12CommandAllocator> allocators[Allocator::Total];
 
             /// our fence value for the current backbuffer
             UINT64 fenceValue;
@@ -138,6 +201,10 @@ namespace engine::render {
 
         /// our creation info
         Create info;
+
+
+
+#pragma region managed by buildViews()
 
         /// current internal and display resolution
         Resolution sceneResolution;
@@ -147,12 +214,15 @@ namespace engine::render {
         View sceneView;
         View postView;
 
+
+
+#pragma region managed by createDevice()
+
         /// our current device
         Device<ID3D12Device4> device;
+        Queue directCommandQueue;
 
-        /// all of the command queues we need
-        Object<ID3D12CommandQueue> directCommandQueue;
-        Object<ID3D12CommandQueue> copyCommandQueue;
+#pragma region managed by createBuffers()
 
         /// our swapchain
         Com<IDXGISwapChain3> swapchain;
@@ -161,7 +231,7 @@ namespace engine::render {
         /// all our render targets and the intermediate target
         DescriptorHeap rtvHeap;
         DescriptorHeap cbvHeap;
-        Object<ID3D12Resource> intermediateRenderTarget;
+        Resource intermediateRenderTarget;
 
         /// our frame data
         FrameData *frameData;
@@ -169,5 +239,23 @@ namespace engine::render {
         /// sync objects
         Object<ID3D12Fence> fence;
         HANDLE fenceEvent;
+
+
+
+#pragma region managed by createPipeline()
+
+        /// all resources needed for upscaling
+        ShaderLibrary shaders;
+        Commands directCommands;
+        VertexBuffer screenBuffer;
+        RootSignature rootSignature;
+        PipelineState pipelineState;
+
+
+#pragma region managed by createCopyPipeline()
+
+        Queue copyCommandQueue;
+        Commands copyCommands;
+        std::vector<Resource> copyResources;
     };
 }

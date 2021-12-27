@@ -19,6 +19,7 @@ src = [
     'src/render/context/context.cpp',
     'src/render/context/lifetime.cpp',
     'src/render/context/access.cpp',
+    'src/render/context/upload.cpp',
 
     # scene rendering
     'src/render/scene/scene.cpp',
@@ -27,7 +28,10 @@ src = [
     'src/render/objects/library.cpp',
     'src/render/objects/compute.cpp',
     'src/render/objects/heap.cpp',
-    'src/render/objects/bundle.cpp',
+    'src/render/objects/commands.cpp',
+    'src/render/objects/queue.cpp',
+    'src/render/objects/root.cpp',
+    'src/render/objects/pipeline.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',
@@ -48,19 +52,15 @@ src = [
     'src/main.cpp'
 ]
 
-args = [ 
-    '-DUNICODE=1', 
-    '/wd4324' # C4324: structure was padded due to alignment specifier
-]
+args = [ '-DUNICODE=1', '/wd4324' ]
 
 imgui = subproject('imgui').get_variable('imgui')
-tinyobj = subproject('tinyobj').get_variable('tinyobj')
 queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('gltf').get_variable('gltf')
 
-deps = [ imgui, queue, stb, d3d12, tinyobj, gltf ]
+deps = [ imgui, queue, stb, d3d12, gltf ]
 
 links = [ 
     'd3d12.lib', 

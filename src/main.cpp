@@ -114,34 +114,30 @@ struct MainWindow final : WindowCallbacks {
                 manager.update();
             }
         });
-
+#endif
         draw = new std::jthread([this](auto stop) { 
-            try {
-                while (!stop.stop_requested()) {
-                    context->tick(manager.camera);
-                    context->present();
+            while (!stop.stop_requested()) {
+                if (!context->present()) {
+                    log::global->fatal("present failed");
+                    break;
                 }
-            } catch (const engine::Error &error) {
-                log::global->fatal("{}", error.query());
-            } catch (...) {
-                log::global->fatal("unknown error");
             }
         });
-#endif
     }
 
     virtual void onDestroy() override {
 #if 0
         delete input;
-        delete draw;
 #endif
 
+        delete draw;
         delete context;
     }
 
 private:
-#if 0
+
     std::jthread *draw;
+#if 0
     std::jthread *input;
 
     render::Factory *factory;
