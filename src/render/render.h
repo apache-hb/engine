@@ -139,6 +139,9 @@ namespace engine::render {
         void createPipeline();
         void destroyPipeline();
 
+        /// create or destroy our scene
+        void createScene();
+        void destroyScene();
 
 
 #pragma region sync methods (context/context.cpp)
@@ -152,6 +155,7 @@ namespace engine::render {
 
         Resource uploadData(std::wstring_view name, const void* data, UINT size);
         VertexBuffer uploadVertexData(std::wstring_view name, const void* data, UINT size, UINT stride);
+
 
 
 #pragma region resource access (context/access.cpp)
@@ -252,10 +256,19 @@ namespace engine::render {
         PipelineState pipelineState;
 
 
+
 #pragma region managed by createCopyPipeline()
 
         Queue copyCommandQueue;
         Commands copyCommands;
         std::vector<Resource> copyResources;
+
+
+
+#pragma region managed by createScene()
+
+        DescriptorHeap dsvHeap;
+        Resource depthStencil;
+        Commands sceneCommands;
     };
 }

@@ -12,10 +12,12 @@ namespace engine::render {
         createBuffers();
         createCopyPipeline();
         createPipeline();
+        createScene();
     }
 
     Context::~Context() {
         destroyCopyPipeline();
+        destroyScene();
         destroyPipeline();
         destroyBuffers(); 
         destroyDevice();
