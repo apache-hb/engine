@@ -1,12 +1,8 @@
 #pragma once
 
-namespace engine::render::debug {
-    void enable();
-    void disable();
-    void report();
-}
-
-#pragma region debug configuration macros
+#include <d3dcompiler.h>
+#include <dxgidebug.h>
+#include <dxgi1_6.h>
 
 #define ALWAYS_SHADER_FLAGS D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS
 
@@ -17,3 +13,14 @@ namespace engine::render::debug {
 #   define DEFAULT_FACTORY_FLAGS 0
 #   define DEFAULT_SHADER_FLAGS ALWAYS_SHADER_FLAGS
 #endif
+
+namespace engine::render {
+    namespace debug {
+        void enable();
+        void disable();
+        void report();
+    }
+
+    constexpr auto kFactoryFlags = DEFAULT_FACTORY_FLAGS;
+    constexpr auto kShaderFlags = DEFAULT_SHADER_FLAGS;
+}

@@ -34,7 +34,7 @@ namespace engine {
         { }
 
         virtual std::string query() const override {
-            return std::format("errno: {}\n{}", code, what());
+            return std::format("errno: {}", code);
         }
 
         errno_t error() const { return code; }

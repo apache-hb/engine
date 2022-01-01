@@ -46,7 +46,7 @@ namespace engine::units {
         }
 
         for (int fmt = LIMIT - 1; fmt >= 0; fmt--) {
-            size_t size = sizes[fmt];
+            size_t size = kSizes[fmt];
             if (bytes > size) { return format_memory(bytes, (Unit)fmt); }
         }
         

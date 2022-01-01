@@ -1,10 +1,12 @@
 #pragma once
 
 #include "util/error.h"
-#include "logging/log.h"
+#include "util/units.h"
 #include "util/strings.h"
+#include "logging/log.h"
 
 #include <d3dx12.h>
+#include <dxgi1_6.h>
 
 #include <vector>
 #include <span>
@@ -14,6 +16,8 @@
 #define cbuffer struct __declspec(align(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
 
 namespace engine::render {
+#pragma region helper functions and error handling
+
     std::string toString(HRESULT hr);
 
     void check(HRESULT hr, std::string_view message = "", std::source_location location = std::source_location::current());
@@ -34,6 +38,8 @@ namespace engine::render {
 
 
 
+#pragma region concepts
+
     template<typename T>
     concept IsComObject = std::is_convertible_v<T*, IUnknown*>;
 
@@ -42,12 +48,15 @@ namespace engine::render {
 
 
 
+#pragma region com and object wrappers
+
     template<IsComObject T>
     struct Com {
         using Self = T;
         Com(T *self = nullptr) : self(self) { }
         Com(Com&& other) : self(other.self) { other.self = nullptr; }
 
+        /// no moves
         Com(const Com&) = default;
         Com& operator=(const Com&) = default;
 
@@ -96,7 +105,6 @@ namespace engine::render {
                 return Com<O>::invalid();
             }
 
-            // QueryInterface adds a reference, so we need to release it
             release();
             return Com<O>(other);
         }
@@ -109,12 +117,6 @@ namespace engine::render {
         using Super = Com<T>;
         using Super::Super;
 
-        Object(T* self, std::wstring_view name): Super(self) {
-            if (self != nullptr) {
-                rename(name);
-            }
-        }
-
         void rename(std::wstring_view name) {
             Super::get()->SetName(name.data());
         }
@@ -124,8 +126,10 @@ namespace engine::render {
         }
     };
 
-    
 
+
+#pragma region scissor and viewport managment
+    
     struct Scissor : D3D12_RECT {
         using Super = D3D12_RECT;
 

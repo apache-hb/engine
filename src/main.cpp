@@ -88,10 +88,10 @@ struct MainWindow final : WindowCallbacks {
 
     virtual void onCreate(system::Window *window) override {
         context = new render::Context({
-            .factory = render::Factory(),
-            .currentAdapter = 0,
+            .factory = new render::Factory(),
+            .adapter = 0,
             .window = window,
-            .backBuffers = 2,
+            .buffers = 2,
             .resolution = { 1920, 1080 }
         });
 #if 0
@@ -205,6 +205,7 @@ int commonMain(HINSTANCE instance, int show) noexcept {
         result = runEngine(instance, show); 
     } catch (const engine::Error &error) {
         log::global->fatal("caught engine::Error\n{}", error.query());
+        log::global->fatal("{}:{}:{}:{}", error.file(), error.function(), error.line(), error.column());
     } catch (const std::exception &err) {
         log::global->fatal("caught std::exception\n{}", err.what());
     } catch (...) {

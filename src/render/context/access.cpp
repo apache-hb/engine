@@ -1,75 +1,67 @@
 #include "render/render.h"
 
-namespace engine::render {
-    Factory& Context::getFactory() {
-        return info.factory;
-    }
+using namespace engine;
+using namespace engine::render;
 
-    Adapter& Context::getAdapter() {
-        return getFactory().getAdapter(info.currentAdapter);
-    }
+Factory& Context::getFactory() {
+    return *info.factory;
+}
 
-    system::Window& Context::getWindow() {
-        return *info.window;
-    }
+Adapter& Context::getAdapter() {
+    return getFactory().getAdapter(info.adapter);
+}
 
-    Resolution Context::getCurrentResolution() const {
-        return info.resolution;
-    }
+system::Window& Context::getWindow() {
+    return *info.window;
+}
 
-    DXGI_FORMAT Context::getFormat() const {
-        return DXGI_FORMAT_R8G8B8A8_UNORM; // this will change once we get hdr support
-    }
+Resolution Context::getDisplayResolution() const {
+    return info.resolution;
+}
 
-    UINT Context::getBackBufferCount() const {
-        return info.backBuffers;
-    }
+Resolution Context::getInternalResolution() {
+    auto [width, height] = getWindow().getClientSize();
+    return { UINT(width), UINT(height) };
+}
 
+DXGI_FORMAT Context::getFormat() const {
+    return DXGI_FORMAT_R8G8B8A8_UNORM;
+}
 
+UINT Context::getBufferCount() const {
+    return info.buffers;
+}
 
-    ///
-    /// calculated values
-    ///
+UINT Context::getCurrentFrame() const {
+    return frameIndex;
+}
 
-    UINT Context::requiredRtvHeapSize() const {
-        return getBackBufferCount() + 1; // +1 for the intermediate target
-    }
+Object<ID3D12CommandAllocator> Context::getAllocator(Allocator::Index index) {
+    const auto frame = getCurrentFrame();
+    return frameData[frame].allocators[size_t(index)];
+}
 
-    UINT Context::requiredCbvHeapSize() const {
-        return CbvResources::Total;
-    }
+Object<ID3D12Resource> Context::getTarget() {
+    const auto frame = getCurrentFrame();
+    return frameData[frame].target;
+}
 
-    UINT Context::getCurrentFrameIndex() const {
-        return frameIndex;
-    }
+UINT Context::requiredRtvHeapSize() const {
+    return getBufferCount() + 1; // +1 for the intermediate scene target
+}
 
-    Resource& Context::getIntermediateTarget() {
-        return intermediateRenderTarget;
-    }
+UINT Context::requiredCbvHeapSize() const {
+    return Resource::Total;
+}
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getIntermediateRtvHandle() {
-        return rtvHeap.cpuHandle(0);
-    }
+D3D12_CPU_DESCRIPTOR_HANDLE Context::sceneTargetRtvCpuHandle() {
+    return rtvHeap.cpuHandle(0); // 0 is the intermediate scene target
+}
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getIntermediateCbvCpuHandle() {
-        return cbvHeap.cpuHandle(CbvResources::Intermediate);
-    }
-    
-    CD3DX12_GPU_DESCRIPTOR_HANDLE Context::getIntermediateCbvGpuHandle() {
-        return cbvHeap.gpuHandle(CbvResources::Intermediate);
-    }
+D3D12_CPU_DESCRIPTOR_HANDLE Context::sceneTargetCbvCpuHandle() {
+    return cbvHeap.cpuHandle(Resource::SceneTarget);
+}
 
-    CD3DX12_CPU_DESCRIPTOR_HANDLE Context::getRenderTargetCpuHandle(UINT index) {
-        return rtvHeap.cpuHandle(index + 1); // +1 for the intermediate target
-    }
-
-    CD3DX12_GPU_DESCRIPTOR_HANDLE Context::getRenderTargetGpuHandle(UINT index) {
-        return rtvHeap.gpuHandle(index + 1); // +1 for the intermediate target
-    }
-
-
-    Object<ID3D12CommandAllocator> Context::getAllocator(Allocator::Index type, size_t index) {
-        UINT idx = index == SIZE_MAX ? getCurrentFrameIndex() : UINT(index);
-        return frameData[idx].allocators[type];
-    }
+D3D12_CPU_DESCRIPTOR_HANDLE Context::rtvHeapCpuHandle(UINT index) {
+    return rtvHeap.cpuHandle(index + 1); // +1 is the intermediate scene target
 }

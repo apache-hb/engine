@@ -1,4 +1,6 @@
 project('engine', [ 'c', 'cpp' ],
+    license : 'GPLv3',
+    version : '0.0.1',
     default_options : [
         'cpp_std=c++latest',
         'warning_level=3',
@@ -11,7 +13,6 @@ project('engine', [ 'c', 'cpp' ],
 src = [ 
     # render utility objects
     'src/render/util.cpp',
-    'src/render/factory.cpp',
 
     'src/render/debug/debug.cpp',
 
@@ -19,19 +20,21 @@ src = [
     'src/render/context/context.cpp',
     'src/render/context/lifetime.cpp',
     'src/render/context/access.cpp',
-    'src/render/context/upload.cpp',
+    #'src/render/context/upload.cpp',
 
     # scene rendering
-    'src/render/scene/scene.cpp',
+    #'src/render/scene/scene.cpp',
 
     # d3d wrapper objects
-    'src/render/objects/library.cpp',
-    'src/render/objects/compute.cpp',
+    'src/render/objects/factory.cpp',
+    #'src/render/objects/device.cpp',
+    #'src/render/objects/library.cpp',
+    #'src/render/objects/compute.cpp',
     'src/render/objects/heap.cpp',
-    'src/render/objects/commands.cpp',
-    'src/render/objects/queue.cpp',
-    'src/render/objects/root.cpp',
-    'src/render/objects/pipeline.cpp',
+    #'src/render/objects/commands.cpp',
+    #'src/render/objects/queue.cpp',
+    #'src/render/objects/root.cpp',
+    #'src/render/objects/pipeline.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',

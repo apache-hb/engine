@@ -69,7 +69,7 @@ namespace engine::strings {
             throw engine::Errno(err);
         }
 
-        result.resize(size);
+        result.resize(size - 1);
         return result;
     }
 

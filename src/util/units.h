@@ -18,9 +18,9 @@ namespace engine::units {
         static constexpr size_t megabyte = kilobyte * 0x1000;
         static constexpr size_t gigabyte = megabyte * 0x1000;
 
-        static constexpr size_t sizes[LIMIT] = { byte, kilobyte, megabyte, gigabyte };
+        static constexpr size_t kSizes[LIMIT] = { byte, kilobyte, megabyte, gigabyte };
 
-        constexpr Memory(size_t memory, Unit unit = BYTES) : bytes(memory * sizes[unit]) { }
+        constexpr Memory(size_t memory, Unit unit = BYTES) : bytes(memory * kSizes[unit]) { }
 
         constexpr size_t b() const { return bytes; }
         constexpr size_t kb() const { return bytes / kilobyte; }

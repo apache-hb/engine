@@ -1,108 +1,45 @@
 #include "render/render.h"
 
-#include <array>
+using namespace engine::render;
 
-namespace engine::render {
-    constexpr float kBorderColour[] = { 0.f, 0.f, 0.f, 1.f };
+Context::Context(Create&& create): info(create) {
+    createDevice(); // create our render context
+    createViews(); // calculate our viewport and scissor rects
+    createDirectCommandQueue(); // create our direct command queue to present with
+    createUploadCommandQueue(); // create our upload command queue to copy with
+    createSwapChain(); // create our swap chain to present to an hwnd with
 
-    Context::Context(Context::Create&& create): info(create) {
-        buildViews();
-        createContext();
-        createDevice();
-        createBuffers();
-        createCopyPipeline();
-        createPipeline();
-        createScene();
-    }
+    // create our rtv heap to hold our swap chain buffers
+    // as well as our intermediate scene target
+    createRtvHeap();
 
-    Context::~Context() {
-        destroyCopyPipeline();
-        destroyScene();
-        destroyPipeline();
-        destroyBuffers(); 
-        destroyDevice();
-        destroyContext();
-    }
+    // create our constant buffers to store most shader visible data
+    // this includes our intermediate scene target
+    createCbvHeap();
 
-    void Context::populate() {
-        auto index = getCurrentFrameIndex();
-        auto target = frameData[index].target.get();
-        auto intermediate = intermediateRenderTarget;
-        auto rtvHandle = getRenderTargetCpuHandle(index);
-        ID3D12DescriptorHeap *heaps[] = { cbvHeap.get() };
+    // create our intermediate render target to render our scenes to
+    // this allows us to do resolution scaling and post processing
+    createSceneTarget();
 
-        D3D12_RESOURCE_BARRIER inTransitions[] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
-            CD3DX12_RESOURCE_BARRIER::Transition(intermediate.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-        };
+    // create our per-backbuffer data
+    createFrameData();
 
-        D3D12_RESOURCE_BARRIER outTransitions[] = {
-            CD3DX12_RESOURCE_BARRIER::Transition(target, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
-            CD3DX12_RESOURCE_BARRIER::Transition(intermediate.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
-        };
+    // create our fence for synchronization
+    createFence();
+}
 
-        directCommands->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
+Context::~Context() {
+    destroyFence();
+    destroyFrameData();
+    destroySceneTarget();
+    destroyRtvHeap();
+    destroyCbvHeap();
+    destroySwapChain();
+    destroyUploadCommandQueue();
+    destroyDirectCommandQueue();
+    destroyDevice();
+}
 
-        directCommands->RSSetScissorRects(1, &postView.scissor);
-        directCommands->RSSetViewports(1, &postView.viewport);
-
-        directCommands->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
-        directCommands->ClearRenderTargetView(rtvHandle, kBorderColour, 0, nullptr);
-
-        directCommands->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
-        directCommands->SetGraphicsRootSignature(rootSignature.get());
-        directCommands->SetGraphicsRootDescriptorTable(0, getIntermediateCbvGpuHandle());
-
-        directCommands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-        directCommands->IASetVertexBuffers(0, 1, &screenBuffer.view);
-        directCommands->DrawInstanced(4, 1, 0, 0);
-
-        directCommands->ResourceBarrier(UINT(std::size(outTransitions)), outTransitions);
-    }
-
-    bool Context::present() noexcept {
-        try {
-            directCommands.reset(getAllocator(Allocator::Direct).get(), pipelineState);
-            
-            populate();
-            
-            directCommands.close();
-
-            auto commands = std::to_array({ directCommands });
-            directCommandQueue.execute({ commands });
-
-            nextFrame(directCommandQueue);
-            return true;
-        } catch (const engine::Error& error) {
-            log::render->fatal("failed to present: {}", error.query());
-        }
-
-        return false;
-    }
-
-    void Context::waitForGpu(Queue queue) {
-        UINT64 &value = frameData[getCurrentFrameIndex()].fenceValue;
-        check(queue->Signal(fence.get(), value), "failed to signal fence");
-
-        check(fence->SetEventOnCompletion(value, fenceEvent), "failed to set fence event");
-        WaitForSingleObject(fenceEvent, INFINITE);
-
-        value += 1;
-    }
-
-    void Context::nextFrame(Queue queue) {
-        UINT64 value = frameData[getCurrentFrameIndex()].fenceValue;
-        check(queue->Signal(fence.get(), value), "failed to signal fence");
-        
-        frameIndex = swapchain->GetCurrentBackBufferIndex();
-
-        auto &current = frameData[getCurrentFrameIndex()].fenceValue;
-
-        if (fence->GetCompletedValue() < current) {
-            check(fence->SetEventOnCompletion(current, fenceEvent), "failed to set fence event");
-            WaitForSingleObject(fenceEvent, INFINITE);
-        }
-
-        current = value + 1;
-    }
+bool Context::present() {
+    return true;
 }

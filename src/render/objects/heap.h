@@ -4,12 +4,14 @@
 
 namespace engine::render {
     struct DescriptorHeap : Object<ID3D12DescriptorHeap> {
-        DescriptorHeap() = default;
-        DescriptorHeap(ID3D12Device* device, const D3D12_DESCRIPTOR_HEAP_DESC& desc);
+        using Super = Object<ID3D12DescriptorHeap>;
+        using Super::Super;
 
-        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(size_t offset);
-        CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(size_t offset);
+        DescriptorHeap(ID3D12DescriptorHeap* heap, UINT incrementSize, std::wstring_view name);
+    
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(UINT index);
+        CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(UINT index);
     private:
-        UINT descriptorSize;
+        UINT incrementSize = UINT_MAX;
     };
 }

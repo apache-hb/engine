@@ -1,10 +1,5 @@
 #pragma once
 
-#include "commands.h"
-#include "root.h"
-#include "queue.h"
-#include "pipeline.h"
-#include "library.h"
 #include "heap.h"
 
 namespace engine::render {
@@ -14,70 +9,51 @@ namespace engine::render {
     template<IsDevice T>
     struct Device : Object<T> {
         using Super = Object<T>;
-
-        Device() = default;
+        using Super::Super;
 
         Device(Object<ID3D12Device> device): Super(device.as<T>().get()) {
             if (!Super::valid()) { throw engine::Error("failed to create device"); }
-
-            rootVersion = highestRootVersion();
         }
 
-        Queue newCommandQueue(std::wstring_view name, const D3D12_COMMAND_QUEUE_DESC& desc) {
-            Queue queue(Super::get(), desc);
-            queue.rename(name);
-            return queue;
+        Object<ID3D12CommandQueue> newCommandQueue(std::wstring_view name, const D3D12_COMMAND_QUEUE_DESC& desc) {
+            ID3D12CommandQueue* queue = nullptr;
+            check(Super::get()->CreateCommandQueue(&desc, IID_PPV_ARGS(&queue)), "failed to create command queue");
+            return { queue, name };
         }
 
-        Object<ID3D12CommandAllocator> newAllocator(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type) {
-            Object<ID3D12CommandAllocator> allocator;
+        Object<ID3D12CommandAllocator> newCommandAllocator(std::wstring_view name, D3D12_COMMAND_LIST_TYPE type) {
+            ID3D12CommandAllocator* allocator = nullptr;
             check(Super::get()->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)), "failed to create command allocator");
-            allocator.rename(name);
-            return allocator;
+            return { allocator, name };
         }
 
-        DescriptorHeap newHeap(std::wstring_view name, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
-            auto heap = DescriptorHeap(Super::get(), desc);
-            heap.rename(name);
-            return heap;
+        DescriptorHeap newDescriptorHeap(std::wstring_view name, const D3D12_DESCRIPTOR_HEAP_DESC& desc) {
+            ID3D12DescriptorHeap* heap = nullptr;
+            check(Super::get()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap)), "failed to create descriptor heap");
+            auto incrementSize = Super::get()->GetDescriptorHandleIncrementSize(desc.Type);
+            return { heap, incrementSize, name };
         }
 
-        Commands newCommandList(std::wstring_view name, Object<ID3D12CommandAllocator> allocator, PipelineState state, D3D12_COMMAND_LIST_TYPE type) {
-            Commands commands(Super::get(), type, allocator.get(), state);
-            commands.rename(name);
-            return commands;
+        Object<ID3D12Resource> newCommittedResource(
+            std::wstring_view name, const D3D12_HEAP_PROPERTIES& heapProps, 
+            D3D12_HEAP_FLAGS flags, const D3D12_RESOURCE_DESC& desc, 
+            D3D12_RESOURCE_STATES initial, const D3D12_CLEAR_VALUE* clearValue = nullptr) {
+            ID3D12Resource* resource = nullptr;
+            
+            HRESULT hr = Super::get()->CreateCommittedResource(
+                &heapProps, flags,
+                &desc, initial, clearValue,
+                IID_PPV_ARGS(&resource)
+            );
+            check(hr, "failed to create committed resource");
+
+            return { resource, name };
         }
 
-        Bundle newCommandBundle(std::wstring_view name, Object<ID3D12CommandAllocator> allocator, PipelineState state) {
-            Bundle bundle(Super::get(), allocator.get(), state);
-            bundle.rename(name);
-            return bundle;
+        Object<ID3D12Fence> newFence(std::wstring_view name, UINT64 initial, D3D12_FENCE_FLAGS flags = D3D12_FENCE_FLAG_NONE) {
+            ID3D12Fence* fence = nullptr;
+            check(Super::get()->CreateFence(initial, flags, IID_PPV_ARGS(&fence)), "failed to create fence");
+            return { fence, name };
         }
-
-        RootSignature newRootSignature(std::wstring_view name, root::Create create) {
-            auto blob = root::compile(rootVersion, create);
-            RootSignature root(Super::get(), blob);
-            root.rename(name);
-            return root;
-        }
-
-        PipelineState newGraphicsPSO(std::wstring_view name, ShaderLibrary shaders, RootSignature root) {
-            PipelineState state(Super::get(), shaders, root);
-            state.rename(name);
-            return state;
-        }
-
-    private:
-        D3D_ROOT_SIGNATURE_VERSION highestRootVersion() {
-            D3D12_FEATURE_DATA_ROOT_SIGNATURE features = { .HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1 };
-
-            if (FAILED(Super::get()->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &features, sizeof(features)))) {
-                features.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-            }
-
-            return features.HighestVersion;
-        }
-
-        D3D_ROOT_SIGNATURE_VERSION rootVersion;
     };
 }
