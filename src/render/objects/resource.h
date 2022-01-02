@@ -14,7 +14,7 @@ namespace engine::render {
         void write(UINT subresource, const std::span<T> data) {
             writeBytes(subresource, data.data(), data.size() * sizeof(T));
         }
-    private:
+
         void writeBytes(UINT subresource, const void* data, size_t size);
     };
 }

@@ -2,14 +2,14 @@
 
 using namespace engine::render;
 
-void* Resource::map(UINT subresource, D3D12_RAGE* range) {
+void* Resource::map(UINT subresource, D3D12_RANGE* range) {
     void *data;
     check(Super::get()->Map(subresource, range, &data), "failed to map resource");
     return data;
 }
 
-void Resource::unmap(UINT subresource, D3D12_RANGE* range = nullptr) {
-    check(Super::get()->Unmap(subresource, range), "failed to unmap resource");
+void Resource::unmap(UINT subresource, D3D12_RANGE* range) {
+    Super::get()->Unmap(subresource, range);
 }
 
 void Resource::writeBytes(UINT subresource, const void* data, size_t size) {

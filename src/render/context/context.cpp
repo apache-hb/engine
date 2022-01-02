@@ -3,6 +3,10 @@
 using namespace engine::render;
 
 Context::Context(Create&& create): info(create) {
+    display = new DisplayViewport(this);
+}
+
+void Context::create() {
     createDevice(); // create our render context
     createViews(); // calculate our viewport and scissor rects
     createDirectCommandQueue(); // create our direct command queue to present with
@@ -26,9 +30,17 @@ Context::Context(Create&& create): info(create) {
 
     // create our fence for synchronization
     createFence();
+
+    // create our command lists
+    createCopyCommandList();
+
+    display->create();
 }
 
-Context::~Context() {
+void Context::destroy() {
+    display->destroy();
+    
+    destroyCopyCommandList();
     destroyFence();
     destroyFrameData();
     destroySceneTarget();

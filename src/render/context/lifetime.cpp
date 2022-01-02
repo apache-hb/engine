@@ -2,6 +2,9 @@
 
 #include "render/objects/commands.h"
 
+#include <array>
+#include <DirectXMath.h>
+
 using namespace engine::render;
 
 constexpr auto kSwapSampleCount = 1;
@@ -204,4 +207,16 @@ void Context::createFence() {
 void Context::destroyFence() {
     fence.tryDrop("fence");
     CloseHandle(fenceEvent);
+}
+
+void Context::createCopyCommandList() {
+    copyCommandList = device.newCommandList(L"copy-command-list", commands::kCopy, getAllocator(Allocator::Copy));
+}
+
+void Context::destroyCopyCommandList() {
+    copyCommandList.tryDrop("copy-command-list");
+
+    for (auto& resource : copyResources) {
+        resource.tryDrop("copy-resource");
+    }
 }

@@ -79,13 +79,6 @@ struct InputManager {
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
 
-#if 0
-    MainWindow() {
-        factory = new render::Factory();
-        context = new render::Context(factory);
-    }
-#endif
-
     virtual void onCreate(system::Window *window) override {
         context = new render::Context({
             .factory = new render::Factory(),
@@ -94,6 +87,9 @@ struct MainWindow final : WindowCallbacks {
             .buffers = 2,
             .resolution = { 1920, 1080 }
         });
+
+        context->create();
+        
 #if 0
         const auto frames = 2;
         render::Context::Create info = {
@@ -129,6 +125,8 @@ struct MainWindow final : WindowCallbacks {
 #if 0
         delete input;
 #endif
+
+        context->destroy();
 
         delete draw;
         delete context;

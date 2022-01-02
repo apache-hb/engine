@@ -13,7 +13,7 @@ Adapter::Adapter(IDXGIAdapter1* adapter): Super(adapter) {
 }
 
 Object<ID3D12Device> Adapter::createDevice(D3D_FEATURE_LEVEL level, std::wstring_view name, REFIID riid) {
-    log::render->info("creating device {}", strings::narrow(getName()));
+    log::render->info("creating device with adapter {}", strings::narrow(getName()));
 
     ID3D12Device* device = nullptr;
     HRESULT hr = D3D12CreateDevice(get(), level, riid, reinterpret_cast<void**>(&device));        

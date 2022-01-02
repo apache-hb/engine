@@ -3,8 +3,11 @@
 #include "objects/factory.h"
 #include "system/system.h"
 
+#include "viewport/viewport.h"
+#include "scene/scene.h"
+
 namespace engine::render {
-    namespace Resource {
+    namespace Resources {
         enum Index : int {
             SceneTarget,
             ImGui,
@@ -42,6 +45,9 @@ namespace engine::render {
         Object<ID3D12CommandAllocator> allocators[Allocator::Total];
     };
 
+    struct DisplayViewport;
+    struct Scene;
+
     struct Context {
         struct Create {
             Factory* factory;
@@ -52,7 +58,9 @@ namespace engine::render {
         };
 
         Context(Create&& create);
-        ~Context();
+
+        void create();
+        void destroy();
 
         bool present();
 
@@ -88,10 +96,16 @@ namespace engine::render {
         void createFence();
         void destroyFence();
 
+        void createCopyCommandList();
+        void destroyCopyCommandList();
 
+    public:
+
+        Resource uploadData(std::wstring_view name, const void* data, size_t size);
 
         Factory& getFactory();
         Adapter& getAdapter();
+        Device<ID3D12Device4>& getDevice();
         system::Window& getWindow();
         Resolution getDisplayResolution() const;
         Resolution getInternalResolution();
@@ -108,14 +122,19 @@ namespace engine::render {
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapCpuHandle(UINT index);
 
-        Object<ID3D12CommandAllocator> getAllocator(Allocator::Index index);
+        Object<ID3D12CommandAllocator>& getAllocator(Allocator::Index index);
         Object<ID3D12Resource> getTarget();
 
+    private:
 
         Device<ID3D12Device4> device;
 
         Object<ID3D12CommandQueue> directCommandQueue;
         Object<ID3D12CommandQueue> copyCommandQueue;
+
+        Object<ID3D12GraphicsCommandList> copyCommandList;
+
+        std::vector<Resource> copyResources;
 
         Com<IDXGISwapChain3> swapchain;
 
@@ -124,14 +143,14 @@ namespace engine::render {
 
         Object<ID3D12Resource> sceneTarget;
 
+        DisplayViewport *display;
+
         FrameData *frameData;
 
         UINT frameIndex;
 
-
         Object<ID3D12Fence> fence;
         HANDLE fenceEvent;
-
 
         View sceneView;
         View postView;
