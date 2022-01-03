@@ -15,7 +15,6 @@ namespace engine::render {
         ID3D12CommandList* populate();
 
     private:
-
         void createScreenQuad();
         void destroyScreenQuad();
 
@@ -32,7 +31,7 @@ namespace engine::render {
 
 
         Context* ctx;
-        Resource screenQuad;
+        VertexBuffer screenQuad;
         ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;
         Object<ID3D12RootSignature> rootSignature;

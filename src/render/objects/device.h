@@ -2,12 +2,14 @@
 
 #include "heap.h"
 #include "resource.h"
+#include "signature.h"
+#include "library.h"
 
 namespace engine::render {
-    struct RootCreate {
-        std::span<const CD3DX12_ROOT_PARAMETER1> params;
-        std::span<const D3D12_STATIC_SAMPLER_DESC> samplers;
-        D3D12_ROOT_SIGNATURE_FLAGS flags;
+    struct GraphicsPSOCreate {
+        ShaderLibrary shaders;
+        D3D12_DEPTH_STENCIL_DESC dsvDesc;
+        DXGI_FORMAT dsvFormat;
     };
 
     template<typename T>
@@ -68,6 +70,38 @@ namespace engine::render {
             ID3D12Fence* fence = nullptr;
             check(Super::get()->CreateFence(initial, flags, IID_PPV_ARGS(&fence)), "failed to create fence");
             return { fence, name };
+        }
+
+        Object<ID3D12RootSignature> newRootSignature(std::wstring_view name, const RootCreate& info) {
+            auto blob = compileRootSignature(rootVersion, info);
+            ID3D12RootSignature* signature = nullptr;
+            check(Super::get()->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&signature)), "failed to create root signature");
+            return { signature, name };
+        }
+
+        Object<ID3D12PipelineState> newGraphicsPSO(std::wstring_view name, Object<ID3D12RootSignature> root, GraphicsPSOCreate info) {
+            auto& shaders = info.shaders;
+
+            ID3D12PipelineState* pso = nullptr;
+            D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {
+                .pRootSignature = root.get(),
+                .VS = shaders.vertex(),
+                .PS = shaders.pixel(),
+                .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+                .SampleMask = UINT_MAX,
+                .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+                .DepthStencilState = info.dsvDesc,
+                .InputLayout = shaders.layout(),
+                .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+                .NumRenderTargets = 1,
+                .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+                .DSVFormat = info.dsvFormat,
+                .SampleDesc = { 1 }
+            };
+
+            check(Super::get()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso)), "failed to create graphics pipeline state");
+
+            return { pso, name };
         }
 
     private:

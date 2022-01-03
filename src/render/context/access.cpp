@@ -19,13 +19,13 @@ system::Window& Context::getWindow() {
     return *info.window;
 }
 
-Resolution Context::getDisplayResolution() const {
-    return info.resolution;
+Resolution Context::getDisplayResolution() {
+    auto [width, height] = getWindow().getClientSize();
+    return { UINT(width), UINT(height) };
 }
 
 Resolution Context::getInternalResolution() {
-    auto [width, height] = getWindow().getClientSize();
-    return { UINT(width), UINT(height) };
+    return info.resolution;
 }
 
 DXGI_FORMAT Context::getFormat() const {
@@ -40,6 +40,14 @@ UINT Context::getCurrentFrame() const {
     return frameIndex;
 }
 
+View Context::getPostView() const {
+    return postView;
+}
+
+View Context::getSceneView() const {
+    return sceneView;
+}
+
 Object<ID3D12CommandAllocator>& Context::getAllocator(Allocator::Index index) {
     const auto frame = getCurrentFrame();
     return frameData[frame].allocators[size_t(index)];
@@ -48,6 +56,14 @@ Object<ID3D12CommandAllocator>& Context::getAllocator(Allocator::Index index) {
 Object<ID3D12Resource> Context::getTarget() {
     const auto frame = getCurrentFrame();
     return frameData[frame].target;
+}
+
+Object<ID3D12Resource> Context::getSceneTarget() {
+    return sceneTarget;
+}
+
+DescriptorHeap Context::getCbvHeap() {
+    return cbvHeap;
 }
 
 UINT Context::requiredRtvHeapSize() const {

@@ -21,17 +21,18 @@ src = [
     'src/render/context/lifetime.cpp',
     'src/render/context/access.cpp',
     'src/render/context/upload.cpp',
+    'src/render/context/sync.cpp',
 
     'src/render/viewport/viewport.cpp',
 
     # scene rendering
-    #'src/render/scene/scene.cpp',
+    'src/render/scene/scene3d.cpp',
 
     # d3d wrapper objects
     'src/render/objects/factory.cpp',
     'src/render/objects/resource.cpp',
     'src/render/objects/library.cpp',
-    #'src/render/objects/compute.cpp',
+    'src/render/objects/signature.cpp',
     'src/render/objects/heap.cpp',
     #'src/render/objects/commands.cpp',
     #'src/render/objects/queue.cpp',

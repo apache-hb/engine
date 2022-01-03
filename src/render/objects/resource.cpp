@@ -2,6 +2,10 @@
 
 using namespace engine::render;
 
+D3D12_GPU_VIRTUAL_ADDRESS Resource::gpuAddress() {
+    return get()->GetGPUVirtualAddress();
+}
+
 void* Resource::map(UINT subresource, D3D12_RANGE* range) {
     void *data;
     check(Super::get()->Map(subresource, range, &data), "failed to map resource");

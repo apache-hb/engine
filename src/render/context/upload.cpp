@@ -36,3 +36,23 @@ Resource Context::uploadData(std::wstring_view name, const void* data, size_t si
 
     return defaultResource;
 }
+
+void Context::finishCopy() {
+    if (copyResources.empty()) {
+        return;
+    }
+
+    check(copyCommandList->Close(), "failed to close copy command list");
+
+    ID3D12CommandList* commandLists[] = { copyCommandList.get() };
+    copyCommandQueue->ExecuteCommandLists(1, commandLists);
+
+    check(copyCommandQueue->Signal(copyFence.get(), ++copyFenceValue), "failed to signal copy fence");
+    check(copyFence->SetEventOnCompletion(copyFenceValue, copyFenceEvent), "failed to set fence event");
+    WaitForSingleObject(copyFenceEvent, INFINITE);
+
+    for (auto& resource : copyResources) {
+        resource.tryDrop("copy-resource");
+    }
+    copyResources.clear();
+}

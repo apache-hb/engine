@@ -1,5 +1,9 @@
 #pragma once
 
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_win32.h"
+#include "imgui/backends/imgui_impl_dx12.h"
+
 #include "viewport.h"
 
 #include "render/objects/commands.h"
@@ -9,11 +13,14 @@
 #include <array>
 #include <DirectXMath.h>
 
+using namespace DirectX;
 using namespace engine::render;
 
+constexpr float kBorderColour[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
 struct ScreenVertex {
-    DirectX::XMFLOAT4 position;
-    DirectX::XMFLOAT2 texcoord;
+    XMFLOAT4 position;
+    XMFLOAT2 texcoord;
 };
 
 constexpr auto kScreenQuad = std::to_array<ScreenVertex>({
@@ -75,18 +82,87 @@ DisplayViewport::DisplayViewport(Context* context): ctx(context) {
 
 void DisplayViewport::create() {
     createScreenQuad();
+    createRootSignature();
+    createPipelineState();
+    createCommandList();
+
+    auto heap = ctx->getCbvHeap();
+
+    ImGui_ImplDX12_Init(getDevice().get(), ctx->getBufferCount(),
+        ctx->getFormat(), heap.get(),
+        heap.cpuHandle(Resources::ImGui),
+        heap.gpuHandle(Resources::ImGui)
+    );
 }
 
 void DisplayViewport::destroy() {
+    ImGui_ImplDX12_Shutdown();
+
+    destroyCommandList();
+    destroyPipelineState();
+    destroyRootSignature();
     destroyScreenQuad();
 }
 
 ID3D12CommandList* DisplayViewport::populate() {
+    ImGui_ImplDX12_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    ImGui::ShowDemoWindow();
+
+    ImGui::Render();
+
+    auto drawData = ImGui::GetDrawData();
+    const auto frame = ctx->getCurrentFrame();
+    const auto [scissor, viewport] = ctx->getPostView();
+
+    auto& allocator = ctx->getAllocator(Allocator::Viewport);
+    auto target = ctx->getTarget();
+    auto sceneTarget = ctx->getSceneTarget();
+    auto targetHandle = ctx->rtvHeapCpuHandle(frame);
+    auto heap = ctx->getCbvHeap();
+    ID3D12DescriptorHeap* heaps[] = { heap.get() };
+
+    D3D12_RESOURCE_BARRIER inTransitions[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(target.get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET),
+        CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+    };
+
+    D3D12_RESOURCE_BARRIER outTransitions[] = {
+        CD3DX12_RESOURCE_BARRIER::Transition(target.get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT),
+        CD3DX12_RESOURCE_BARRIER::Transition(sceneTarget.get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET)
+    };
+
+    check(allocator->Reset(), "failed to reset viewport allocator");
+    check(commandList->Reset(allocator.get(), pipelineState.get()), "failed to reset viewport command list");
+
+    commandList->ResourceBarrier(UINT(std::size(inTransitions)), inTransitions);
+
+    commandList->RSSetScissorRects(1, &scissor);
+    commandList->RSSetViewports(1, &viewport);
+
+    commandList->OMSetRenderTargets(1, &targetHandle, false, nullptr);
+    commandList->ClearRenderTargetView(targetHandle, kBorderColour, 0, nullptr);
+
+    commandList->SetGraphicsRootSignature(rootSignature.get());
+    commandList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
+    commandList->SetGraphicsRootDescriptorTable(0, heap.gpuHandle(Resources::SceneTarget));
+
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    commandList->IASetVertexBuffers(0, 1, &screenQuad.view);
+    commandList->DrawInstanced(4, 1, 0, 0);
+
+    ImGui_ImplDX12_RenderDrawData(drawData, commandList.get());
+
+    commandList->ResourceBarrier(UINT(std::size(outTransitions)), outTransitions);
+
+    check(commandList->Close(), "failed to close viewport command list");
     return commandList.get();
 }
 
 void DisplayViewport::createScreenQuad() {
-    screenQuad = ctx->uploadData(L"screen-quad", kScreenQuad.data(), kScreenQuad.size() * sizeof(ScreenVertex));
+    screenQuad = ctx->uploadVertexBuffer<ScreenVertex>(L"screen-quad", kScreenQuad);
 }
 
 void DisplayViewport::destroyScreenQuad() {
@@ -96,8 +172,9 @@ void DisplayViewport::destroyScreenQuad() {
 
 
 void DisplayViewport::createCommandList() {
-    auto& allocator = ctx->getAllocator(Allocator::Target);
+    auto& allocator = ctx->getAllocator(Allocator::Viewport);
     commandList = getDevice().newCommandList(L"viewport-command-list", commands::kDirect, allocator);
+    check(commandList->Close(), "failed to close viewport command list");
 }
 
 void DisplayViewport::destroyCommandList() {
@@ -107,7 +184,7 @@ void DisplayViewport::destroyCommandList() {
 
 
 void DisplayViewport::createRootSignature() {
-
+    rootSignature = getDevice().newRootSignature(L"viewport-root-signature", kRootInfo);
 }
 
 void DisplayViewport::destroyRootSignature() {
@@ -117,7 +194,10 @@ void DisplayViewport::destroyRootSignature() {
 
 
 void DisplayViewport::createPipelineState() {
-
+    pipelineState = getDevice().newGraphicsPSO(L"viewport-pipeline-state", rootSignature, {
+        .shaders = shaders,
+        .dsvFormat = DXGI_FORMAT_UNKNOWN
+    });
 }
 
 void DisplayViewport::destroyPipelineState() {

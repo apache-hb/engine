@@ -7,6 +7,8 @@
 #include "scene/scene.h"
 
 namespace engine::render {
+    constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+
     namespace Resources {
         enum Index : int {
             SceneTarget,
@@ -17,14 +19,15 @@ namespace engine::render {
 
     namespace Allocator {
         enum Index : int {
-            Target,
+            Viewport,
+            Scene,
             Copy,
             Total
         };
 
         constexpr D3D12_COMMAND_LIST_TYPE getType(Index index) {
             switch (index) {
-            case Target: return D3D12_COMMAND_LIST_TYPE_DIRECT;
+            case Viewport: case Scene: return D3D12_COMMAND_LIST_TYPE_DIRECT;
             case Copy: return D3D12_COMMAND_LIST_TYPE_COPY;
             default: throw engine::Error("invalid allocator index");
             }
@@ -32,7 +35,8 @@ namespace engine::render {
 
         constexpr std::wstring_view getName(Index index) {
             switch (index) {
-            case Target: return L"target";
+            case Viewport: return L"viewport";
+            case Scene: return L"scene";
             case Copy: return L"copy";
             default: throw engine::Error("invalid allocator index");
             }
@@ -55,6 +59,9 @@ namespace engine::render {
             system::Window* window;
             UINT buffers;
             Resolution resolution;
+
+            DisplayViewport*(*getViewport)(Context*);
+            Scene*(*getScene)(Context*);
         };
 
         Context(Create&& create);
@@ -99,18 +106,38 @@ namespace engine::render {
         void createCopyCommandList();
         void destroyCopyCommandList();
 
-    public:
+        void createCopyFence();
+        void destroyCopyFence();
 
+        void waitForGpu();
+        void nextFrame();
+
+        void finishCopy();
+    public:
         Resource uploadData(std::wstring_view name, const void* data, size_t size);
+
+        template<typename T>
+        VertexBuffer uploadVertexBuffer(std::wstring_view name, std::span<const T> data) {
+            auto resource = uploadData(name, data.data(), data.size_bytes());
+            D3D12_VERTEX_BUFFER_VIEW view = { 
+                .BufferLocation = resource.gpuAddress(), 
+                .SizeInBytes = UINT(data.size_bytes()), 
+                .StrideInBytes = sizeof(T) 
+            };
+            return { resource, view };
+        }
 
         Factory& getFactory();
         Adapter& getAdapter();
         Device<ID3D12Device4>& getDevice();
         system::Window& getWindow();
-        Resolution getDisplayResolution() const;
+        Resolution getDisplayResolution();
         Resolution getInternalResolution();
         DXGI_FORMAT getFormat() const;
         UINT getBufferCount() const;
+
+        View getPostView() const;
+        View getSceneView() const;
 
         UINT getCurrentFrame() const;
 
@@ -124,9 +151,10 @@ namespace engine::render {
 
         Object<ID3D12CommandAllocator>& getAllocator(Allocator::Index index);
         Object<ID3D12Resource> getTarget();
+        Object<ID3D12Resource> getSceneTarget();
+        DescriptorHeap getCbvHeap();
 
     private:
-
         Device<ID3D12Device4> device;
 
         Object<ID3D12CommandQueue> directCommandQueue;
@@ -143,14 +171,19 @@ namespace engine::render {
 
         Object<ID3D12Resource> sceneTarget;
 
-        DisplayViewport *display;
+        Scene* scene;
+        DisplayViewport* display;
 
-        FrameData *frameData;
+        FrameData* frameData;
 
         UINT frameIndex;
 
         Object<ID3D12Fence> fence;
         HANDLE fenceEvent;
+
+        Object<ID3D12Fence> copyFence;
+        HANDLE copyFenceEvent;
+        UINT64 copyFenceValue;
 
         View sceneView;
         View postView;

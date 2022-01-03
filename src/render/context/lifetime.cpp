@@ -10,9 +10,6 @@ using namespace engine::render;
 constexpr auto kSwapSampleCount = 1;
 constexpr auto kSwapSampleQuality = 0;
 
-constexpr float kClearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-constexpr float kBorderColour[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
 constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
 void Context::createDevice() {
@@ -36,8 +33,11 @@ void Context::createViews() {
     float x = 1.f;
     float y = 1.f;
 
-    if (widthRatio < heightRatio) { x = widthRatio / heightRatio; } 
-    else { y = heightRatio / widthRatio; }
+    if (widthRatio < heightRatio) { 
+        x = widthRatio / heightRatio; 
+    } else { 
+        y = heightRatio / widthRatio; 
+    }
 
     auto left = float(displayWidth) * (1.f - x) / 2.f;
     auto top = float(displayHeight) * (1.f - y) / 2.f;
@@ -45,8 +45,8 @@ void Context::createViews() {
     auto height = float(displayHeight * y);
 
     // set our viewport and scissor rects
-    sceneView = View(left, top, width, height);
-    postView = View(0.f, 0.f, float(internalWidth), float(internalHeight));
+    postView = View(top, left, width, height);
+    sceneView = View(0.f, 0.f, float(internalWidth), float(internalHeight));
 
     displayResolution = Resolution(displayWidth, displayHeight);
     sceneResolution = Resolution(internalWidth, internalHeight);
@@ -127,7 +127,7 @@ void Context::destroyCbvHeap() {
 void Context::createSceneTarget() {
     const auto format = getFormat();
     const auto [width, height] = getInternalResolution();
-    const auto clearValue = CD3DX12_CLEAR_VALUE(format, kClearColor);
+    const auto clearValue = CD3DX12_CLEAR_VALUE(format, kClearColour);
     const auto targetDesc = CD3DX12_RESOURCE_DESC::Tex2D(
         /* format = */ format,
         /* width = */ width,
@@ -219,4 +219,18 @@ void Context::destroyCopyCommandList() {
     for (auto& resource : copyResources) {
         resource.tryDrop("copy-resource");
     }
+}
+
+void Context::createCopyFence() {
+    copyFence = device.newFence(L"copy-fence", 0);
+    copyFenceValue = 1;
+
+    if ((copyFenceEvent = CreateEvent(nullptr, false, false, nullptr)) == nullptr) {
+        throw win32::Error("failed to create copy fence event");
+    }
+}
+
+void Context::destroyCopyFence() {
+    copyFence.tryDrop("copy-fence");
+    CloseHandle(copyFenceEvent);
 }

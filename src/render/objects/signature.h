@@ -20,7 +20,7 @@ namespace engine::render {
         });
     }
 
-    constexpr CD3DX12_DESCRIPTOR_RANGE1 srvRange(UINT reg, UINT count, UINT space = 0, D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC) {
+    constexpr CD3DX12_DESCRIPTOR_RANGE1 srvRange(UINT reg, UINT count, UINT space = 0, D3D12_DESCRIPTOR_RANGE_FLAGS flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE) {
         return CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, count, reg, space, flags);
     }
 
@@ -46,4 +46,12 @@ namespace engine::render {
             .ShaderVisibility = visibility
         });
     }
+
+    struct RootCreate {
+        std::span<const CD3DX12_ROOT_PARAMETER1> params;
+        std::span<const D3D12_STATIC_SAMPLER_DESC> samplers;
+        D3D12_ROOT_SIGNATURE_FLAGS flags;
+    };
+
+    Com<ID3DBlob> compileRootSignature(D3D_ROOT_SIGNATURE_VERSION version, const RootCreate& info);
 }

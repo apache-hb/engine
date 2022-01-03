@@ -3,6 +3,7 @@
 #include "util/error.h"
 #include "logging/log.h"
 #include "util/strings.h"
+#include "util/macros.h"
 
 #include <d3dx12.h>
 
@@ -74,11 +75,15 @@ namespace engine::render {
         const T *get() const { return self; }
         const T **addr() const { return &self; }
 
-        void drop(std::string_view name = "") {
+        void drop(UNUSED std::string_view name = "") {
             auto refs = release();
+
+#if D3D12_DEBUG
+            self = nullptr;
             if (refs > 0) {
                 log::render->fatal("failed to drop {}, {} references are still held", name, refs);
             }
+#endif
         }
 
         void tryDrop(std::string_view name = "") {

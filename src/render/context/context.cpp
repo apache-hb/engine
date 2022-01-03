@@ -3,7 +3,8 @@
 using namespace engine::render;
 
 Context::Context(Create&& create): info(create) {
-    display = new DisplayViewport(this);
+    display = info.getViewport(this);
+    scene = info.getScene(this);
 }
 
 void Context::create() {
@@ -34,12 +35,22 @@ void Context::create() {
     // create our command lists
     createCopyCommandList();
 
+    createCopyFence();
+
     display->create();
+    scene->create();
+
+    finishCopy();
+    waitForGpu();
 }
 
 void Context::destroy() {
+    waitForGpu();
+
+    scene->destroy();
     display->destroy();
-    
+
+    destroyCopyFence();
     destroyCopyCommandList();
     destroyFence();
     destroyFrameData();
@@ -53,5 +64,15 @@ void Context::destroy() {
 }
 
 bool Context::present() {
+    auto sceneList = scene->populate();
+    auto viewList = display->populate();
+
+    ID3D12CommandList* lists[] = { sceneList, viewList };
+    directCommandQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
+
+    check(swapchain->Present(0, getFactory().presentFlags()), "Present failed");
+
+    nextFrame();
+
     return true;
 }
