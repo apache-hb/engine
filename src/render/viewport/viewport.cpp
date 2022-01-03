@@ -109,6 +109,15 @@ ID3D12CommandList* DisplayViewport::populate() {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
+    auto info = ctx->getAdapter().getMemoryInfo();
+
+    ImGui::Begin("Memory Info");
+        ImGui::Text("budget: %s", info.budget.string().c_str());
+        ImGui::Text("used: %s", info.used.string().c_str());
+        ImGui::Text("available: %s", info.available.string().c_str());
+        ImGui::Text("committed: %s", info.committed.string().c_str());
+    ImGui::End();
+
     ImGui::ShowDemoWindow();
 
     ImGui::Render();

@@ -32,6 +32,21 @@ std::wstring_view Adapter::getName() const {
     return desc.Description;
 }
 
+VideoMemoryInfo Adapter::getMemoryInfo() {
+    if (auto it = as<IDXGIAdapter3>(); it.valid()) {
+        DXGI_QUERY_VIDEO_MEMORY_INFO info;
+        check(it->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info), "failed to query memory info");
+        return { 
+            .budget = units::Memory(info.Budget), 
+            .used = units::Memory(info.CurrentUsage), 
+            .available = units::Memory(info.AvailableForReservation), 
+            .committed = units::Memory(info.CurrentReservation) 
+        };
+    } else {
+        return { };
+    }
+}
+
 Factory::Factory() {
     check(CreateDXGIFactory2(kFactoryFlags, IID_PPV_ARGS(addr())), "failed to create factory");
     

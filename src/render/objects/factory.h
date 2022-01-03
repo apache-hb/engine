@@ -1,10 +1,18 @@
 #pragma once
 
 #include "device.h"
+#include "util/units.h"
 
 #include <dxgi1_6.h>
 
 namespace engine::render {
+    struct VideoMemoryInfo {
+        units::Memory budget; /// how much memory windows wants us to use
+        units::Memory used; /// how much memory is current in used
+        units::Memory available; /// how much memory we can reserve
+        units::Memory committed; /// how much memory is available only to us
+    };
+
     struct Adapter : Com<IDXGIAdapter1> {
         using Super = Com<IDXGIAdapter1>;
         using Super::Super;
@@ -17,6 +25,8 @@ namespace engine::render {
         }
 
         std::wstring_view getName() const;
+
+        VideoMemoryInfo getMemoryInfo();
 
     private:
         DXGI_ADAPTER_DESC1 desc;
