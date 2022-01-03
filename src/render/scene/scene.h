@@ -1,6 +1,6 @@
 #pragma once
 
-#include "render/util.h"
+#include "render/objects/resource.h"
 
 namespace engine::render {
     struct Context;
@@ -28,11 +28,20 @@ namespace engine::render {
 
         virtual ID3D12CommandList* populate() override;
 
-    protected:
+    private:
         void createCommandList();
         void destroyCommandList();
-        
+
+        void createDsvHeap();
+        void destroyDsvHeap();
+
+        void createDepthStencil();
+        void destroyDepthStencil();
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle();
+
         Object<ID3D12DescriptorHeap> dsvHeap;
+        Resource depthStencil;
         Object<ID3D12GraphicsCommandList> commandList;
         Object<ID3D12RootSignature> rootSignature;
         Object<ID3D12PipelineState> pipelineState;
