@@ -1,5 +1,6 @@
 #include "render/render.h"
 
+#include "render/objects/factory.h"
 #include "render/objects/commands.h"
 
 #include <array>

@@ -1,5 +1,7 @@
 #include "render/render.h"
 
+#include "render/objects/factory.h"
+
 using namespace engine;
 using namespace engine::render;
 

@@ -6,6 +6,7 @@
 #include "util/macros.h"
 
 #include <d3dx12.h>
+#include <dxgi1_6.h>
 
 #include <vector>
 #include <span>

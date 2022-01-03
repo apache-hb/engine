@@ -6,6 +6,7 @@
 
 #include "viewport.h"
 
+#include "render/objects/factory.h"
 #include "render/objects/commands.h"
 #include "render/objects/signature.h"
 #include "render/render.h"
@@ -105,25 +106,31 @@ void DisplayViewport::destroy() {
 }
 
 ID3D12CommandList* DisplayViewport::populate() {
+    const auto [internalWidth, internalHeight] = ctx->sceneResolution;
+    const auto [displayWidth, displayHeight] = ctx->displayResolution;
+
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
     auto info = ctx->getAdapter().getMemoryInfo();
 
-    ImGui::Begin("Memory Info");
+    ImGui::Begin("Render Info");
         ImGui::Text("budget: %s", info.budget.string().c_str());
         ImGui::Text("used: %s", info.used.string().c_str());
         ImGui::Text("available: %s", info.available.string().c_str());
         ImGui::Text("committed: %s", info.committed.string().c_str());
+        ImGui::Separator();
+        ImGui::Text("internal resolution: %ux%u", internalWidth, internalHeight);
+        ImGui::Text("display resolution: %ux%u", displayWidth, displayHeight);
     ImGui::End();
 
     ImGui::ShowDemoWindow();
 
     ImGui::Render();
 
-    auto drawData = ImGui::GetDrawData();
     const auto frame = ctx->getCurrentFrame();
+    auto drawData = ImGui::GetDrawData();
     const auto [scissor, viewport] = ctx->getPostView();
 
     auto& allocator = ctx->getAllocator(Allocator::Viewport);

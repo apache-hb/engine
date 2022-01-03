@@ -1,6 +1,7 @@
 #include "logging/log.h"
 #include "system/system.h"
 #include "render/render.h"
+#include "render/objects/factory.h"
 #include "render/debug/debug.h"
 #include "util/strings.h"
 #include "util/timer.h"

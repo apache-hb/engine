@@ -3,6 +3,8 @@
 #include <algorithm>
 
 namespace engine::input {
+    constexpr auto kPitchLimit = XM_PIDIV4;
+
     void Camera::move(float x, float z, float y) {
         auto inX = x;
         auto inY = y;
@@ -19,17 +21,15 @@ namespace engine::input {
         }
 
         float newX = (move.x * -cosf(yaw) - move.z * sinf(yaw)) + pos.x;
-        float newY = (move.y) + pos.y;
+        float newY = move.y + pos.y;
         float newZ = (move.x * sinf(yaw) - move.z * cosf(yaw)) + pos.z;
 
         position = XMFLOAT3(newX, newY, newZ);
     }
 
-    constexpr auto pitchLimit = XM_PIDIV4;
-
     void Camera::rotate(float yawChange, float pitchChange) {
         // clamp pitch to prevent camera flipping
-        float newPitch = std::clamp(pitch + pitchChange, -pitchLimit, pitchLimit);
+        float newPitch = std::clamp(pitch + pitchChange, -kPitchLimit, kPitchLimit);
         float newYaw = yaw - yawChange;
 
         float rot = cosf(newPitch);

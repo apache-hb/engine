@@ -1,12 +1,16 @@
 #pragma once
 
-#include "objects/factory.h"
 #include "system/system.h"
 
 #include "viewport/viewport.h"
 #include "scene/scene.h"
 
 namespace engine::render {
+    struct DisplayViewport;
+    struct Scene;
+    struct Factory;
+    struct Adapter;
+
     constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
     namespace Resources {
@@ -48,9 +52,6 @@ namespace engine::render {
         Object<ID3D12Resource> target;
         Object<ID3D12CommandAllocator> allocators[Allocator::Total];
     };
-
-    struct DisplayViewport;
-    struct Scene;
 
     struct Context {
         struct Create {
@@ -188,6 +189,8 @@ namespace engine::render {
         View sceneView;
         View postView;
 
+    public:
+    
         Resolution displayResolution;
         Resolution sceneResolution;
     };
