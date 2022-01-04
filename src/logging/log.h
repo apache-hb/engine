@@ -45,8 +45,8 @@ namespace engine::log {
         std::string_view channel() const { return name; }
 
     private:
-        bool sanitize;
         std::string_view name;
+        bool sanitize;
         Level level = INFO;
     };
 

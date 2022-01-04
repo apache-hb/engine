@@ -1,9 +1,7 @@
 #pragma once
 
 #include "system/system.h"
-
-#include "viewport/viewport.h"
-#include "scene/scene.h"
+#include "render/objects/device.h"
 
 namespace engine::render {
     struct DisplayViewport;
@@ -51,6 +49,13 @@ namespace engine::render {
         UINT64 fenceValue;
         Object<ID3D12Resource> target;
         Object<ID3D12CommandAllocator> allocators[Allocator::Total];
+    };
+
+    struct TextureData {
+        UINT width;
+        UINT height;
+        UINT component;
+        std::span<const uint8_t> data;
     };
 
     struct Context {
@@ -114,8 +119,10 @@ namespace engine::render {
         void nextFrame();
 
         void finishCopy();
+
     public:
         Resource uploadData(std::wstring_view name, const void* data, size_t size);
+        Resource uploadTexture(std::wstring_view name, const TextureData& data);
 
         template<typename T>
         VertexBuffer uploadVertexBuffer(std::wstring_view name, std::span<const T> data) {

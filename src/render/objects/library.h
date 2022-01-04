@@ -15,6 +15,8 @@ namespace engine::render {
         return { name.data(), 0, format, 0, offset, classification, 0 };
     }
 
+    void enableSm6();
+
     struct ShaderLibrary {
         struct Create {
             std::wstring_view path;
@@ -25,8 +27,16 @@ namespace engine::render {
             std::span<ShaderInput> layout;
         };
 
+        struct CreateBinary {
+            std::wstring_view vsPath;
+            std::wstring_view psPath;
+
+            std::span<ShaderInput> layout;
+        };
+
         ShaderLibrary() = default;
         ShaderLibrary(Create create);
+        ShaderLibrary(CreateBinary create);
 
         D3D12_INPUT_LAYOUT_DESC layout() const;
 
@@ -34,8 +44,7 @@ namespace engine::render {
         CD3DX12_SHADER_BYTECODE pixel();
 
     private:
-        Create create;
-
+        std::span<ShaderInput> inputs;
         Com<ID3DBlob> vsBlob;
         Com<ID3DBlob> psBlob;
     };

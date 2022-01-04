@@ -2,6 +2,9 @@
 
 #include "render/objects/factory.h"
 
+#include "render/viewport/viewport.h"
+#include "render/scene/scene.h"
+
 using namespace engine::render;
 
 Context::Context(Create&& create): info(create) {

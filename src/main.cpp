@@ -2,11 +2,12 @@
 #include "system/system.h"
 #include "render/render.h"
 #include "render/objects/factory.h"
+#include "render/viewport/viewport.h"
+#include "render/scene/gltfscene.h"
 #include "render/debug/debug.h"
 #include "util/strings.h"
 #include "util/timer.h"
 #include "input/inputx.h"
-#include "input/camera.h"
 #include "input/mnk.h"
 #include "util/macros.h"
 #include "assets/loader.h"
@@ -32,20 +33,24 @@ struct MainWindow final : WindowCallbacks {
             .buffers = 2,
             .resolution = { 1920 / 2, 1080 / 2 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx); }
+            .getScene = [](auto* ctx) -> render::Scene* { return new render::GltfScene(ctx, "resources\\sponza-gltf\\Sponza.gltf"); }
         });
         
         draw = new std::jthread([this](auto stop) { 
-            context->create();
+            try {
+                context->create();
 
-            while (!stop.stop_requested()) {
-                if (!context->present()) {
-                    log::global->fatal("present failed");
-                    break;
+                while (!stop.stop_requested()) {
+                    if (!context->present()) {
+                        log::global->fatal("present failed");
+                        break;
+                    }
                 }
-            }
 
-            context->destroy();
+                context->destroy();
+            } catch (const engine::Error& error) {
+                log::global->fatal("{}", error.what());
+            }
         });
     }
 

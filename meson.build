@@ -23,10 +23,13 @@ src = [
     'src/render/context/upload.cpp',
     'src/render/context/sync.cpp',
 
+    'src/render/camera/camera.cpp',
+
     'src/render/viewport/viewport.cpp',
 
     # scene rendering
     'src/render/scene/scene3d.cpp',
+    'src/render/scene/gltfscene.cpp',
 
     # d3d wrapper objects
     'src/render/objects/factory.cpp',
@@ -53,7 +56,6 @@ src = [
 
     'src/input/inputx.cpp',
     'src/input/mnk.cpp',
-    'src/input/camera.cpp',
 
     'src/main.cpp'
 ]

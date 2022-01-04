@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace engine::input {
+namespace engine::render {
     constexpr auto kPitchLimit = XM_PIDIV4;
 
     void Camera::move(float x, float z, float y) {
@@ -39,7 +39,7 @@ namespace engine::input {
         yaw = newYaw;
     }
 
-    void Camera::store(XMFLOAT4X4 *view, XMFLOAT4X4 *projection, float aspect) const {
+    void Camera::store(XMFLOAT4X4* view, XMFLOAT4X4* projection, float aspect) const {
         auto where = position.load();
         auto look = direction.load();
 

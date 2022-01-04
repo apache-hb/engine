@@ -1,9 +1,19 @@
 #pragma once
 
 #include "render/objects/resource.h"
+#include "render/objects/library.h"
+#include "render/objects/device.h"
+#include "render/camera/camera.h"
 
 namespace engine::render {
     struct Context;
+
+    namespace SceneData {
+        enum Index : int {
+            Camera,
+            Total
+        };
+    }
 
     struct Scene {
         Scene(Context* context): ctx(context) { }
@@ -20,13 +30,24 @@ namespace engine::render {
     };
 
     struct Scene3D : Scene {
-        Scene3D(Context* context): Scene(context) { }
+        Scene3D(Context* context);
         virtual ~Scene3D() = default;
 
         virtual void create() override;
         virtual void destroy() override;
 
         virtual ID3D12CommandList* populate() override;
+
+        Camera camera;
+
+    protected:
+        virtual UINT requiredCbvSrvSize() const = 0;
+
+        void begin();
+        void end();
+
+        CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(UINT index);
+        CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 
     private:
         void createCommandList();
@@ -35,13 +56,37 @@ namespace engine::render {
         void createDsvHeap();
         void destroyDsvHeap();
 
+        void createCbvSrvHeap();
+        void destroyCbvSrvHeap();
+
+        void createCameraBuffer();
+        void destroyCameraBuffer();
+
         void createDepthStencil();
         void destroyDepthStencil();
 
+        void createRootSignature();
+        void destroyRootSignature();
+
+        void createPipelineState();
+        void destroyPipelineState();
+
+        UINT getRequiredCbvSrvSize() const;
+
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle();
+        Device<ID3D12Device4>& getDevice();
 
         Object<ID3D12DescriptorHeap> dsvHeap;
         Resource depthStencil;
+
+        DescriptorHeap cbvSrvHeap;
+
+        CameraBuffer cameraBuffer;
+        CameraBuffer *cameraData;
+        Resource cameraResource;
+
+    protected:
+        ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;
         Object<ID3D12RootSignature> rootSignature;
         Object<ID3D12PipelineState> pipelineState;

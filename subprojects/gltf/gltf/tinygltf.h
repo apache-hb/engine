@@ -3192,7 +3192,7 @@ static bool ParseJsonAsValue(Value *ret, const json &o) {
       break;
     case json::value_t::null:
     case json::value_t::discarded:
-      // default:
+    default:
       break;
   }
 #endif

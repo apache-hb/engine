@@ -47,6 +47,17 @@ namespace engine::render {
         });
     }
 
+    constexpr CD3DX12_ROOT_PARAMETER1 cbvParameter(D3D12_SHADER_VISIBILITY visibility, UINT reg, UINT space = 0) {
+        return CD3DX12_ROOT_PARAMETER1({
+            .ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
+            .Descriptor = {
+                .ShaderRegister = reg,
+                .RegisterSpace = space,
+            },
+            .ShaderVisibility = visibility
+        });
+    }
+
     struct RootCreate {
         std::span<const CD3DX12_ROOT_PARAMETER1> params;
         std::span<const D3D12_STATIC_SAMPLER_DESC> samplers;

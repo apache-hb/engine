@@ -1,9 +1,11 @@
 #pragma once
 
+#include "render/util.h"
+
 #include <DirectXMath.h>
 #include <atomic>
 
-namespace engine::input {
+namespace engine::render {
     using namespace DirectX;
 
     struct Camera {
@@ -19,7 +21,7 @@ namespace engine::input {
 
         void rotate(float pitchChange, float yawChange);
 
-        void store(XMFLOAT4X4 *view, XMFLOAT4X4 *projection, float aspect) const;
+        void store(XMFLOAT4X4* view, XMFLOAT4X4* projection, float aspect) const;
     
         XMFLOAT3 where() const { return position.load(); }
         XMFLOAT3 look() const { return direction.load(); }
@@ -32,5 +34,11 @@ namespace engine::input {
         float yaw;
 
         float fov;
+    };
+
+    cbuffer CameraBuffer {
+        XMFLOAT4X4 model;
+        XMFLOAT4X4 view;
+        XMFLOAT4X4 projection;
     };
 }

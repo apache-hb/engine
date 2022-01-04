@@ -9,7 +9,11 @@ namespace engine::render {
 
         D3D12_GPU_VIRTUAL_ADDRESS gpuAddress();
 
-        void* map(UINT subresource, D3D12_RANGE* range = nullptr);
+        template <typename T>
+        T* map(UINT subresource, D3D12_RANGE* range = nullptr) {
+            return reinterpret_cast<T*>(mapBytes(subresource, range));
+        }
+
         void unmap(UINT subresource, D3D12_RANGE* range = nullptr);
 
         template<typename T>
@@ -17,6 +21,7 @@ namespace engine::render {
             writeBytes(subresource, data.data(), data.size() * sizeof(T));
         }
 
+        void* mapBytes(UINT subresource, D3D12_RANGE* range = nullptr);
         void writeBytes(UINT subresource, const void* data, size_t size);
     };
 

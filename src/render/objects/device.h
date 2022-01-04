@@ -12,6 +12,13 @@ namespace engine::render {
         DXGI_FORMAT dsvFormat;
     };
 
+    struct FootprintInfo {
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+        UINT rowCount;
+        UINT64 rowSize;
+        UINT64 size;
+    };
+    
     template<typename T>
     concept IsDevice = std::is_convertible_v<T*, ID3D12Device*>;
 
@@ -102,6 +109,19 @@ namespace engine::render {
             check(Super::get()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pso)), "failed to create graphics pipeline state");
 
             return { pso, name };
+        }
+
+        FootprintInfo getFootprint(Resource resource) {
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+            UINT rowCount;
+            UINT64 rowSize;
+            UINT64 size;
+            
+            auto desc = resource->GetDesc();
+
+            Super::get()->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, &rowCount, &rowSize, &size);
+            
+            return { footprint, rowCount, rowSize, size };
         }
 
     private:
