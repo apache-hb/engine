@@ -11,13 +11,22 @@ namespace engine::render {
     };
 
     struct Primitive {
+        std::vector<Attribute> attributes;
+        UINT vertexCount;
+        D3D12_PRIMITIVE_TOPOLOGY topology;
+        D3D12_INDEX_BUFFER_VIEW indexView;
+        UINT indexCount;
+        UINT textureIndex;
+    };
 
+    struct Mesh {
+        std::vector<Primitive> primitives;
     };
 
     struct GltfScene : Scene3D {
         using Super = Scene3D;
 
-        GltfScene(Context* context, std::string_view path);
+        GltfScene(Context* context, Camera* camera, std::string_view path);
         virtual ~GltfScene() = default;
 
         virtual void create() override;
@@ -32,6 +41,9 @@ namespace engine::render {
         void createImages();
         void destroyImages();
         
+        void createMeshes();
+        void destroyMeshes();
+
         void drawNode(size_t index);
 
         virtual UINT requiredCbvSrvSize() const override;
@@ -39,8 +51,7 @@ namespace engine::render {
 
         std::vector<Resource> buffers;
         std::vector<Resource> images;
-
-        std::vector<Attribute> attributes;
+        std::vector<Mesh> meshes;
 
         DescriptorHeap cbvSrvHeap;
     };

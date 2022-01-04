@@ -68,12 +68,9 @@ constexpr RootCreate kRootInfo = {
     .flags = kFlags
 };
 
-constexpr DirectX::XMFLOAT3 kDefaultPos = { 0.0f, 0.0f, 0.0f };
-constexpr DirectX::XMFLOAT3 kDefaultRot = { 1.0f, 0.0f, 0.0f };
-
-Scene3D::Scene3D(Context* context): Scene(context), camera(kDefaultPos, kDefaultRot) {
+Scene3D::Scene3D(Context* context, Camera* camera): Scene(context), camera(camera) {
     shaders = ShaderLibrary(kShaderInfo);
-    XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(0.1f, 0.1f, 0.1f));
+    XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(1.f, 1.f, 1.f));
 }
 
 void Scene3D::create() {
@@ -101,7 +98,7 @@ ID3D12CommandList* Scene3D::populate() {
 }
 
 void Scene3D::begin() {
-    camera.store(&cameraBuffer.view, &cameraBuffer.projection, ctx->getInternalResolution().aspectRatio());
+    camera->store(&cameraBuffer.view, &cameraBuffer.projection, ctx->getInternalResolution().aspectRatio());
     *cameraData = cameraBuffer;
 
     auto& allocator = ctx->getAllocator(Allocator::Scene);

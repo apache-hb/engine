@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "system/system.h"
 #include "render/objects/device.h"
 
@@ -67,7 +69,8 @@ namespace engine::render {
             Resolution resolution;
 
             DisplayViewport*(*getViewport)(Context*);
-            Scene*(*getScene)(Context*);
+
+            std::function<Scene*(Context*)> getScene;
         };
 
         Context(Create&& create);

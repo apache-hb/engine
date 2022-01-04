@@ -20,6 +20,15 @@
 
 using namespace engine;
 
+constexpr xinput::Deadzone kLStickDeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
+constexpr xinput::Deadzone kRStickDeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
+constexpr int16_t kLTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+constexpr int16_t kRTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+
+constexpr float kLookSensitivity = 1.f;
+constexpr float kMoveSensitivity = 1.f;
+constexpr float kUpDownSensitivity = 0.05f;
+
 using WindowCallbacks = system::Window::Callbacks;
 
 struct MainWindow final : WindowCallbacks {
@@ -33,24 +42,31 @@ struct MainWindow final : WindowCallbacks {
             .buffers = 2,
             .resolution = { 1920 / 2, 1080 / 2 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [](auto* ctx) -> render::Scene* { return new render::GltfScene(ctx, "resources\\sponza-gltf\\Sponza.gltf"); }
+            .getScene = [=](auto* ctx) -> render::Scene* { return new render::GltfScene(ctx, &camera, "resources\\sponza-gltf\\Sponza.gltf"); }
         });
         
         draw = new std::jthread([this](auto stop) { 
             try {
                 context->create();
+                auto timer = util::createTimer();
 
                 while (!stop.stop_requested()) {
+                    auto delta = timer.tick();
+
+                    auto data = input.poll();
+                    camera.move(data.lstick.x * delta * kMoveSensitivity, (data.rtrigger - data.ltrigger) * kUpDownSensitivity, data.lstick.y * delta * kMoveSensitivity);
+                    camera.rotate(data.rstick.x * delta * kLookSensitivity, data.rstick.y * delta * kLookSensitivity);
+                    
                     if (!context->present()) {
                         log::global->fatal("present failed");
                         break;
                     }
                 }
-
-                context->destroy();
             } catch (const engine::Error& error) {
                 log::global->fatal("{}", error.what());
             }
+
+            context->destroy();
         });
     }
 
@@ -60,9 +76,10 @@ struct MainWindow final : WindowCallbacks {
     }
 
 private:
-
     std::jthread *draw;
 
+    xinput::Device input{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
+    render::Camera camera = { { 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f } };
     render::Context *context;
 };
 

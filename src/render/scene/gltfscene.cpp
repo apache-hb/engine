@@ -15,6 +15,15 @@ constexpr DXGI_FORMAT getAccessorFormat(int type) {
     }
 }
 
+constexpr DXGI_FORMAT getComponentFormat(int type) {
+    switch (type) {
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return DXGI_FORMAT_R8_UINT;
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return DXGI_FORMAT_R16_UINT;
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return DXGI_FORMAT_R32_UINT;
+    default: return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
 constexpr D3D_PRIMITIVE_TOPOLOGY getPrimitiveTopology(int mode) {
     switch (mode) {
     case TINYGLTF_MODE_POINTS: return D3D_PRIMITIVE_TOPOLOGY_POINTLIST;
@@ -26,7 +35,7 @@ constexpr D3D_PRIMITIVE_TOPOLOGY getPrimitiveTopology(int mode) {
     }
 }
 
-GltfScene::GltfScene(Context* context, std::string_view path): Super(context) {
+GltfScene::GltfScene(Context* context, Camera* camera, std::string_view path): Super(context, camera) {
     std::string error;
     std::string warning;
     gltf::TinyGLTF loader;
@@ -44,12 +53,14 @@ GltfScene::GltfScene(Context* context, std::string_view path): Super(context) {
 }
 
 void GltfScene::create() {
+    Super::create();
     createBuffers();
     createImages();
-    Super::create();
+    createMeshes();
 }
 
 void GltfScene::destroy() {
+    destroyMeshes();
     destroyImages();
     destroyBuffers();
     Super::destroy();
@@ -69,13 +80,16 @@ void GltfScene::destroyBuffers() {
 }
 
 void GltfScene::createImages() {
-    for (const auto& image : model.images) {
-        images.push_back(ctx->uploadTexture(strings::widen(image.uri), {
+    for (UINT i = 0; i < UINT(model.images.size()); i++) {
+        const auto& image = model.images[i];
+        auto texture = ctx->uploadTexture(strings::widen(image.uri), {
             .width = UINT(image.width),
             .height = UINT(image.height),
-            .component = image.component,
-            .data = { image.data }
-        }));
+            .component = UINT(image.component),
+            .data = { image.image }
+        });
+        getDevice()->CreateShaderResourceView(texture.get(), nullptr, cbvSrvCpuHandle(i));
+        images.push_back(texture);
     }
 }
 
@@ -85,14 +99,82 @@ void GltfScene::destroyImages() {
     }
 }
 
+void GltfScene::createMeshes() {
+    for (const auto& mesh : model.meshes) {
+        Mesh data;
+        for (const auto& primitive : mesh.primitives) {
+            Primitive prim;
+            std::vector<Attribute> attributes;
+
+            for (const auto& [name, index] : primitive.attributes) {
+                const auto& accessor = model.accessors[index];
+                const auto& bufferView = model.bufferViews[accessor.bufferView];
+
+                const auto format = getAccessorFormat(accessor.type);
+                const auto location = buffers[bufferView.buffer].gpuAddress() + bufferView.byteOffset + accessor.byteOffset;
+                const auto size = UINT(bufferView.byteLength - accessor.byteOffset);
+                const auto stride = UINT(accessor.ByteStride(bufferView));
+            
+                attributes.push_back({ format, { location, size, stride }});
+            }
+
+            const auto position = primitive.attributes.at("POSITION");
+            const auto vertexCount = UINT(model.accessors[position].count);
+            const auto topology = getPrimitiveTopology(primitive.mode);
+
+            prim.attributes = attributes;
+            prim.vertexCount = vertexCount;
+            prim.topology = topology;
+
+            if (primitive.indices >= 0) {
+                const auto& accessor = model.accessors[primitive.indices];
+                const auto& bufferView = model.bufferViews[accessor.bufferView];
+
+                const auto format = getComponentFormat(accessor.componentType);
+                const auto indexCount = UINT(accessor.count);
+                const auto location = buffers[bufferView.buffer].gpuAddress() + bufferView.byteOffset + accessor.byteOffset;
+                const auto size = UINT(bufferView.byteLength - accessor.byteOffset);
+
+                prim.indexCount = indexCount;
+                prim.indexView = { location, size, format };
+            }
+
+            const auto material = primitive.material;
+            const auto it = model.materials[material];
+            const auto it2 = it.pbrMetallicRoughness.baseColorTexture.index;
+            
+            prim.textureIndex = it2;
+            data.primitives.push_back(prim);
+        }
+        meshes.push_back(data);
+    }
+}
+
+void GltfScene::destroyMeshes() {
+    meshes.clear();
+}
+
 void GltfScene::drawNode(size_t index) {
     const auto& node = model.nodes[index];
 
     if (node.mesh >= 0) {
-        const auto& mesh = model.meshes[node.mesh];
+        const auto& mesh = meshes[node.mesh];
 
-        for (auto& prim : mesh.primitives) {
-            const auto& index = prim.indices;
+        for (const auto& primitive : mesh.primitives) {
+            commandList->IASetPrimitiveTopology(primitive.topology);
+            commandList->SetGraphicsRoot32BitConstant(1, primitive.textureIndex, 0);
+
+            for (auto i = 0; i != primitive.attributes.size(); i++) {
+                const auto& attribute = primitive.attributes[i];
+                commandList->IASetVertexBuffers(i, 1, &attribute.view);
+            }
+
+            if (primitive.indexCount > 0) {
+                commandList->IASetIndexBuffer(&primitive.indexView);
+                commandList->DrawIndexedInstanced(primitive.indexCount, 1, 0, 0, 0);
+            } else {
+                commandList->DrawInstanced(primitive.vertexCount, 1, 0, 0);
+            }
         }
     }
 
@@ -105,8 +187,8 @@ ID3D12CommandList* GltfScene::populate() {
     Super::begin();
 
     const auto& scene = model.scenes[model.defaultScene];
-    for (auto index : scene.nodes) {
-        drawNode(index);
+    for (auto node : scene.nodes) {
+        drawNode(node);
     }
 
     Super::end();

@@ -30,7 +30,7 @@ namespace engine::render {
     };
 
     struct Scene3D : Scene {
-        Scene3D(Context* context);
+        Scene3D(Context* context, Camera* camera);
         virtual ~Scene3D() = default;
 
         virtual void create() override;
@@ -38,7 +38,7 @@ namespace engine::render {
 
         virtual ID3D12CommandList* populate() override;
 
-        Camera camera;
+        Camera* camera;
 
     protected:
         virtual UINT requiredCbvSrvSize() const = 0;
@@ -46,6 +46,7 @@ namespace engine::render {
         void begin();
         void end();
 
+        Device<ID3D12Device4>& getDevice();
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(UINT index);
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 
@@ -74,7 +75,6 @@ namespace engine::render {
         UINT getRequiredCbvSrvSize() const;
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle();
-        Device<ID3D12Device4>& getDevice();
 
         Object<ID3D12DescriptorHeap> dsvHeap;
         Resource depthStencil;
