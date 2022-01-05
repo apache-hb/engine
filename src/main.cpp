@@ -3,14 +3,13 @@
 #include "render/render.h"
 #include "render/objects/factory.h"
 #include "render/viewport/viewport.h"
-#include "render/scene/gltfscene.h"
+#include "render/scene/scene.h"
 #include "render/debug/debug.h"
 #include "util/strings.h"
 #include "util/timer.h"
 #include "input/inputx.h"
 #include "input/mnk.h"
 #include "util/macros.h"
-#include "assets/loader.h"
 
 #include <thread>
 
@@ -42,7 +41,7 @@ struct MainWindow final : WindowCallbacks {
             .buffers = 2,
             .resolution = { 1920 / 2, 1080 / 2 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [=](auto* ctx) -> render::Scene* { return new render::GltfScene(ctx, &camera, "resources\\sponza-gltf\\Sponza.gltf"); }
+            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera); }
         });
         
         draw = new std::jthread([this](auto stop) { 

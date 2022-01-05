@@ -26,6 +26,8 @@ namespace engine::render {
         XMFLOAT3 where() const { return position.load(); }
         XMFLOAT3 look() const { return direction.load(); }
         
+        void imgui();
+
     private:
         std::atomic<XMFLOAT3> position;
         std::atomic<XMFLOAT3> direction;

@@ -4,6 +4,7 @@
 #include "logging/log.h"
 #include "util/strings.h"
 #include "util/macros.h"
+#include "math/math.h"
 
 #include <d3dx12.h>
 #include <dxgi1_6.h>
@@ -158,18 +159,5 @@ namespace engine::render {
         Viewport viewport{0.f, 0.f, 0.f, 0.f};
     };
 
-    struct Resolution {
-        Resolution() = default;
-        Resolution(UINT width, UINT height)
-            : width(width)
-            , height(height)
-        { }
-
-        UINT width;
-        UINT height;
-
-        float aspectRatio() const {
-            return float(width) / float(height);
-        }
-    };
+    using Resolution = math::Resolution<UINT>;
 }

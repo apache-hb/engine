@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "system/system.h"
+#include "assets/texture.h"
 #include "render/objects/device.h"
 
 namespace engine::render {
@@ -51,13 +52,6 @@ namespace engine::render {
         UINT64 fenceValue;
         Object<ID3D12Resource> target;
         Object<ID3D12CommandAllocator> allocators[Allocator::Total];
-    };
-
-    struct TextureData {
-        UINT width;
-        UINT height;
-        UINT component;
-        std::span<const uint8_t> data;
     };
 
     struct Context {
@@ -125,7 +119,7 @@ namespace engine::render {
 
     public:
         Resource uploadData(std::wstring_view name, const void* data, size_t size);
-        Resource uploadTexture(std::wstring_view name, const TextureData& data);
+        Resource uploadTexture(const assets::Texture& texture);
 
         template<typename T>
         VertexBuffer uploadVertexBuffer(std::wstring_view name, std::span<const T> data) {
@@ -165,6 +159,7 @@ namespace engine::render {
         Object<ID3D12Resource> getSceneTarget();
         DescriptorHeap getCbvHeap();
 
+        Scene* getScene();
     private:
         Device<ID3D12Device4> device;
 

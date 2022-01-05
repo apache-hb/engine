@@ -5,7 +5,7 @@ project('engine', [ 'c', 'cpp' ],
         'cpp_std=c++latest',
         'warning_level=3',
         'werror=true',
-        'b_vscrt=static_from_buildtype', # needs to be `md` for dlss to work
+        'b_vscrt=static_from_buildtype', # needs to be `md` for the dlss sdk to link
         'default_library=static'
     ]
 )
@@ -28,8 +28,7 @@ src = [
     'src/render/viewport/viewport.cpp',
 
     # scene rendering
-    'src/render/scene/scene3d.cpp',
-    'src/render/scene/gltfscene.cpp',
+    'src/render/scene/3dscene.cpp',
 
     # d3d wrapper objects
     'src/render/objects/factory.cpp',
@@ -37,17 +36,13 @@ src = [
     'src/render/objects/library.cpp',
     'src/render/objects/signature.cpp',
     'src/render/objects/heap.cpp',
-    #'src/render/objects/commands.cpp',
-    #'src/render/objects/queue.cpp',
-    #'src/render/objects/root.cpp',
-    #'src/render/objects/pipeline.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/timer.cpp',
     'src/util/win32.cpp',
 
-    'src/assets/gltf.cpp',
+    'src/assets/texture.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',
@@ -59,6 +54,12 @@ src = [
 
     'src/main.cpp'
 ]
+
+python = find_program('python')
+dxc = generator(python,
+    arguments : [ '@INPUT@', '@OUTPUT@', 'ps,vs', '6_0' ],
+    output : [ '@OUTPUT@.ps.pso', '@OUTPUT@.vs.pso' ]
+)
 
 args = [ '-DUNICODE=1', '/wd4324' ]
 

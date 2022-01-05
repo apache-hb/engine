@@ -4,8 +4,12 @@
 
 #include "render/render.h"
 #include "render/objects/commands.h"
+#include "assets/texture.h"
 
+using namespace engine;
 using namespace engine::render;
+
+const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
 
 constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -27,8 +31,8 @@ constexpr auto kShaderLayout = std::to_array({
 });
 
 constexpr ShaderLibrary::CreateBinary kShaderInfo = {
-    .vsPath = L"resources\\shaders\\scene-vs-shader.bin",
-    .psPath = L"resources\\shaders\\scene-ps-shader.bin",
+    .vsPath = L"resources\\shaders\\scene.vs.pso",
+    .psPath = L"resources\\shaders\\scene.ps.pso",
     .layout = { kShaderLayout }
 };
 
@@ -37,9 +41,9 @@ constexpr auto kSrvRanges = std::to_array({
 });
 
 constexpr auto kParams = std::to_array({
-    cbvParameter(visibility::Vertex, 0), // cbuffer register(b0)
-    root32BitParameter(visibility::Pixel, 1, 1), // cbuffer register(b1)
-    tableParameter(visibility::Pixel, kSrvRanges) // Texture2D[] register(t0)
+    cbvParameter(visibility::kVertex, 0), // cbuffer register(b0)
+    root32BitParameter(visibility::kPixel, 1, 1), // cbuffer register(b1)
+    tableParameter(visibility::kPixel, kSrvRanges) // Texture2D[] register(t0)
 });
 
 constexpr D3D12_STATIC_SAMPLER_DESC kSamplers[] = {{
@@ -237,7 +241,11 @@ void Scene3D::destroyPipelineState() {
 }
 
 UINT Scene3D::getRequiredCbvSrvSize() const {
-    return requiredCbvSrvSize() + SceneData::Total;
+    return SceneData::Total;
+}
+
+void Scene3D::imgui() {
+    camera->imgui();
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvCpuHandle(UINT index) {

@@ -23,6 +23,7 @@ namespace engine::render {
         virtual void create() = 0;
         virtual void destroy() = 0;
 
+        virtual void imgui() = 0;
         virtual ID3D12CommandList* populate() = 0;
 
     protected:
@@ -36,12 +37,12 @@ namespace engine::render {
         virtual void create() override;
         virtual void destroy() override;
 
+        virtual void imgui() override;
+
         virtual ID3D12CommandList* populate() override;
 
+    private:
         Camera* camera;
-
-    protected:
-        virtual UINT requiredCbvSrvSize() const = 0;
 
         void begin();
         void end();
@@ -50,7 +51,6 @@ namespace engine::render {
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(UINT index);
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 
-    private:
         void createCommandList();
         void destroyCommandList();
 
@@ -85,7 +85,6 @@ namespace engine::render {
         CameraBuffer *cameraData;
         Resource cameraResource;
 
-    protected:
         ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;
         Object<ID3D12RootSignature> rootSignature;

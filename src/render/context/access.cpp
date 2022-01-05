@@ -50,6 +50,10 @@ View Context::getSceneView() const {
     return sceneView;
 }
 
+Scene* Context::getScene() {
+    return scene;
+}
+
 Object<ID3D12CommandAllocator>& Context::getAllocator(Allocator::Index index) {
     const auto frame = getCurrentFrame();
     return frameData[frame].allocators[size_t(index)];

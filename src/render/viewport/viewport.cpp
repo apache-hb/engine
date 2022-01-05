@@ -3,7 +3,7 @@
 #include "imgui/backends/imgui_impl_dx12.h"
 
 #include "viewport.h"
-
+#include "render/scene/scene.h"
 #include "render/objects/factory.h"
 #include "render/objects/commands.h"
 #include "render/objects/signature.h"
@@ -34,10 +34,9 @@ constexpr auto kShaderLayout = std::to_array({
     shaderInput("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT)
 });
 
-constexpr ShaderLibrary::Create kShaderInfo = {
-    .path = L"resources\\shaders\\post-shader.hlsl",
-    .vsMain = "vsMain",
-    .psMain = "psMain",
+constexpr ShaderLibrary::CreateBinary kShaderInfo = {
+    .vsPath = L"resources\\shaders\\post.vs.pso",
+    .psPath = L"resources\\shaders\\post.ps.pso",
     .layout = { kShaderLayout }
 };
 
@@ -110,6 +109,8 @@ ID3D12CommandList* DisplayViewport::populate() {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+
+    ctx->getScene()->imgui();
 
     auto info = ctx->getAdapter().getMemoryInfo();
 

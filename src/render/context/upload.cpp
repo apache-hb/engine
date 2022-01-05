@@ -1,6 +1,7 @@
 #include "render/render.h"
 
 using namespace engine::render;
+using namespace engine::assets;
 
 constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -13,11 +14,11 @@ constexpr D3D12_SUBRESOURCE_DATA createUploadDesc(const void *data, LONG_PTR siz
     };
 }
 
-constexpr D3D12_RESOURCE_DESC createResourceDesc(UINT width, UINT height, DXGI_FORMAT format) {
+constexpr D3D12_RESOURCE_DESC createResourceDesc(size_t width, size_t height, DXGI_FORMAT format) {
     return {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        .Width = width,
-        .Height = height,
+        .Width = UINT(width),
+        .Height = UINT(height),
         .DepthOrArraySize = 1,
         .MipLevels = 1,
         .Format = format,
@@ -25,13 +26,19 @@ constexpr D3D12_RESOURCE_DESC createResourceDesc(UINT width, UINT height, DXGI_F
     };
 }
 
-constexpr DXGI_FORMAT formatForComponent(UINT component) {
-    switch (component) {
-        case 1: return DXGI_FORMAT_R8_UNORM;
-        case 2: return DXGI_FORMAT_R8G8_UNORM;
-        case 3: return DXGI_FORMAT_R8G8B8A8_UNORM;
-        case 4: return DXGI_FORMAT_R8G8B8A8_UNORM;
+constexpr DXGI_FORMAT cvtFormat(Texture::Format format) {
+    switch (format) {
+        case Texture::Format::RGB: return DXGI_FORMAT_R8G8B8A8_UNORM;
+        case Texture::Format::RGBA: return DXGI_FORMAT_R8G8B8A8_UNORM;
         default: return DXGI_FORMAT_UNKNOWN;
+    }
+}
+
+constexpr size_t numChannels(Texture::Format format) {
+    switch (format) {
+        case Texture::Format::RGB: return 3;
+        case Texture::Format::RGBA: return 4;
+        default: return 0;
     }
 }
 
@@ -59,13 +66,16 @@ Resource Context::uploadData(std::wstring_view name, const void* data, size_t si
     return defaultResource;
 }
 
-Resource Context::uploadTexture(std::wstring_view name, const TextureData& tex) {
-    const auto& [width, height, component, data] = tex;
-    const auto format = formatForComponent(component);
+Resource Context::uploadTexture(const assets::Texture& texture) {
+    const auto& [name, resolution, depth, data] = texture;
+    const auto& [width, height] = resolution;
+    const auto wname = strings::widen(name);
+    const auto format = cvtFormat(depth);
+    const auto channels = numChannels(depth);
     const auto desc = createResourceDesc(width, height, format);
 
     auto defaultResource = device.newCommittedResource(
-        name, kDefaultProps, D3D12_HEAP_FLAG_NONE,
+        wname, kDefaultProps, D3D12_HEAP_FLAG_NONE,
         desc, D3D12_RESOURCE_STATE_COMMON
     );
 
@@ -73,7 +83,7 @@ Resource Context::uploadTexture(std::wstring_view name, const TextureData& tex) 
     const auto bufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     auto uploadResource = device.newCommittedResource(
-        std::format(L"upload-{}", name), 
+        std::format(L"upload-{}", wname), 
         kUploadProps, D3D12_HEAP_FLAG_NONE,
         bufferSize, D3D12_RESOURCE_STATE_GENERIC_READ
     );
@@ -82,8 +92,8 @@ Resource Context::uploadTexture(std::wstring_view name, const TextureData& tex) 
 
     for (UINT i = 0; i < rowCount; i++) {
         auto dst = ptr + rowSize * i;
-        auto src = data.data() + width * component * i;
-        auto range = width * component;
+        auto src = data.data() + width * channels * i;
+        auto range = width * channels;
 
         memcpy(dst, src, range);
     }

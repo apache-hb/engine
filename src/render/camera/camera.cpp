@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "imgui/imgui.h"
+
 namespace engine::render {
     constexpr auto kPitchLimit = XM_PIDIV4;
 
@@ -50,5 +52,15 @@ namespace engine::render {
 
         XMStoreFloat4x4(view, XMMatrixTranspose(viewMatrix));
         XMStoreFloat4x4(projection, XMMatrixTranspose(projectionMatrix));
+    }
+
+    void Camera::imgui() {
+        const auto pos = position.load();
+        const auto dir = direction.load();
+        ImGui::Begin("Camera info");
+            ImGui::Text("Position: %f, %f, %f", pos.x, pos.y, pos.z);
+            ImGui::Text("Direction: %f, %f, %f", dir.x, dir.y, dir.z);
+            ImGui::Text("Fov: %f", fov);
+        ImGui::End();
     }
 }
