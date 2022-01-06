@@ -92,6 +92,7 @@ void initImGui(size_t dpi) {
     ImGuiIO &io = ImGui::GetIO();
     io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
     io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 
 int runEngine(HINSTANCE instance, int show) {

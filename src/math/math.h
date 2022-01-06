@@ -100,7 +100,7 @@ namespace engine::math {
 
         static constexpr Vec4 dot(const Vec4& lhs, const Vec4& rhs) {
             auto value = lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
-            return from(value, value, value, value);
+            return of(value);
         }
 
         static constexpr Vec4 cross(const Vec4& lhs, const Vec4& rhs) {
