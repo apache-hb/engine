@@ -113,6 +113,7 @@ ID3D12CommandList* DisplayViewport::populate() {
     ctx->getScene()->imgui();
 
     auto info = ctx->getAdapter().getMemoryInfo();
+    auto heap = ctx->getCbvHeap();
 
     ImGui::Begin("Render Info");
         ImGui::Text("budget: %s", info.budget.string().c_str());
@@ -122,6 +123,8 @@ ID3D12CommandList* DisplayViewport::populate() {
         ImGui::Separator();
         ImGui::Text("internal resolution: %ux%u", internalWidth, internalHeight);
         ImGui::Text("display resolution: %ux%u", displayWidth, displayHeight);
+        ImGui::Separator();
+        ImGui::Image((ImTextureID)heap.gpuHandle(Resources::SceneTarget).ptr, { float(internalWidth), float(internalHeight) });
     ImGui::End();
 
     ImGui::ShowDemoWindow();
@@ -136,7 +139,6 @@ ID3D12CommandList* DisplayViewport::populate() {
     auto target = ctx->getTarget();
     auto sceneTarget = ctx->getSceneTarget();
     auto targetHandle = ctx->rtvHeapCpuHandle(frame);
-    auto heap = ctx->getCbvHeap();
     ID3D12DescriptorHeap* heaps[] = { heap.get() };
 
     D3D12_RESOURCE_BARRIER inTransitions[] = {
