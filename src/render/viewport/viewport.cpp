@@ -8,18 +8,18 @@
 #include "render/objects/commands.h"
 #include "render/objects/signature.h"
 #include "render/render.h"
+#include "math/math.h"
 
 #include <array>
-#include <DirectXMath.h>
 
-using namespace DirectX;
+using namespace engine;
 using namespace engine::render;
 
 constexpr float kBorderColour[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 struct ScreenVertex {
-    XMFLOAT4 position;
-    XMFLOAT2 texcoord;
+    math::float4 position;
+    math::float2 texcoord;
 };
 
 constexpr auto kScreenQuad = std::to_array<ScreenVertex>({

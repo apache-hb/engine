@@ -11,6 +11,7 @@ namespace engine::render {
     namespace SceneData {
         enum Index : int {
             Camera,
+            DefaultTexture,
             Total
         };
     }
@@ -84,6 +85,11 @@ namespace engine::render {
         CameraBuffer cameraBuffer;
         CameraBuffer *cameraData;
         Resource cameraResource;
+
+        Resource defaultTexture;
+
+        VertexBuffer cubeVertices;
+        IndexBuffer cubeIndices;
 
         ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;

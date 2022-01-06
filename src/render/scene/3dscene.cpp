@@ -5,11 +5,51 @@
 #include "render/render.h"
 #include "render/objects/commands.h"
 #include "assets/texture.h"
+#include "assets/mesh.h"
 
 using namespace engine;
+using namespace engine::math;
 using namespace engine::render;
 
 const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
+
+const auto kCubeVertices = std::vector<assets::Vertex>({
+    { { 0.f, 1.f, 1.f }, { 0.f, 0.f } },
+    { { 1.f, 1.f, 1.f }, { 0.f, 0.f } },
+    { { 0.f, 0.f, 1.f }, { 0.f, 0.f } },
+    { { 1.f, 0.f, 1.f }, { 0.f, 0.f } },
+
+    { { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
+    { { 1.f, 1.f, 0.f }, { 0.f, 0.f } },
+    { { 0.f, 0.f, 0.f }, { 0.f, 0.f } },
+    { { 1.f, 0.f, 0.f }, { 0.f, 0.f } }
+});
+
+const auto kCubeIndices = std::vector<uint32_t>({ 
+    // back face
+    0, 1, 2,
+    1, 3, 2,
+
+    // front face
+    4, 6, 5,
+    5, 6, 7,
+
+    // top face
+    0, 4, 1,
+    4, 5, 1,
+
+    // bottom face
+    2, 3, 6,
+    3, 7, 6,
+
+    // left face
+    0, 2, 4,
+    2, 6, 4,
+
+    // right face
+    1, 5, 3,
+    5, 7, 3
+});
 
 constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
@@ -74,7 +114,7 @@ constexpr RootCreate kRootInfo = {
 
 Scene3D::Scene3D(Context* context, Camera* camera): Scene(context), camera(camera) {
     shaders = ShaderLibrary(kShaderInfo);
-    XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(1.f, 1.f, 1.f));
+    cameraBuffer.model = float4x4::scaling(1.f, 1.f, 1.f);
 }
 
 void Scene3D::create() {
@@ -98,6 +138,14 @@ void Scene3D::destroy() {
 }
 
 ID3D12CommandList* Scene3D::populate() {
+    begin();
+    
+    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    commandList->IASetVertexBuffers(0, 1, &cubeVertices.view);
+    commandList->IASetIndexBuffer(&cubeIndices.view);
+    commandList->DrawIndexedInstanced(UINT(kCubeIndices.size()), 1, 0, 0, 0);
+
+    end();
     return commandList.get();
 }
 
@@ -124,13 +172,10 @@ void Scene3D::begin() {
 
     commandList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
     commandList->SetGraphicsRootSignature(rootSignature.get());
-    
-    // set root parameters
-    //  - b0: camera buffer
-    //  - b1: texture index (set in subclasses when drawing)
-    //  - t0: texture array
+
     commandList->SetGraphicsRootConstantBufferView(0, cameraResource.gpuAddress());
-    commandList->SetGraphicsRootDescriptorTable(2, cbvSrvGpuHandle(0));
+    commandList->SetGraphicsRoot32BitConstant(1, 0, 0);
+    commandList->SetGraphicsRootDescriptorTable(2, cbvSrvHeap.gpuHandle(SceneData::DefaultTexture));
 }
 
 void Scene3D::end() {
@@ -141,6 +186,10 @@ void Scene3D::createCommandList() {
     auto& allocator = ctx->getAllocator(Allocator::Scene);
     commandList = getDevice().newCommandList(L"scene-command-list", commands::kDirect, allocator);
     check(commandList->Close(), "failed to close command list");
+
+    defaultTexture = ctx->uploadTexture(kMissingTexture);
+    cubeVertices = ctx->uploadVertexBuffer<assets::Vertex>(L"cube-vertices", { kCubeVertices });
+    cubeIndices = ctx->uploadIndexBuffer(L"cube-indices", { kCubeIndices });
 }
 
 void Scene3D::destroyCommandList() {

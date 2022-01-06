@@ -33,4 +33,13 @@ namespace engine::render {
         Resource resource;
         D3D12_VERTEX_BUFFER_VIEW view;
     };
+
+    struct IndexBuffer {
+        void tryDrop(std::string_view name = "") {
+            resource.tryDrop(name);
+        }
+
+        Resource resource;
+        D3D12_INDEX_BUFFER_VIEW view;
+    };
 }

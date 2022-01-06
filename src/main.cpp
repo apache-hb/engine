@@ -26,7 +26,7 @@ constexpr int16_t kRTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
 constexpr float kLookSensitivity = 1.f;
 constexpr float kMoveSensitivity = 1.f;
-constexpr float kUpDownSensitivity = 0.05f;
+constexpr float kUpDownSensitivity = 1.f;
 
 using WindowCallbacks = system::Window::Callbacks;
 
@@ -44,18 +44,22 @@ struct MainWindow final : WindowCallbacks {
             .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera); }
         });
         
+        poll = new std::jthread([this](auto stop) {
+            auto timer = util::createTimer();
+            while (!stop.stop_requested()) {
+                auto delta = timer.tick();
+                auto data = input.poll();
+
+                camera.move(data.lstick.x * delta * kMoveSensitivity, data.lstick.y * delta * kMoveSensitivity, (data.rtrigger - data.ltrigger) * delta * kUpDownSensitivity);
+                camera.rotate(data.rstick.x * delta * kLookSensitivity, data.rstick.y * delta * kLookSensitivity);
+            }
+        });
+
         draw = new std::jthread([this](auto stop) { 
             try {
                 context->create();
-                auto timer = util::createTimer();
 
                 while (!stop.stop_requested()) {
-                    auto delta = timer.tick();
-
-                    auto data = input.poll();
-                    camera.move(data.lstick.x * delta * kMoveSensitivity, (data.rtrigger - data.ltrigger) * kUpDownSensitivity, data.lstick.y * delta * kMoveSensitivity);
-                    camera.rotate(data.rstick.x * delta * kLookSensitivity, data.rstick.y * delta * kLookSensitivity);
-                    
                     if (!context->present()) {
                         log::global->fatal("present failed");
                         break;
@@ -70,11 +74,13 @@ struct MainWindow final : WindowCallbacks {
     }
 
     virtual void onDestroy() override {
+        delete poll;
         delete draw;
         delete context;
     }
 
 private:
+    std::jthread *poll;
     std::jthread *draw;
 
     xinput::Device input{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};

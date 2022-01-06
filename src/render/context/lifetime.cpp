@@ -4,7 +4,6 @@
 #include "render/objects/commands.h"
 
 #include <array>
-#include <DirectXMath.h>
 
 using namespace engine::render;
 

@@ -58,7 +58,7 @@ src = [
 python = find_program('python')
 dxc = generator(python,
     arguments : [ '@INPUT@', '@OUTPUT@', 'ps,vs', '6_0' ],
-    output : [ '@OUTPUT@.ps.pso', '@OUTPUT@.vs.pso' ]
+    output : [ '@BASENAME@.ps.pso', '@BASENAME@.vs.pso' ]
 )
 
 args = [ '-DUNICODE=1', '/wd4324' ]
@@ -68,8 +68,9 @@ queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('gltf').get_variable('gltf')
+obj = subproject('obj').get_variable('obj')
 
-deps = [ imgui, queue, stb, d3d12, gltf ]
+deps = [ imgui, queue, stb, d3d12, gltf, obj ]
 
 links = [ 
     'd3d12.lib', 

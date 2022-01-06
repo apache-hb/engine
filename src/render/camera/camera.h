@@ -1,15 +1,15 @@
 #pragma once
 
 #include "render/util.h"
+#include "math/math.h"
 
-#include <DirectXMath.h>
 #include <atomic>
 
 namespace engine::render {
-    using namespace DirectX;
+    using namespace engine::math;
 
     struct Camera {
-        Camera(XMFLOAT3 pos, XMFLOAT3 dir, float fov = 90.f)
+        Camera(float3 pos, float3 dir, float fov = 90.f)
             : position(pos)
             , direction(dir)
             , pitch(dir.x)
@@ -21,16 +21,16 @@ namespace engine::render {
 
         void rotate(float pitchChange, float yawChange);
 
-        void store(XMFLOAT4X4* view, XMFLOAT4X4* projection, float aspect) const;
+        void store(float4x4* view, float4x4* projection, float aspect) const;
     
-        XMFLOAT3 where() const { return position.load(); }
-        XMFLOAT3 look() const { return direction.load(); }
+        float3 where() const { return position.load(); }
+        float3 look() const { return direction.load(); }
         
         void imgui();
 
     private:
-        std::atomic<XMFLOAT3> position;
-        std::atomic<XMFLOAT3> direction;
+        std::atomic<float3> position;
+        std::atomic<float3> direction;
         
         float pitch;
         float yaw;
@@ -39,8 +39,8 @@ namespace engine::render {
     };
 
     cbuffer CameraBuffer {
-        XMFLOAT4X4 model;
-        XMFLOAT4X4 view;
-        XMFLOAT4X4 projection;
+        float4x4 model;
+        float4x4 view;
+        float4x4 projection;
     };
 }

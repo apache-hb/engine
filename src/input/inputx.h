@@ -12,7 +12,7 @@ namespace engine::xinput {
     };
 
     struct Device {
-        Device(UINT index, Deadzone lstick, Deadzone rstick, int16_t ltrigger, int16_t rtrigger)
+        constexpr Device(UINT index, Deadzone lstick, Deadzone rstick, int16_t ltrigger, int16_t rtrigger) noexcept
             : index(index) 
             , lstick(lstick)
             , rstick(rstick)
@@ -20,15 +20,15 @@ namespace engine::xinput {
             , rtrigger(rtrigger)
         { }
 
-        bool valid() const;
-        void vibrate(USHORT left, USHORT right);
-        input::Input poll();
+        bool valid() const noexcept;
+        void vibrate(USHORT left, USHORT right) noexcept;
+        input::Input poll() noexcept;
     private:
         UINT index;
         Deadzone lstick;
         Deadzone rstick;
         int16_t ltrigger;
         int16_t rtrigger;
-        bool ok;
+        bool ok = false;
     };
 }

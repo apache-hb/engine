@@ -127,7 +127,17 @@ namespace engine::render {
             D3D12_VERTEX_BUFFER_VIEW view = { 
                 .BufferLocation = resource.gpuAddress(), 
                 .SizeInBytes = UINT(data.size_bytes()), 
-                .StrideInBytes = sizeof(T) 
+                .StrideInBytes = sizeof(T)
+            };
+            return { resource, view };
+        }
+
+        IndexBuffer uploadIndexBuffer(std::wstring_view name, std::span<const uint32_t> data) {
+            auto resource = uploadData(name, data.data(), data.size_bytes());
+            D3D12_INDEX_BUFFER_VIEW view = { 
+                .BufferLocation = resource.gpuAddress(), 
+                .SizeInBytes = UINT(data.size_bytes()), 
+                .Format = DXGI_FORMAT_R32_UINT
             };
             return { resource, view };
         }
