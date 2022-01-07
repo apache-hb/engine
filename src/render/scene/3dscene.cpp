@@ -17,14 +17,14 @@ const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Tex
 
 const auto kCubeVertices = std::vector<assets::Vertex>({
     { { 0.f, 1.f, 1.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 1.f }, { 0.f, 0.f } },
-    { { 0.f, 0.f, 1.f }, { 0.f, 0.f } },
-    { { 1.f, 0.f, 1.f }, { 0.f, 0.f } },
+    { { 1.f, 1.f, 1.f }, { 0.f, 1.f } },
+    { { 0.f, 0.f, 1.f }, { 1.f, 1.f } },
+    { { 1.f, 0.f, 1.f }, { 1.f, 0.f } },
 
     { { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 0.f }, { 0.f, 0.f } },
-    { { 0.f, 0.f, 0.f }, { 0.f, 0.f } },
-    { { 1.f, 0.f, 0.f }, { 0.f, 0.f } }
+    { { 1.f, 1.f, 0.f }, { 0.f, 1.f } },
+    { { 0.f, 0.f, 0.f }, { 1.f, 0.f } },
+    { { 1.f, 0.f, 0.f }, { 1.f, 1.f } }
 });
 
 const auto kCubeIndices = std::vector<uint32_t>({ 
@@ -220,6 +220,8 @@ void Scene3D::createCommandList() {
     defaultTexture = ctx->uploadTexture(kMissingTexture);
     cubeVertices = ctx->uploadVertexBuffer<assets::Vertex>(L"cube-vertices", { kCubeVertices });
     cubeIndices = ctx->uploadIndexBuffer(L"cube-indices", { kCubeIndices });
+
+    ctx->getDevice()->CreateShaderResourceView(defaultTexture.get(), nullptr, cbvSrvHeap.cpuHandle(SceneData::DefaultTexture));
 }
 
 void Scene3D::destroyCommandList() {

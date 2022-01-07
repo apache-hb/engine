@@ -126,8 +126,8 @@ namespace engine::render {
         VertexBuffer uploadVertexBuffer(std::wstring_view name, std::span<const T> data) {
             auto resource = uploadData(name, data.data(), data.size_bytes());
             D3D12_VERTEX_BUFFER_VIEW view = { 
-                .BufferLocation = resource.gpuAddress(), 
-                .SizeInBytes = UINT(data.size_bytes()), 
+                .BufferLocation = resource.gpuAddress(),
+                .SizeInBytes = UINT(data.size_bytes()),
                 .StrideInBytes = sizeof(T)
             };
             return { resource, view };
@@ -206,7 +206,6 @@ namespace engine::render {
         View postView;
 
     public:
-    
         Resolution displayResolution;
         Resolution sceneResolution;
     };
