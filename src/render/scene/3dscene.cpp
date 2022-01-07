@@ -13,46 +13,6 @@ using namespace engine;
 using namespace engine::math;
 using namespace engine::render;
 
-const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
-
-const auto kCubeVertices = std::vector<assets::Vertex>({
-    { { 0.f, 1.f, 1.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 1.f }, { 0.f, 1.f } },
-    { { 0.f, 0.f, 1.f }, { 1.f, 1.f } },
-    { { 1.f, 0.f, 1.f }, { 1.f, 0.f } },
-
-    { { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 0.f }, { 0.f, 1.f } },
-    { { 0.f, 0.f, 0.f }, { 1.f, 0.f } },
-    { { 1.f, 0.f, 0.f }, { 1.f, 1.f } }
-});
-
-const auto kCubeIndices = std::vector<uint32_t>({ 
-    // back face
-    0, 1, 2,
-    1, 3, 2,
-
-    // front face
-    4, 6, 5,
-    5, 6, 7,
-
-    // top face
-    0, 4, 1,
-    4, 5, 1,
-
-    // bottom face
-    2, 3, 6,
-    3, 7, 6,
-
-    // left face
-    0, 2, 4,
-    2, 6, 4,
-
-    // right face
-    1, 5, 3,
-    5, 7, 3
-});
-
 constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -141,7 +101,7 @@ private:
 
 SceneDebugObject* sceneDebugObject = nullptr;
 
-Scene3D::Scene3D(Context* context, Camera* camera): Scene(context), camera(camera) {
+Scene3D::Scene3D(Context* context, Camera* camera, const assets::World* world): Scene(context), camera(camera), world(world) {
     shaders = ShaderLibrary(kShaderInfo);
     XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(1.f, 1.f, 1.f));
     sceneDebugObject = new SceneDebugObject(this);
@@ -155,9 +115,11 @@ void Scene3D::create() {
     createRootSignature();
     createPipelineState();
     createCommandList();
+    createSceneData();
 }
 
 void Scene3D::destroy() {
+    destroySceneData();
     destroyCommandList();
     destroyPipelineState();
     destroyRootSignature();
@@ -171,9 +133,21 @@ ID3D12CommandList* Scene3D::populate() {
     begin();
     
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &cubeVertices.view);
-    commandList->IASetIndexBuffer(&cubeIndices.view);
-    commandList->DrawIndexedInstanced(UINT(kCubeIndices.size()), 1, 0, 0, 0);
+    
+    size_t numMeshes = std::size(world->meshes);
+
+    for (size_t i = 0; i < numMeshes; i++) {
+        const auto& mesh = world->meshes[i];
+        const auto& meshData = mesh.mesh;
+        const auto& vertices = vertexBuffers[i];
+        const auto& indices = indexBuffers[i];
+
+        commandList->SetGraphicsRoot32BitConstant(1, UINT(mesh.texture), 0);
+
+        commandList->IASetVertexBuffers(0, 1, &vertices.view);
+        commandList->IASetIndexBuffer(&indices.view);
+        commandList->DrawIndexedInstanced(UINT(std::size(meshData.indices)), 1, 0, 0, 0);
+    }
 
     end();
     return commandList.get();
@@ -205,7 +179,7 @@ void Scene3D::begin() {
 
     commandList->SetGraphicsRootConstantBufferView(0, cameraResource.gpuAddress());
     commandList->SetGraphicsRoot32BitConstant(1, 0, 0);
-    commandList->SetGraphicsRootDescriptorTable(2, cbvSrvHeap.gpuHandle(SceneData::DefaultTexture));
+    commandList->SetGraphicsRootDescriptorTable(2, cbvSrvHeap.gpuHandle(SceneData::Total));
 }
 
 void Scene3D::end() {
@@ -216,18 +190,9 @@ void Scene3D::createCommandList() {
     auto& allocator = ctx->getAllocator(Allocator::Scene);
     commandList = getDevice().newCommandList(L"scene-command-list", commands::kDirect, allocator);
     check(commandList->Close(), "failed to close command list");
-
-    defaultTexture = ctx->uploadTexture(kMissingTexture);
-    cubeVertices = ctx->uploadVertexBuffer<assets::Vertex>(L"cube-vertices", { kCubeVertices });
-    cubeIndices = ctx->uploadIndexBuffer(L"cube-indices", { kCubeIndices });
-
-    ctx->getDevice()->CreateShaderResourceView(defaultTexture.get(), nullptr, cbvSrvHeap.cpuHandle(SceneData::DefaultTexture));
 }
 
 void Scene3D::destroyCommandList() {
-    cubeIndices.tryDrop("cube-indices");
-    cubeVertices.tryDrop("cube-vertices");
-    defaultTexture.tryDrop("default-texture");
     commandList.tryDrop("scene-command-list");
 }
 
@@ -324,8 +289,49 @@ void Scene3D::destroyPipelineState() {
     pipelineState.tryDrop("viewport-pipeline-state");
 }
 
+void Scene3D::createSceneData() {
+    size_t numMeshes = std::size(world->meshes);
+    size_t numTextures = std::size(world->textures);
+
+    vertexBuffers.resize(numMeshes);
+    indexBuffers.resize(numMeshes);
+
+    textures.resize(numTextures);
+
+    for (size_t i = 0; i < numMeshes; i++) {
+        const auto& mesh = world->meshes[i].mesh;
+        auto vertices = ctx->uploadVertexBuffer<assets::Vertex>(std::format(L"vertex-buffer-{}", i), mesh.vertices);
+        auto indices = ctx->uploadIndexBuffer(std::format(L"index-buffer-{}", i), mesh.indices);
+    
+        vertexBuffers[i] = vertices;
+        indexBuffers[i] = indices;
+    }
+
+    for (size_t i = 0; i < numTextures; i++) {
+        const auto& texture = world->textures[i];
+        auto tex = ctx->uploadTexture(texture);
+        ctx->bindSrv(tex, cbvSrvHeap.cpuHandle(UINT(SceneData::Total + i)));
+
+        textures[i] = tex;
+    }
+}
+
+void Scene3D::destroySceneData() {
+    for (auto& buffer : vertexBuffers) {
+        buffer.tryDrop("vertex-buffer");
+    }
+
+    for (auto& buffer : indexBuffers) {
+        buffer.tryDrop("index-buffer");
+    }
+
+    for (auto& texture : textures) {
+        texture.tryDrop("texture");
+    }
+}
+
 UINT Scene3D::getRequiredCbvSrvSize() const {
-    return SceneData::Total;
+    return UINT(SceneData::Total + std::size(world->textures));
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvCpuHandle(UINT index) {

@@ -143,6 +143,8 @@ namespace engine::render {
             return { resource, view };
         }
 
+        void bindSrv(Resource resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle);
+
         Factory& getFactory();
         Adapter& getAdapter();
         Device<ID3D12Device4>& getDevice();

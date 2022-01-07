@@ -29,6 +29,54 @@ constexpr float kLookSensitivity = 1.f;
 constexpr float kMoveSensitivity = 1.f;
 constexpr float kUpDownSensitivity = 1.f;
 
+
+const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
+
+const auto kCubeVertices = std::vector<assets::Vertex>({
+    { { 0.f, 1.f, 1.f }, { 0.f, 0.f } },
+    { { 1.f, 1.f, 1.f }, { 0.f, 1.f } },
+    { { 0.f, 0.f, 1.f }, { 1.f, 1.f } },
+    { { 1.f, 0.f, 1.f }, { 1.f, 0.f } },
+
+    { { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
+    { { 1.f, 1.f, 0.f }, { 0.f, 1.f } },
+    { { 0.f, 0.f, 0.f }, { 1.f, 0.f } },
+    { { 1.f, 0.f, 0.f }, { 1.f, 1.f } }
+});
+
+const auto kCubeIndices = std::vector<uint32_t>({ 
+    // back face
+    0, 1, 2,
+    1, 3, 2,
+
+    // front face
+    4, 6, 5,
+    5, 6, 7,
+
+    // top face
+    0, 4, 1,
+    4, 5, 1,
+
+    // bottom face
+    2, 3, 6,
+    3, 7, 6,
+
+    // left face
+    0, 2, 4,
+    2, 6, 4,
+
+    // right face
+    1, 5, 3,
+    5, 7, 3
+});
+
+const assets::Mesh kCubeMesh = { kCubeVertices, kCubeIndices };
+
+const assets::World kDefaultWorld = {
+    .meshes = { { kCubeMesh, 0 } },
+    .textures = { kMissingTexture }
+};
+
 using WindowCallbacks = system::Window::Callbacks;
 
 struct MainWindow final : WindowCallbacks {
@@ -43,7 +91,7 @@ struct MainWindow final : WindowCallbacks {
             .vsync = true,
             .resolution = { 1920 / 2, 1080 / 2 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera); }
+            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, &kDefaultWorld); }
         });
 
         poll = new std::jthread([this](auto stop) {

@@ -68,6 +68,10 @@ void Context::destroy() {
     destroyDevice();
 }
 
+void Context::bindSrv(Resource resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle) {
+    getDevice()->CreateShaderResourceView(resource.get(), nullptr, handle);
+}
+
 bool Context::present() {
     auto sceneList = scene->populate();
     auto viewList = display->populate();

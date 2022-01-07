@@ -5,13 +5,14 @@
 #include "render/objects/device.h"
 #include "render/camera/camera.h"
 
+#include "assets/world.h"
+
 namespace engine::render {
     struct Context;
 
     namespace SceneData {
         enum Index : int {
             Camera,
-            DefaultTexture,
             Total
         };
     }
@@ -30,7 +31,7 @@ namespace engine::render {
     };
 
     struct Scene3D : Scene {
-        Scene3D(Context* context, Camera* camera);
+        Scene3D(Context* context, Camera* camera, const assets::World* world);
         virtual ~Scene3D() = default;
 
         virtual void create() override;
@@ -40,6 +41,7 @@ namespace engine::render {
 
     private:
         Camera* camera;
+        const assets::World* world;
 
         void begin();
         void end();
@@ -69,6 +71,9 @@ namespace engine::render {
         void createPipelineState();
         void destroyPipelineState();
 
+        void createSceneData();
+        void destroySceneData();
+
         UINT getRequiredCbvSrvSize() const;
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle();
@@ -83,10 +88,9 @@ namespace engine::render {
         CameraBuffer *cameraData;
         Resource cameraResource;
 
-        Resource defaultTexture;
-
-        VertexBuffer cubeVertices;
-        IndexBuffer cubeIndices;
+        std::vector<VertexBuffer> vertexBuffers;
+        std::vector<IndexBuffer> indexBuffers;
+        std::vector<Resource> textures;
 
         ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;
