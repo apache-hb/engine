@@ -125,10 +125,11 @@ namespace engine::log {
         std::vector<Report> reports;
     };
 
-    Channel *global = new ConsoleChannel("global", stdout);
-    Channel *loader = new ConsoleChannel("loader", stderr);
-    Channel *render = new BroadcastChannel("render", {
+    Channel* global = new ConsoleChannel("global", stdout);
+    Channel* loader = new ConsoleChannel("loader", stderr);
+    Channel* render = new BroadcastChannel("render", {
         new ConsoleChannel("render", stdout),
         new ImGuiChannel("console")
     });
+    Channel* discord = new ConsoleChannel("discord", stderr);
 }

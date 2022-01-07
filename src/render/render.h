@@ -60,6 +60,7 @@ namespace engine::render {
             size_t adapter;
             system::Window* window;
             UINT buffers;
+            bool vsync;
             Resolution resolution;
 
             DisplayViewport*(*getViewport)(Context*);

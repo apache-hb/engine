@@ -41,7 +41,7 @@ namespace engine::math {
         T z;
 
         static constexpr Vec3 from(T x, T y, T z) {
-            return { x, z, y };
+            return { x, y, z };
         }
 
         static constexpr Vec3 of(T it) {
@@ -75,14 +75,14 @@ namespace engine::math {
     };
 
     template<typename T>
-    struct Vec4 {
+    struct alignas(16) Vec4 {
         T x;
         T y;
         T z;
         T w;
 
         static constexpr Vec4 from(T x, T y, T z, T w) {
-            return { x, z, y, w };
+            return { x, y, z, w };
         }
 
         static constexpr Vec4 of(T it) {
@@ -147,12 +147,12 @@ namespace engine::math {
     };
 
     template<typename T>
-    struct Mat4x4 {
+    struct alignas(16) Mat4x4 {
         using Row = Vec4<T>;
         Row rows[4];
 
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {
-            return { row0, row1, row2, row3 };
+            return { { row0, row1, row2, row3 } };
         }
 
         static constexpr Mat4x4 of(T it) {
@@ -212,12 +212,12 @@ namespace engine::math {
 
             auto height = fovCos / fovSin;
             auto width = height / aspect;
-            auto range = farLimit / (nearLimit - farLimit);
+            auto range = farLimit / (farLimit - nearLimit);
 
             auto r0 = Row::from(width, 0, 0, 0);
             auto r1 = Row::from(0, height, 0, 0);
             auto r2 = Row::from(0, 0, range, -1);
-            auto r3 = Row::from(0, 0, range * nearLimit, 0);
+            auto r3 = Row::from(0, 0, -(range * nearLimit), 0);
             return from(r0, r1, r2, r3);
         }
     };

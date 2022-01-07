@@ -70,6 +70,18 @@ namespace engine::system {
         return result;
     }
 
+    Module::Module(std::wstring_view path) {
+        handle = LoadLibraryW(path.data());
+    }
+
+    bool Module::found() const { return handle != nullptr; }
+
+    void* Module::getAddr(std::string_view name) const {
+        if (!found()) { return nullptr; }
+        
+        return GetProcAddress(handle, name.data());
+    }
+
     void init() {
         if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
             throw win32::Error("SetProcessDpiAwarenessContext");

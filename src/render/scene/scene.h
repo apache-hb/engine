@@ -23,8 +23,6 @@ namespace engine::render {
 
         virtual void create() = 0;
         virtual void destroy() = 0;
-
-        virtual void imgui() = 0;
         virtual ID3D12CommandList* populate() = 0;
 
     protected:
@@ -37,8 +35,6 @@ namespace engine::render {
 
         virtual void create() override;
         virtual void destroy() override;
-
-        virtual void imgui() override;
 
         virtual ID3D12CommandList* populate() override;
 
@@ -82,6 +78,7 @@ namespace engine::render {
 
         DescriptorHeap cbvSrvHeap;
 
+    public:
         CameraBuffer cameraBuffer;
         CameraBuffer *cameraData;
         Resource cameraResource;

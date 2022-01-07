@@ -1,7 +1,5 @@
 project('ndk', 'cpp')
 
-cpp = meson.get_compiler('cpp')
-buildtype = get_option('buildtype')
 here = meson.current_source_dir()
 links = [ ]
 

@@ -51,7 +51,7 @@ namespace engine::log {
     };
 
     struct ConsoleChannel : Channel {
-        ConsoleChannel(std::string_view name, FILE *file) 
+        ConsoleChannel(std::string_view name, FILE* file) 
             : Channel(name, true)
             , file(file) 
         { }
@@ -60,10 +60,11 @@ namespace engine::log {
 
         static DWORD init();
     private:
-        FILE *file;
+        FILE* file;
     };
 
-    extern Channel *global;
-    extern Channel *loader;
-    extern Channel *render;
+    extern Channel* global;
+    extern Channel* loader;
+    extern Channel* render;
+    extern Channel* discord;
 }

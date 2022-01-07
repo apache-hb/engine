@@ -75,7 +75,10 @@ bool Context::present() {
     ID3D12CommandList* lists[] = { sceneList, viewList };
     directCommandQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
 
-    check(swapchain->Present(0, getFactory().presentFlags()), "Present failed");
+    auto interval = info.vsync ? 1 : 0;
+    auto flags = info.vsync ? 0 : getFactory().presentFlags();
+
+    check(swapchain->Present(interval, flags), "Present failed");
 
     nextFrame();
 

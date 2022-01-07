@@ -46,8 +46,10 @@ src = [
 
     'src/system/window.cpp',
     'src/system/system.cpp',
+    'src/system/gamesdk.cpp',
 
     'src/logging/log.cpp',
+    'src/logging/debug.cpp',
 
     'src/input/inputx.cpp',
     'src/input/mnk.cpp',
@@ -69,8 +71,9 @@ stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('gltf').get_variable('gltf')
 obj = subproject('obj').get_variable('obj')
+gamesdk = subproject('discord').get_variable('gamesdk')
 
-deps = [ imgui, queue, stb, d3d12, gltf, obj ]
+deps = [ imgui, queue, stb, d3d12, gltf, obj, gamesdk ]
 
 links = [ 
     'd3d12.lib', 

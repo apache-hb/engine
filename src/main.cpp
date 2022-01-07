@@ -10,6 +10,7 @@
 #include "input/inputx.h"
 #include "input/mnk.h"
 #include "util/macros.h"
+#include "system/gamesdk.h"
 
 #include <thread>
 
@@ -39,11 +40,12 @@ struct MainWindow final : WindowCallbacks {
             .adapter = 0,
             .window = window,
             .buffers = 2,
+            .vsync = true,
             .resolution = { 1920 / 2, 1080 / 2 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
             .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera); }
         });
-        
+
         poll = new std::jthread([this](auto stop) {
             auto timer = util::createTimer();
             while (!stop.stop_requested()) {
@@ -55,7 +57,7 @@ struct MainWindow final : WindowCallbacks {
             }
         });
 
-        draw = new std::jthread([this](auto stop) { 
+        draw = new std::jthread([this](auto stop) {
             try {
                 context->create();
 
@@ -80,11 +82,11 @@ struct MainWindow final : WindowCallbacks {
     }
 
 private:
-    std::jthread *poll;
-    std::jthread *draw;
+    std::jthread* poll;
+    std::jthread* draw;
 
     xinput::Device input{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
-    render::Camera camera = { { 0.f, 0.f, 0.f }, { 0.f, 0.f, 1.f } };
+    render::Camera camera = { { 0.f, 0.f, 1.5f }, { 0.6f, 0.5f, -0.6f } };
     render::Context *context;
 };
 
@@ -119,7 +121,9 @@ int runEngine(HINSTANCE instance, int show) {
 
     ImGui_ImplWin32_Init(window.getHandle());
 
+    discord::create();
     window.run(show);
+    discord::destroy();
 
     ImGui_ImplWin32_Shutdown();
 

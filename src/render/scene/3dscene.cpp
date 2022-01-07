@@ -2,10 +2,12 @@
 
 #include <array>
 
+#include "logging/debug.h"
 #include "render/render.h"
 #include "render/objects/commands.h"
 #include "assets/texture.h"
 #include "assets/mesh.h"
+#include "imgui/imgui.h"
 
 using namespace engine;
 using namespace engine::math;
@@ -112,9 +114,37 @@ constexpr RootCreate kRootInfo = {
     .flags = kFlags
 };
 
+struct SceneDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    SceneDebugObject(Scene3D* scene): Super("Scene"), scene(scene) {}
+
+    static void matrixInfo(XMFLOAT4X4* matrix) {
+        ImGui::Separator();
+        ImGui::Text("%f %f %f %f", matrix->_11, matrix->_12, matrix->_13, matrix->_14);
+        ImGui::Text("%f %f %f %f", matrix->_21, matrix->_22, matrix->_23, matrix->_24);
+        ImGui::Text("%f %f %f %f", matrix->_31, matrix->_32, matrix->_33, matrix->_34);
+        ImGui::Text("%f %f %f %f", matrix->_41, matrix->_42, matrix->_43, matrix->_44);
+    }
+
+    virtual void info() override {
+        ImGui::Text("Model");
+        matrixInfo(&scene->cameraBuffer.model);
+        ImGui::Text("View");
+        matrixInfo(&scene->cameraBuffer.view);
+        ImGui::Text("Projection");
+        matrixInfo(&scene->cameraBuffer.projection);
+    }
+
+private:
+    Scene3D* scene;
+};
+
+SceneDebugObject* sceneDebugObject = nullptr;
+
 Scene3D::Scene3D(Context* context, Camera* camera): Scene(context), camera(camera) {
     shaders = ShaderLibrary(kShaderInfo);
-    cameraBuffer.model = float4x4::scaling(1.f, 1.f, 1.f);
+    XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(1.f, 1.f, 1.f));
+    sceneDebugObject = new SceneDebugObject(this);
 }
 
 void Scene3D::create() {
@@ -193,6 +223,9 @@ void Scene3D::createCommandList() {
 }
 
 void Scene3D::destroyCommandList() {
+    cubeIndices.tryDrop("cube-indices");
+    cubeVertices.tryDrop("cube-vertices");
+    defaultTexture.tryDrop("default-texture");
     commandList.tryDrop("scene-command-list");
 }
 
@@ -291,10 +324,6 @@ void Scene3D::destroyPipelineState() {
 
 UINT Scene3D::getRequiredCbvSrvSize() const {
     return SceneData::Total;
-}
-
-void Scene3D::imgui() {
-    camera->imgui();
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvCpuHandle(UINT index) {

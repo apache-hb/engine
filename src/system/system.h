@@ -100,5 +100,20 @@ namespace engine::system {
 
     std::vector<Display> displays();
 
+    struct Module {
+        Module(std::wstring_view path);
+
+        bool found() const;
+
+        template<typename T>
+        T* get(std::string_view name) const {
+            return reinterpret_cast<T*>(getAddr(name));
+        }
+
+    private:
+        void* getAddr(std::string_view name) const;
+        HMODULE handle;
+    };
+
     void init();
 }

@@ -2,7 +2,9 @@
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
+#include "logging/debug.h"
 #include "viewport.h"
+#include "system/gamesdk.h"
 #include "render/scene/scene.h"
 #include "render/objects/factory.h"
 #include "render/objects/commands.h"
@@ -74,8 +76,33 @@ constexpr RootCreate kRootInfo = {
     .flags = kFlags
 };
 
+struct DisplayViewportDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    DisplayViewportDebugObject(Context* context): Super("Render"), ctx(context) { }
+
+    virtual void info() override {
+        auto memory = ctx->getAdapter().getMemoryInfo();
+        const auto [internalWidth, internalHeight] = ctx->sceneResolution;
+        const auto [displayWidth, displayHeight] = ctx->displayResolution;
+
+        ImGui::Text("budget: %s", memory.budget.string().c_str());
+        ImGui::Text("used: %s", memory.used.string().c_str());
+        ImGui::Text("available: %s", memory.available.string().c_str());
+        ImGui::Text("committed: %s", memory.committed.string().c_str());
+        ImGui::Separator();
+        ImGui::Text("internal resolution: %ux%u", internalWidth, internalHeight);
+        ImGui::Text("display resolution: %ux%u", displayWidth, displayHeight);
+    }
+
+private:
+    Context* ctx;
+};
+
+static DisplayViewportDebugObject* kDebugObject = nullptr;
+
 DisplayViewport::DisplayViewport(Context* context): ctx(context) {
     shaders = ShaderLibrary(kShaderInfo);
+    kDebugObject = new DisplayViewportDebugObject(context);
 }
 
 void DisplayViewport::create() {
@@ -103,34 +130,21 @@ void DisplayViewport::destroy() {
 }
 
 ID3D12CommandList* DisplayViewport::populate() {
-    const auto [internalWidth, internalHeight] = ctx->sceneResolution;
-    const auto [displayWidth, displayHeight] = ctx->displayResolution;
-
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ctx->getScene()->imgui();
-
-    auto info = ctx->getAdapter().getMemoryInfo();
-    auto heap = ctx->getCbvHeap();
-
-    ImGui::Begin("Render Info");
-        ImGui::Text("budget: %s", info.budget.string().c_str());
-        ImGui::Text("used: %s", info.used.string().c_str());
-        ImGui::Text("available: %s", info.available.string().c_str());
-        ImGui::Text("committed: %s", info.committed.string().c_str());
-        ImGui::Separator();
-        ImGui::Text("internal resolution: %ux%u", internalWidth, internalHeight);
-        ImGui::Text("display resolution: %ux%u", displayWidth, displayHeight);
-        ImGui::Separator();
-        ImGui::Image((ImTextureID)heap.gpuHandle(Resources::SceneTarget).ptr, { float(internalWidth), float(internalHeight) });
-    ImGui::End();
+    for (auto* debugObject : debug::getDebugObjects()) {
+        ImGui::Begin(debugObject->getName().c_str());
+            debugObject->info();
+        ImGui::End();
+    }
 
     ImGui::ShowDemoWindow();
 
     ImGui::Render();
-
+    
+    auto heap = ctx->getCbvHeap();
     const auto frame = ctx->getCurrentFrame();
     auto drawData = ImGui::GetDrawData();
     const auto [scissor, viewport] = ctx->getPostView();
