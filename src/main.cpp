@@ -70,11 +70,23 @@ const auto kCubeIndices = std::vector<uint32_t>({
     5, 7, 3
 });
 
-const assets::Mesh kCubeMesh = { kCubeVertices, kCubeIndices };
+const assets::IndexBufferView kBufferView = {
+    .buffer = 0,
+    .offset = 0,
+    .length = kCubeIndices.size()
+};
+
+const assets::Mesh kCubeMesh = {
+    .buffer = 0,
+    .texture = 0
+};
 
 const assets::World kDefaultWorld = {
-    .meshes = { { kCubeMesh, 0 } },
-    .textures = { kMissingTexture }
+    .vertexBuffers = { kCubeVertices },
+    .indexBuffers = { kCubeIndices },
+    .textures = { kMissingTexture },
+    .indexBufferViews = { kBufferView },
+    .meshes = { kCubeMesh }
 };
 
 using WindowCallbacks = system::Window::Callbacks;
@@ -88,8 +100,8 @@ struct MainWindow final : WindowCallbacks {
             .adapter = 0,
             .window = window,
             .buffers = 2,
-            .vsync = true,
-            .resolution = { 1920 / 2, 1080 / 2 },
+            .vsync = false,
+            .resolution = { 1920, 1080 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
             .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, &kDefaultWorld); }
         });

@@ -134,19 +134,23 @@ ID3D12CommandList* Scene3D::populate() {
     
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     
+    size_t numVertexBuffers = std::size(vertexBuffers);
     size_t numMeshes = std::size(world->meshes);
+
+    for (size_t i = 0; i < numVertexBuffers; i++) {
+        const auto& buffer = vertexBuffers[i];
+        commandList->IASetVertexBuffers(UINT(i), 1, &buffer.view);
+    }
 
     for (size_t i = 0; i < numMeshes; i++) {
         const auto& mesh = world->meshes[i];
-        const auto& meshData = mesh.mesh;
-        const auto& vertices = vertexBuffers[i];
-        const auto& indices = indexBuffers[i];
+        const auto& bufferView = world->indexBufferViews[mesh.buffer];
+        const auto& indexBuffer = indexBuffers[bufferView.buffer];
 
         commandList->SetGraphicsRoot32BitConstant(1, UINT(mesh.texture), 0);
 
-        commandList->IASetVertexBuffers(0, 1, &vertices.view);
-        commandList->IASetIndexBuffer(&indices.view);
-        commandList->DrawIndexedInstanced(UINT(std::size(meshData.indices)), 1, 0, 0, 0);
+        commandList->IASetIndexBuffer(&indexBuffer.view);
+        commandList->DrawIndexedInstanced(UINT(bufferView.length), 1, UINT(bufferView.offset), 0, 0);
     }
 
     end();
@@ -290,21 +294,23 @@ void Scene3D::destroyPipelineState() {
 }
 
 void Scene3D::createSceneData() {
-    size_t numMeshes = std::size(world->meshes);
+    size_t numVertexBuffers = std::size(world->vertexBuffers);
+    size_t numIndexBuffers = std::size(world->indexBuffers);
     size_t numTextures = std::size(world->textures);
 
-    vertexBuffers.resize(numMeshes);
-    indexBuffers.resize(numMeshes);
+    vertexBuffers.resize(numVertexBuffers);
+    indexBuffers.resize(numIndexBuffers);
 
     textures.resize(numTextures);
 
-    for (size_t i = 0; i < numMeshes; i++) {
-        const auto& mesh = world->meshes[i].mesh;
-        auto vertices = ctx->uploadVertexBuffer<assets::Vertex>(std::format(L"vertex-buffer-{}", i), mesh.vertices);
-        auto indices = ctx->uploadIndexBuffer(std::format(L"index-buffer-{}", i), mesh.indices);
-    
-        vertexBuffers[i] = vertices;
-        indexBuffers[i] = indices;
+    for (size_t i = 0; i < numVertexBuffers; i++) {
+        const auto& vertices = world->vertexBuffers[i];
+        vertexBuffers[i] = ctx->uploadVertexBuffer<assets::Vertex>(std::format(L"vertex-buffer-{}", i), vertices);
+    }
+
+    for (size_t i = 0; i < numIndexBuffers; i++) {
+        const auto& indices = world->indexBuffers[i];
+        indexBuffers[i] = ctx->uploadIndexBuffer(std::format(L"index-buffer-{}", i), indices);
     }
 
     for (size_t i = 0; i < numTextures; i++) {

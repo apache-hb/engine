@@ -11,8 +11,12 @@ namespace engine::assets {
         float2 texcoord;
     };
 
-    struct Mesh {
-        std::vector<Vertex> vertices;
-        std::vector<uint32_t> indices;
+    using VertexBuffer = std::vector<Vertex>;
+    using IndexBuffer = std::vector<uint32_t>;
+
+    struct IndexBufferView {
+        size_t buffer;
+        size_t offset;
+        size_t length;
     };
 }
