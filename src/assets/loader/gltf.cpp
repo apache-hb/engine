@@ -108,7 +108,8 @@ namespace engine::loader {
 
         size_t numImages = model.images.size();
 
-        world.textures.resize(numImages);
+        world.textures.resize(numImages + 1);
+        world.textures[0] = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
 
         for (size_t i = 0; i < numImages; i++) {
             const auto& image = model.images[i];
@@ -119,7 +120,7 @@ namespace engine::loader {
                 .data = std::move(image.image)
             };
 
-            world.textures[i] = texture;
+            world.textures[i + 1] = texture;
         }
 
         return world;
