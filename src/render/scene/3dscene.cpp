@@ -144,13 +144,14 @@ ID3D12CommandList* Scene3D::populate() {
 
     for (size_t i = 0; i < numMeshes; i++) {
         const auto& mesh = world->meshes[i];
-        const auto& bufferView = world->indexBufferViews[mesh.buffer];
-        const auto& indexBuffer = indexBuffers[bufferView.buffer];
+        const auto& indexBuffer = indexBuffers[mesh.buffer];
 
         commandList->SetGraphicsRoot32BitConstant(1, UINT(mesh.texture), 0);
-
         commandList->IASetIndexBuffer(&indexBuffer.view);
-        commandList->DrawIndexedInstanced(UINT(bufferView.length), 1, UINT(bufferView.offset), 0, 0);
+
+        for (const auto& view : mesh.views) {
+            commandList->DrawIndexedInstanced(UINT(view.length), 1, UINT(view.offset), 0, 0);
+        }
     }
 
     end();

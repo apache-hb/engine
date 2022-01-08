@@ -15,7 +15,6 @@ namespace engine::assets {
     using IndexBuffer = std::vector<uint32_t>;
 
     struct IndexBufferView {
-        size_t buffer;
         size_t offset;
         size_t length;
     };

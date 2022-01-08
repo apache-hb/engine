@@ -43,6 +43,7 @@ src = [
     'src/util/win32.cpp',
 
     'src/assets/texture.cpp',
+    'src/assets/loader/gltf.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',

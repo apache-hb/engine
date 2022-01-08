@@ -11,6 +11,7 @@
 #include "input/mnk.h"
 #include "util/macros.h"
 #include "system/gamesdk.h"
+#include "assets/loader.h"
 
 #include <thread>
 
@@ -71,12 +72,12 @@ const auto kCubeIndices = std::vector<uint32_t>({
 });
 
 const assets::IndexBufferView kBufferView = {
-    .buffer = 0,
     .offset = 0,
     .length = kCubeIndices.size()
 };
 
 const assets::Mesh kCubeMesh = {
+    .views = { kBufferView },
     .buffer = 0,
     .texture = 0
 };
@@ -85,9 +86,10 @@ const assets::World kDefaultWorld = {
     .vertexBuffers = { kCubeVertices },
     .indexBuffers = { kCubeIndices },
     .textures = { kMissingTexture },
-    .indexBufferViews = { kBufferView },
     .meshes = { kCubeMesh }
 };
+
+const auto gltfCube = loader::gltfWorld("C:\\Users\\ehb56\\OneDrive\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
 
 using WindowCallbacks = system::Window::Callbacks;
 
@@ -103,7 +105,7 @@ struct MainWindow final : WindowCallbacks {
             .vsync = false,
             .resolution = { 1920, 1080 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, &kDefaultWorld); }
+            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, &gltfCube); }
         });
 
         poll = new std::jthread([this](auto stop) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string_view>
+#include <string>
 #include <vector>
 #include "math/math.h"
 
@@ -12,7 +12,7 @@ namespace engine::assets {
             RGBA
         };
 
-        std::string_view name;
+        std::string name;
         Resolution resolution;
         Format depth;
         std::vector<uint8_t> data;
