@@ -117,6 +117,7 @@ namespace engine::render {
         void nextFrame();
 
         void finishCopy();
+        void attachInfoQueue();
 
     public:
         Resource uploadData(std::wstring_view name, const void* data, size_t size);

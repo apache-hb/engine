@@ -92,7 +92,7 @@ const assets::World kDefaultWorldData = {
 const auto* kDefaultWorld = &kDefaultWorldData;
 #else
 
-const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\OneDrive\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
+const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
 #endif
 
 using WindowCallbacks = system::Window::Callbacks;

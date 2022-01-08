@@ -40,11 +40,14 @@ namespace engine::log {
 
         virtual void send(Level report, std::string_view message) = 0;
         virtual void tick() { }
+        std::string_view getName() const { return name; }
 
     protected:
         std::string_view channel() const { return name; }
 
     private:
+        void sendData(Level report, std::string_view message);
+        
         std::string_view name;
         bool sanitize;
         Level level = INFO;

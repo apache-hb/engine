@@ -1,6 +1,11 @@
 #include "log.h"
+#include "debug.h"
 
 #include <windows.h>
+
+#include <map>
+#include <vector>
+#include <mutex>
 
 #include "util/strings.h"
 
@@ -16,32 +21,78 @@
 #define CYAN "\x1b[0;36m"
 #define WHITE "\x1b[0;37m"
 
+using namespace engine;
+
+const char* levelString(log::Level level) {
+    switch (level) {
+    case log::INFO: return "info";
+    case log::WARN: return "warn";
+    case log::FATAL: return "fatal";
+    default: return "error";
+    }
+}
+
+const char* levelStringWithColour(log::Level level) {
+    switch (level) {
+    case log::INFO: return GREEN "info" RESET;
+    case log::WARN: return YELLOW "warn" RESET;
+    case log::FATAL: return RED "fatal" RESET;
+    default: return CYAN "error" RESET;
+    }
+}
+
+struct LogDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    LogDebugObject() : Super("log") { }
+
+    virtual void info() override {
+        std::lock_guard guard(lock);
+
+        if (ImGui::BeginTabBar("channels")) {
+            for (const auto& [channel, entries] : channels) {
+                if (ImGui::BeginTabItem(channel.data())) {
+                    for (const auto& [level, message] : entries) {
+                        ImGui::Text("[%s] %s", levelString(level), message.c_str());
+                    }
+                    ImGui::EndTabItem();
+                }
+            }
+
+            ImGui::EndTabBar();
+        }
+    }
+
+    using Entry = std::pair<log::Level, std::string>;
+
+    std::mutex lock;
+    std::map<std::string_view, std::vector<Entry>> channels;
+};
+
+auto* kDebug = new LogDebugObject();
+
+
 namespace engine::log {
     void Channel::log(Level report, std::string_view message) {
         if (report < level) { return; }
         
         if (!sanitize) {
-            send(report, message);
+            sendData(report, message);
         } else {
             for (auto part : strings::split(message, "\n")) {
-                send(report, part);
+                sendData(report, part);
             }
         }
     }
 
-    namespace {
-        std::string_view levelString(Level level) {
-            switch (level) {
-            case INFO: return GREEN "info" RESET;
-            case WARN: return YELLOW "warn" RESET;
-            case FATAL: return RED "fatal" RESET;
-            default: return CYAN "error" RESET;
-            }
-        }
-    }
+    void Channel::sendData(Level report, std::string_view message) {
+        send(report, message);
 
+        std::lock_guard guard(kDebug->lock);
+        kDebug->channels[name].emplace_back(report, message);
+    }
+        
     void ConsoleChannel::send(Level report, std::string_view message) {
-        auto view = levelString(report);
+        auto view = levelStringWithColour(report);
         const std::string full = std::format("{}[{}]: {}", channel(), view, message);
         fprintf(file, "%s\n", full.c_str());
     }
@@ -58,78 +109,8 @@ namespace engine::log {
         return 0;
     }
 
-    struct BroadcastChannel : Channel {
-        using Channels = std::vector<Channel*>;
-        BroadcastChannel(std::string_view name, Channels channels)
-            : Channel(name, false)
-            , channels(channels) 
-        { }
-
-        virtual void send(Level report, std::string_view message) override {
-            for (auto channel : channels) {
-                channel->send(report, message);
-            }
-        }
-
-        virtual void tick() override {
-            for (auto channel : channels) {
-                channel->tick();
-            }
-        }
-    private:
-        Channels channels;
-    };
-
-    struct ImGuiChannel : Channel {
-        using Report = std::tuple<Level, std::string>;
-
-        ImGuiChannel(std::string_view name) 
-            : Channel(name, false) 
-        { }
-
-        virtual void send(Level report, std::string_view message) override {
-            reports.push_back(Report(report, std::string(message)));
-        }
-
-        virtual void tick() override {
-            ImGui::SetNextWindowPos(ImVec2(0, 0));
-            if (ImGui::Begin(channel().data(), nullptr, ImGuiWindowFlags_NoMove)) {
-                ImGui::Text("double click a log to copy it to clipboard");
-                ImGui::Separator();
-                ImGui::PushTextWrapPos(ImGui::GetWindowWidth() * 0.9f);
-
-                for (const auto& [lvl, report] : reports) {
-                    auto colour = reportColour(lvl);
-                    ImGui::PushStyleColor(ImGuiCol_Text, colour);
-                    if (ImGui::Selectable(report.c_str(), false, ImGuiSelectableFlags_AllowDoubleClick)) {
-                        if (ImGui::IsMouseDoubleClicked(0)) {
-                            ImGui::SetClipboardText(report.c_str());
-                        }
-                    }
-                    ImGui::PopStyleColor();
-                }
-                
-                ImGui::PopTextWrapPos();
-            }
-            ImGui::End();
-        }
-    private:
-        static ImVec4 reportColour(Level level) {
-            switch (level) {
-            case INFO: return ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
-            case WARN: return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
-            case FATAL: return ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-            default: return ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
-            }
-        }
-        std::vector<Report> reports;
-    };
-
     Channel* global = new ConsoleChannel("global", stdout);
     Channel* loader = new ConsoleChannel("loader", stderr);
-    Channel* render = new BroadcastChannel("render", {
-        new ConsoleChannel("render", stdout),
-        new ImGuiChannel("console")
-    });
+    Channel* render = new ConsoleChannel("render", stdout);
     Channel* discord = new ConsoleChannel("discord", stderr);
 }
