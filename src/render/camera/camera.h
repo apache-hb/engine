@@ -4,6 +4,8 @@
 
 #include <atomic>
 
+struct CameraDebugObject;
+
 namespace engine::render {
     using namespace DirectX;
     struct Camera {
@@ -22,6 +24,8 @@ namespace engine::render {
         float getYaw() const { return yaw; }
 
     private:
+        friend CameraDebugObject;
+
         XMFLOAT3 position;
         XMFLOAT3 direction;
         

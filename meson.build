@@ -44,6 +44,7 @@ src = [
 
     'src/assets/texture.cpp',
     'src/assets/loader/gltf.cpp',
+    'src/assets/loader/debug.cpp',
 
     'src/system/window.cpp',
     'src/system/system.cpp',

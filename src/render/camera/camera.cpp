@@ -15,14 +15,11 @@ struct CameraDebugObject : debug::DebugObject {
     virtual void info() override {
         const auto pos = camera->getPosition();
         const auto dir = camera->getDirection();
-        const auto fov = camera->getFov();
-        const auto pitch = camera->getPitch();
-        const auto yaw = camera->getYaw();
         ImGui::Text("Position: %f, %f, %f", pos.x, pos.y, pos.z);
         ImGui::Text("Direction: %f, %f, %f", dir.x, dir.y, dir.z);
-        ImGui::Text("Fov: %f", fov);
-        ImGui::Text("Pitch: %f", pitch);
-        ImGui::Text("Yaw: %f", yaw);
+        ImGui::SliderFloat("Fov", &camera->fov, 30.f, 120.f);
+        ImGui::SliderFloat("Pitch", &camera->pitch, -90.f, 90.f);
+        ImGui::SliderFloat("Yaw", &camera->yaw, -180.f, 180.f);
     }
 
 private:

@@ -30,7 +30,7 @@ constexpr float kLookSensitivity = 1.f;
 constexpr float kMoveSensitivity = 1.f;
 constexpr float kUpDownSensitivity = 1.f;
 
-
+#if 0
 const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
 
 const auto kCubeVertices = std::vector<assets::Vertex>({
@@ -82,14 +82,18 @@ const assets::Mesh kCubeMesh = {
     .texture = 0
 };
 
-const assets::World kDefaultWorld = {
+const assets::World kDefaultWorldData = {
     .vertexBuffers = { kCubeVertices },
     .indexBuffers = { kCubeIndices },
     .textures = { kMissingTexture },
     .meshes = { kCubeMesh }
 };
 
-const auto gltfCube = loader::gltfWorld("C:\\Users\\ehb56\\OneDrive\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
+const auto* kDefaultWorld = &kDefaultWorldData;
+#else
+
+const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\OneDrive\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
+#endif
 
 using WindowCallbacks = system::Window::Callbacks;
 
@@ -105,7 +109,7 @@ struct MainWindow final : WindowCallbacks {
             .vsync = false,
             .resolution = { 1920, 1080 },
             .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, &gltfCube); }
+            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, kDefaultWorld); }
         });
 
         poll = new std::jthread([this](auto stop) {
@@ -148,7 +152,7 @@ private:
     std::jthread* draw;
 
     xinput::Device input{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
-    render::Camera camera = { { 0.f, 0.f, 1.5f }, { 0.6f, 0.5f, -0.6f } };
+    render::Camera camera = { { 0.f, -1.f, 1.5f }, { 0.f, 1.f, 0.f } };
     render::Context *context;
 };
 

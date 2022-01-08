@@ -1,6 +1,7 @@
 #include "assets/loader.h"
 #include "logging/log.h"
 #include "gltf/tinygltf.h"
+#include "debug.h"
 
 #include <unordered_map>
 
@@ -65,26 +66,34 @@ namespace engine::loader {
 
     void buildNode(assets::World* world, const gltf::Model& model, size_t index) {
         const auto& node = model.nodes[index];
-        const auto& mesh = model.meshes[node.mesh];
-        const auto& primitives = mesh.primitives;
+        int meshIndex = node.mesh;
 
-        for (const auto& primitive : primitives) {
-            const auto& attributes = primitive.attributes;
+        if (meshIndex != -1) {
+            const auto& mesh = model.meshes[node.mesh];
+            const auto& primitives = mesh.primitives;
 
-            // get position data
-            const auto& positionAccessor = model.accessors[attributes.at("POSITION")];
-            const auto& positionBufferView = model.bufferViews[positionAccessor.bufferView];
-            const auto& positionBuffer = model.buffers[positionBufferView.buffer];
+            for (const auto& primitive : primitives) {
+                const auto& attributes = primitive.attributes;
 
-            const auto positionData = positionBuffer.data.data() + positionBufferView.byteOffset + positionAccessor.byteOffset;
-            const auto positionLength = positionAccessor.count;
-            const auto positionStride = positionAccessor.ByteStride(positionBufferView);
+                // get position data
+                const auto& positionAccessor = model.accessors[attributes.at("POSITION")];
+                const auto& positionBufferView = model.bufferViews[positionAccessor.bufferView];
+                const auto& positionBuffer = model.buffers[positionBufferView.buffer];
 
-            getVec3Array(world, positionData, positionLength, positionStride);
+                const auto positionData = positionBuffer.data.data() + positionBufferView.byteOffset + positionAccessor.byteOffset;
+                const auto positionLength = positionAccessor.count;
+                const auto positionStride = positionAccessor.ByteStride(positionBufferView);
+
+                getVec3Array(world, positionData, positionLength, positionStride);
+            }
+        }
+
+        for (int child : node.children) {
+            buildNode(world, model, child);
         }
     }
 
-    assets::World gltfWorld(std::string_view path) {
+    assets::World* gltfWorld(std::string_view path) {
         log::loader->info("loading gltf file {}", path);
         std::string errors;
         std::string warnings;
@@ -104,12 +113,12 @@ namespace engine::loader {
             return { };
         }
 
-        assets::World world;
+        auto* world = new assets::World();
 
         size_t numImages = model.images.size();
 
-        world.textures.resize(numImages + 1);
-        world.textures[0] = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
+        world->textures.resize(numImages + 1);
+        world->textures[0] = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
 
         for (size_t i = 0; i < numImages; i++) {
             const auto& image = model.images[i];
@@ -120,8 +129,15 @@ namespace engine::loader {
                 .data = std::move(image.image)
             };
 
-            world.textures[i + 1] = texture;
+            world->textures[i + 1] = texture;
         }
+
+        const auto& scene = model.scenes[model.defaultScene];
+        for (const auto& index : scene.nodes) {
+            buildNode(world, model, index);
+        }
+
+        newDebugObject(world);
 
         return world;
     }
