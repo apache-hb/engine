@@ -29,7 +29,7 @@ namespace engine::loader {
     // so we need to flip the y and z axis
     float3 getVec3(const uint8_t* data) {
         const float3* vec = reinterpret_cast<const float3*>(data);
-        return { vec->x, vec->z, vec->y };
+        return { vec->z, vec->z, vec->x };
     }
 
     void getVec3Array(assets::World* world, const uint8_t* data, size_t elements, size_t stride) {
