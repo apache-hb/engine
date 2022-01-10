@@ -24,6 +24,10 @@ namespace engine::render {
         return CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, count, reg, space, flags);
     }
 
+    constexpr CD3DX12_DESCRIPTOR_RANGE1 samplerRange(UINT reg, UINT count, UINT space = 0) {
+        return CD3DX12_DESCRIPTOR_RANGE1(D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, count, reg, space, D3D12_DESCRIPTOR_RANGE_FLAG_NONE);
+    }
+
     constexpr CD3DX12_ROOT_PARAMETER1 tableParameter(D3D12_SHADER_VISIBILITY visibility, std::span<const CD3DX12_DESCRIPTOR_RANGE1> ranges) {
         return CD3DX12_ROOT_PARAMETER1({
             .ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,

@@ -31,6 +31,7 @@ constexpr int16_t kRTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 constexpr float kLookSensitivity = 1.f;
 constexpr float kMoveSensitivity = 1.f;
 constexpr float kUpDownSensitivity = 1.f;
+constexpr float kShiftAccel = 50.f;
 
 #if 0
 const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
@@ -95,7 +96,7 @@ const auto* kDefaultWorld = &kDefaultWorldData;
 
 #else
 
-const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\BoxTextured\\glTF\\BoxTextured.gltf");
+const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Duck\\glTF\\Duck.gltf");
 
 #endif
 
@@ -135,7 +136,7 @@ struct GameInput {
 private:
     enum { XBOX, MNK } device = MNK;
     xinput::Device xbox{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
-    input::MnK mnk{5.f};
+    input::MnK mnk{15.f, kShiftAccel};
     std::jthread* thread;
 };
 

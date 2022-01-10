@@ -29,3 +29,7 @@ Texture engine::assets::genMissingTexture(const Texture::Resolution& resolution,
 
     return { "missing-texture", resolution, depth, data };
 }
+
+Sampler engine::assets::genMissingSampler() {
+    return { Sampler::Wrap::REPEAT, Sampler::Wrap::REPEAT };
+}

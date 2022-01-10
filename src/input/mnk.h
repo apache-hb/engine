@@ -5,7 +5,7 @@
 
 namespace engine::input {
     struct MnK {
-        MnK(float sensitivity): sensitivity(sensitivity) { 
+        MnK(float sensitivity, float shiftAccel): sensitivity(sensitivity), shiftAccel(shiftAccel) { 
             memset(keys, 0, sizeof(keys));
         }
 
@@ -21,6 +21,7 @@ namespace engine::input {
         int newY = 0;
 
         float sensitivity;
+        float shiftAccel;
 
         bool keys[0xFF] = {};
     };

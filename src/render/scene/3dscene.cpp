@@ -1,6 +1,7 @@
 #include "scene.h"
 
 #include <array>
+#include <span>
 
 #include "logging/debug.h"
 #include "render/render.h"
@@ -44,35 +45,56 @@ constexpr auto kSrvRanges = std::to_array({
 
 constexpr auto kParams = std::to_array({
     cbvParameter(visibility::kVertex, 0), // cbuffer register(b0)
-    root32BitParameter(visibility::kPixel, 1, 1), // cbuffer register(b1)
+    root32BitParameter(visibility::kPixel, 1, 2), // cbuffer register(b1)
     tableParameter(visibility::kPixel, kSrvRanges) // Texture2D[] register(t0)
 });
 
-constexpr D3D12_STATIC_SAMPLER_DESC kSamplers[] = {{
-    .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-    .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-    .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-    .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-    .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
-    .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-    .MinLOD = 0.0f,
-    .MaxLOD = D3D12_FLOAT32_MAX,
-    .ShaderRegister = 0,
-    .RegisterSpace = 0,
-    .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
-}};
+D3D12_TEXTURE_ADDRESS_MODE getSamplerMode(engine::assets::Sampler::Wrap wrap) {
+    switch (wrap) {
+    case engine::assets::Sampler::Wrap::REPEAT:
+        return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    case engine::assets::Sampler::Wrap::CLAMP:
+        return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    case engine::assets::Sampler::Wrap::MIRROR:
+        return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
+    default:
+        return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    }
+}
+
+std::vector<D3D12_STATIC_SAMPLER_DESC> buildSamplers(std::span<const engine::assets::Sampler> data) {
+    std::vector<D3D12_STATIC_SAMPLER_DESC> samplers(data.size());
+
+    D3D12_STATIC_SAMPLER_DESC sampler = {
+        .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+        .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+        .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
+        .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
+        .MinLOD = 0.0f,
+        .MaxLOD = D3D12_FLOAT32_MAX,
+        .ShaderRegister = 0,
+        .RegisterSpace = 0,
+        .ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
+    };
+
+    for (size_t i = 0; i < data.size(); i++) {
+        const auto& it = data[i];
+        sampler.AddressU = getSamplerMode(it.wrapU);
+        sampler.AddressV = getSamplerMode(it.wrapV);
+        sampler.ShaderRegister = UINT(i);
+        samplers[i] = sampler;
+    }
+
+    return samplers;
+}
 
 constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
     D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
     D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
-
-constexpr RootCreate kRootInfo = {
-    .params = kParams,
-    .samplers = kSamplers,
-    .flags = kFlags
-};
 
 struct SceneDebugObject : debug::DebugObject {
     using Super = debug::DebugObject;
@@ -146,7 +168,9 @@ ID3D12CommandList* Scene3D::populate() {
         const auto& mesh = world->meshes[i];
         const auto& indexBuffer = indexBuffers[mesh.buffer];
 
-        commandList->SetGraphicsRoot32BitConstant(1, UINT(mesh.texture), 0);
+        UINT values[] = { UINT(mesh.material.texture), UINT(mesh.material.sampler) };
+
+        commandList->SetGraphicsRoot32BitConstants(1, 2, values, 0);
         commandList->IASetIndexBuffer(&indexBuffer.view);
 
         for (const auto& view : mesh.views) {
@@ -276,7 +300,13 @@ void Scene3D::destroyDepthStencil() {
 }
 
 void Scene3D::createRootSignature() {
-    rootSignature = getDevice().newRootSignature(L"scene-root-signature", kRootInfo);
+    auto samplers = buildSamplers(world->samplers);
+    RootCreate rootInfo = {
+        .params = kParams,
+        .samplers = samplers,
+        .flags = kFlags
+    };
+    rootSignature = getDevice().newRootSignature(L"scene-root-signature", rootInfo);
 }
 
 void Scene3D::destroyRootSignature() {

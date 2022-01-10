@@ -19,14 +19,16 @@ namespace engine::input {
         newX = cursor.x;
         newY = cursor.y;
 
+        float accel = (keys[VK_SHIFT] || keys[VK_LSHIFT] || keys[VK_RSHIFT] ? shiftAccel : 1.f);
+
         result.rstick.x = float(newX - mouseX) * sensitivity;
         result.rstick.y = -float(newY - mouseY) * sensitivity;
 
-        result.lstick.x = -float(keys['A'] - keys['D']);
-        result.lstick.y = -float(keys['S'] - keys['W']);
+        result.lstick.x = -float(keys['A'] - keys['D']) * accel;
+        result.lstick.y = -float(keys['S'] - keys['W']) * accel;
 
-        result.ltrigger = float(keys['Q']);
-        result.rtrigger = float(keys['E']);
+        result.ltrigger = float(keys['Q']) * accel;
+        result.rtrigger = float(keys['E']) * accel;
 
         mouseX = newX;
         mouseY = newY;

@@ -18,5 +18,13 @@ namespace engine::assets {
         std::vector<uint8_t> data;
     };
 
+    struct Sampler {
+        enum Wrap { REPEAT, MIRROR, CLAMP };
+
+        Wrap wrapU;
+        Wrap wrapV;
+    };
+
     Texture genMissingTexture(const Texture::Resolution& resolution, Texture::Format depth);
+    Sampler genMissingSampler();
 }

@@ -79,7 +79,7 @@ namespace engine::loader {
         assets::Mesh mesh = {
             .views = { view },
             .buffer = world->indexBuffers.size(),
-            .texture = 0
+            .material = { 0, 0 }
         };
 
         return {
@@ -134,6 +134,11 @@ namespace engine::loader {
             break;
         }
 
+        // damn winding order
+        for (size_t i = 0; i < indices.size(); i += 3) {
+            std::swap(indices[i + 1], indices[i + 2]);
+        }
+
         return indices;
     }
 
@@ -166,16 +171,16 @@ namespace engine::loader {
                 const auto positionData = getData("POSITION");
                 const auto texData = getData("TEXCOORD_0");
 
-                const auto getImageIndex = [&] {
-                    if (primitive.material == -1) { return 0; }
+                const auto getMaterial = [&]() -> assets::Material {
+                    if (primitive.material == -1) { return { 0, 0 }; }
                     const auto& material = model.materials[primitive.material];
-                    if (material.pbrMetallicRoughness.baseColorTexture.index == -1) { return 0; }
-                    const auto& texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
-                    if (texture.source == -1) { return 0; }
-                    return texture.source + 1;
+                    const auto& base = material.pbrMetallicRoughness.baseColorTexture;
+                    if (base.index == -1) { return { 0, 0 }; }
+                    const auto& texture = model.textures[base.index];
+                    return { size_t(texture.source + 1), size_t(texture.sampler + 1) };
                 };
 
-                const auto imageIndex = getImageIndex();
+                const auto material = getMaterial();
 
                 // figure out if we need indices
                 const auto& indexData = primitive.indices;
@@ -184,7 +189,7 @@ namespace engine::loader {
                     auto indices = getIndexArray(model, indexData);
 
                     data.mesh.views[0].length = indices.size();
-                    data.mesh.texture = imageIndex;
+                    data.mesh.material = material;
 
                     world->vertexBuffers.push_back(data.vertices);
                     world->indexBuffers.push_back(indices);
@@ -192,7 +197,7 @@ namespace engine::loader {
                 } else {
                     auto [vertices, indices, data] = getVec3Array(world, positionData, texData, true);
                     
-                    data.texture = imageIndex;
+                    data.material = material;
 
                     world->vertexBuffers.push_back(vertices);
                     world->indexBuffers.push_back(indices);
@@ -203,6 +208,19 @@ namespace engine::loader {
 
         for (int child : node.children) {
             buildNode(world, model, child);
+        }
+    }
+
+    assets::Sampler::Wrap getWrap(int type) {
+        switch (type) {
+        case TINYGLTF_TEXTURE_WRAP_REPEAT:
+            return assets::Sampler::Wrap::REPEAT;
+        case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE:
+            return assets::Sampler::Wrap::CLAMP;
+        case TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT:
+            return assets::Sampler::Wrap::MIRROR;
+        default:
+            return assets::Sampler::Wrap::CLAMP;
         }
     }
 
@@ -229,9 +247,13 @@ namespace engine::loader {
         auto* world = new assets::World();
 
         size_t numImages = model.images.size();
+        size_t numSamplers = model.samplers.size();
 
         world->textures.resize(numImages + 1);
         world->textures[0] = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
+
+        world->samplers.resize(numSamplers + 1);
+        world->samplers[0] = assets::genMissingSampler();
 
         for (size_t i = 0; i < numImages; i++) {
             const auto& image = model.images[i];
@@ -243,6 +265,11 @@ namespace engine::loader {
             };
 
             world->textures[i + 1] = texture;
+        }
+
+        for (size_t i = 0; i < numSamplers; i++) {
+            const auto& sampler = model.samplers[i];
+            world->samplers[i + 1] = { getWrap(sampler.wrapS), getWrap(sampler.wrapT) };
         }
 
         const auto& scene = model.scenes[model.defaultScene];

@@ -10,12 +10,13 @@ cbuffer CameraBuffer : register(b0) {
 /// contains the currently bound texture index
 cbuffer BindsBuffer : register(b1) {
     uint textureIndex;
+    uint samplerIndex;
 };
 
 /// we use bindless textures so this is all we need
 /// `tex` is used to index into this in the pixel shader
 Texture2D textures[] : register(t0);
-SamplerState texSampler : register(s0);
+SamplerState samplers[] : register(s0);
 
 struct PSInput {
     float4 position : SV_POSITION;
@@ -40,5 +41,5 @@ PSInput vsMain(float3 position : POSITION, float2 uv : TEXCOORD) {
 }
 
 float4 psMain(PSInput input) : SV_TARGET {
-    return textures[textureIndex].Sample(texSampler, input.uv);
+    return textures[textureIndex].Sample(samplers[samplerIndex], input.uv);
 }
