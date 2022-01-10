@@ -32,19 +32,32 @@ namespace engine::loader {
         return { vec->x, vec->y, vec->z };
     }
 
+    float2 getVec2(const uint8_t* data) {
+        const float2* vec = reinterpret_cast<const float2*>(data);
+        return { vec->x, vec->y };
+    }
+
+    struct AttributeData {
+        const uint8_t* data;
+        size_t length;
+        int stride;
+    };
+
     struct MeshData {
         std::vector<assets::Vertex> vertices;
         std::vector<uint32_t> indices;
         assets::Mesh mesh;
     };
 
-    MeshData getVec3Array(assets::World* world, const uint8_t* data, size_t elements, size_t stride, bool genIndices) {
+    MeshData getVec3Array(assets::World* world, const AttributeData& position, const AttributeData& texcoord, bool genIndices) {
         std::vector<assets::Vertex> vertices;
         std::vector<uint32_t> indices;
         std::unordered_map<float3, uint32_t> unique;
 
-        for (size_t i = 0; i < elements; i++) {
-            auto vec = getVec3(data + i * stride);
+        for (size_t i = 0; i < position.length; i++) {
+            auto vec = getVec3(position.data + i * position.stride);
+            auto coords = position.data == nullptr ? float2 { 0.f, 0.f } 
+                : getVec2(texcoord.data + i * texcoord.stride);
 
             if (genIndices) {
                 if (auto iter = unique.find(vec); iter != unique.end()) {
@@ -52,12 +65,12 @@ namespace engine::loader {
                 } else {
                     auto index = uint32_t(vertices.size());
 
-                    vertices.push_back({ vec, { 0.0f, 0.0f } });
+                    vertices.push_back({ vec, coords });
                     indices.push_back(index);
                     unique[vec] = index;
                 }
             } else {
-                vertices.push_back({ vec, { 0.0f, 0.0f } });
+                vertices.push_back({ vec, coords });
             }
         }
 
@@ -135,30 +148,52 @@ namespace engine::loader {
             for (const auto& primitive : primitives) {
                 const auto& attributes = primitive.attributes;
 
-                // get position data
-                const auto& positionAccessor = model.accessors[attributes.at("POSITION")];
-                const auto& positionBufferView = model.bufferViews[positionAccessor.bufferView];
-                const auto& positionBuffer = model.buffers[positionBufferView.buffer];
+                const auto getData = [&](const char* at) -> AttributeData {
+                    const auto index = attributes.at(at);
+                    if (index == -1) { return { nullptr, 0, 0 }; }
 
-                const auto positionData = positionBuffer.data.data() + positionBufferView.byteOffset + positionAccessor.byteOffset;
-                const auto positionLength = positionAccessor.count;
-                const auto positionStride = positionAccessor.ByteStride(positionBufferView);
+                    const auto& accessor = model.accessors[index];
+                    const auto& bufferView = model.bufferViews[accessor.bufferView];
+                    const auto& buffer = model.buffers[bufferView.buffer];
+
+                    const auto data = buffer.data.data() + accessor.byteOffset + bufferView.byteOffset;
+                    const auto length = accessor.count;
+                    const auto stride = accessor.ByteStride(bufferView);
+
+                    return { data, length, stride };
+                };
+
+                const auto positionData = getData("POSITION");
+                const auto texData = getData("TEXCOORD_0");
+
+                const auto getImageIndex = [&] {
+                    if (primitive.material == -1) { return 0; }
+                    const auto& material = model.materials[primitive.material];
+                    if (material.pbrMetallicRoughness.baseColorTexture.index == -1) { return 0; }
+                    const auto& texture = model.textures[material.pbrMetallicRoughness.baseColorTexture.index];
+                    if (texture.source == -1) { return 0; }
+                    return texture.source + 1;
+                };
+
+                const auto imageIndex = getImageIndex();
 
                 // figure out if we need indices
                 const auto& indexData = primitive.indices;
                 if (indexData != -1) {
-                    auto data = getVec3Array(world, positionData, positionLength, positionStride, false);
+                    auto data = getVec3Array(world, positionData, texData, false);
                     auto indices = getIndexArray(model, indexData);
 
-                    log::loader->info("indices {}", indices.size());
-
                     data.mesh.views[0].length = indices.size();
+                    data.mesh.texture = imageIndex;
 
                     world->vertexBuffers.push_back(data.vertices);
                     world->indexBuffers.push_back(indices);
                     world->meshes.push_back(data.mesh);
                 } else {
-                    auto [vertices, indices, data] = getVec3Array(world, positionData, positionLength, positionStride, true);
+                    auto [vertices, indices, data] = getVec3Array(world, positionData, texData, true);
+                    
+                    data.texture = imageIndex;
+
                     world->vertexBuffers.push_back(vertices);
                     world->indexBuffers.push_back(indices);
                     world->meshes.push_back(data);
