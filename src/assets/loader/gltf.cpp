@@ -29,7 +29,7 @@ namespace engine::loader {
     // so we need to flip the y and z axis
     float3 getVec3(const uint8_t* data) {
         const float3* vec = reinterpret_cast<const float3*>(data);
-        return { vec->x, vec->y, vec->z };
+        return { vec->x, vec->z, vec->y };
     }
 
     float2 getVec2(const uint8_t* data) {
@@ -135,9 +135,9 @@ namespace engine::loader {
         }
 
         // damn winding order
-        for (size_t i = 0; i < indices.size(); i += 3) {
+        /*for (size_t i = 0; i < indices.size(); i += 3) {
             std::swap(indices[i + 1], indices[i + 2]);
-        }
+        }*/
 
         return indices;
     }

@@ -316,6 +316,7 @@ void Scene3D::destroyRootSignature() {
 void Scene3D::createPipelineState() {
     pipelineState = getDevice().newGraphicsPSO(L"viewport-pipeline-state", rootSignature, {
         .shaders = shaders,
+        .dsvDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
         .dsvFormat = kDepthFormat
     });
 }
