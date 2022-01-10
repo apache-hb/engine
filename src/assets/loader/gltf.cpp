@@ -29,10 +29,16 @@ namespace engine::loader {
     // so we need to flip the y and z axis
     float3 getVec3(const uint8_t* data) {
         const float3* vec = reinterpret_cast<const float3*>(data);
-        return { vec->z, vec->z, vec->x };
+        return { vec->x, vec->y, vec->z };
     }
 
-    void getVec3Array(assets::World* world, const uint8_t* data, size_t elements, size_t stride) {
+    struct MeshData {
+        std::vector<assets::Vertex> vertices;
+        std::vector<uint32_t> indices;
+        assets::Mesh mesh;
+    };
+
+    MeshData getVec3Array(assets::World* world, const uint8_t* data, size_t elements, size_t stride, bool genIndices) {
         std::vector<assets::Vertex> vertices;
         std::vector<uint32_t> indices;
         std::unordered_map<float3, uint32_t> unique;
@@ -40,28 +46,82 @@ namespace engine::loader {
         for (size_t i = 0; i < elements; i++) {
             auto vec = getVec3(data + i * stride);
 
-            if (auto iter = unique.find(vec); iter != unique.end()) {
-                indices.push_back(iter->second);
-            } else {
-                auto index = uint32_t(vertices.size());
+            if (genIndices) {
+                if (auto iter = unique.find(vec); iter != unique.end()) {
+                    indices.push_back(iter->second);
+                } else {
+                    auto index = uint32_t(vertices.size());
 
+                    vertices.push_back({ vec, { 0.0f, 0.0f } });
+                    indices.push_back(index);
+                    unique[vec] = index;
+                }
+            } else {
                 vertices.push_back({ vec, { 0.0f, 0.0f } });
-                indices.push_back(index);
-                unique[vec] = index;
             }
         }
 
         assets::IndexBufferView view = { .offset = 0, .length = indices.size() };
 
-        assets::Mesh mesh = { 
+        assets::Mesh mesh = {
             .views = { view },
             .buffer = world->indexBuffers.size(),
             .texture = 0
         };
 
-        world->vertexBuffers.push_back(vertices);
-        world->indexBuffers.push_back(indices);
-        world->meshes.push_back(mesh);
+        return {
+            .vertices = vertices,
+            .indices = indices,
+            .mesh = mesh
+        };
+    }
+
+    std::vector<uint32_t> getIndexArray(const gltf::Model& model, int index) {
+        const auto& accessor = model.accessors[index];
+        const auto& bufferView = model.bufferViews[accessor.bufferView];
+        const auto& buffer = model.buffers[bufferView.buffer];
+
+        const auto data = buffer.data.data() + accessor.byteOffset + bufferView.byteOffset;
+        const auto stride = accessor.ByteStride(bufferView);
+        const auto elements = accessor.count;
+
+        log::loader->info("loading {} elements of type {} with stride {}", elements, accessor.componentType, stride);
+
+        std::vector<uint32_t> indices(elements);
+
+#define COPY_INDICES(type) \
+            const auto* begin = reinterpret_cast<const type*>(data); \
+            const auto* end = reinterpret_cast<const type*>(data) + elements; \
+            std::copy(begin, end, indices.begin()); \
+            break; 
+
+        /**
+         * i hate the antichrist (whoever wrote the gltf 2 spec)
+         */
+        switch (accessor.componentType) {
+        case TINYGLTF_COMPONENT_TYPE_BYTE: {
+            COPY_INDICES(int8_t)
+        }
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: {
+            COPY_INDICES(uint8_t)
+        }
+        case TINYGLTF_COMPONENT_TYPE_SHORT: {
+            COPY_INDICES(int16_t)
+        }
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+            COPY_INDICES(uint16_t)
+        }
+        case TINYGLTF_COMPONENT_TYPE_INT: {
+            COPY_INDICES(int32_t)
+        }
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
+            COPY_INDICES(uint32_t)
+        }
+        default:
+            break;
+        }
+
+        return indices;
     }
 
     void buildNode(assets::World* world, const gltf::Model& model, size_t index) {
@@ -84,7 +144,25 @@ namespace engine::loader {
                 const auto positionLength = positionAccessor.count;
                 const auto positionStride = positionAccessor.ByteStride(positionBufferView);
 
-                getVec3Array(world, positionData, positionLength, positionStride);
+                // figure out if we need indices
+                const auto& indexData = primitive.indices;
+                if (indexData != -1) {
+                    auto data = getVec3Array(world, positionData, positionLength, positionStride, false);
+                    auto indices = getIndexArray(model, indexData);
+
+                    log::loader->info("indices {}", indices.size());
+
+                    data.mesh.views[0].length = indices.size();
+
+                    world->vertexBuffers.push_back(data.vertices);
+                    world->indexBuffers.push_back(indices);
+                    world->meshes.push_back(data.mesh);
+                } else {
+                    auto [vertices, indices, data] = getVec3Array(world, positionData, positionLength, positionStride, true);
+                    world->vertexBuffers.push_back(vertices);
+                    world->indexBuffers.push_back(indices);
+                    world->meshes.push_back(data);
+                }
             }
         }
 

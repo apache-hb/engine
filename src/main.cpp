@@ -19,6 +19,8 @@
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 using namespace engine;
 
 constexpr xinput::Deadzone kLStickDeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
@@ -90,12 +92,52 @@ const assets::World kDefaultWorldData = {
 };
 
 const auto* kDefaultWorld = &kDefaultWorldData;
+
 #else
 
 const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Box\\glTF\\Box.gltf");
+
 #endif
 
 using WindowCallbacks = system::Window::Callbacks;
+
+struct GameInput {
+    GameInput(WindowCallbacks* callbacks) {
+        thread = new std::jthread([=](auto stop) mutable {
+            while (!stop.stop_requested()) {
+                auto event = callbacks->pollEvent();
+                switch (event.type) {
+                case WM_KEYDOWN:
+                    mnk.pushPress(event.wparam);
+                    break;
+                case WM_KEYUP:
+                    mnk.pushRelease(event.wparam);
+                    break;
+                default:
+                    break;
+                }
+            }
+        });
+    }
+
+    ~GameInput() {
+        delete thread;
+    }
+
+    input::Input poll() {
+        switch (device) {
+        case XBOX: return xbox.poll();
+        case MNK: return mnk.poll();
+        default: return input::Input();
+        }
+    }
+
+private:
+    enum { XBOX, MNK } device = MNK;
+    xinput::Device xbox{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
+    input::MnK mnk{5.f};
+    std::jthread* thread;
+};
 
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
@@ -116,7 +158,7 @@ struct MainWindow final : WindowCallbacks {
             auto timer = util::createTimer();
             while (!stop.stop_requested()) {
                 auto delta = timer.tick();
-                auto data = input.poll();
+                auto data = input->poll();
 
                 camera.move(data.lstick.x * delta * kMoveSensitivity, data.lstick.y * delta * kMoveSensitivity, (data.rtrigger - data.ltrigger) * delta * kUpDownSensitivity);
                 camera.rotate(data.rstick.x * delta * kLookSensitivity, data.rstick.y * delta * kLookSensitivity);
@@ -139,6 +181,8 @@ struct MainWindow final : WindowCallbacks {
 
             context->destroy();
         });
+
+        input = new GameInput(this);
     }
 
     virtual void onDestroy() override {
@@ -151,7 +195,7 @@ private:
     std::jthread* poll;
     std::jthread* draw;
 
-    xinput::Device input{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
+    GameInput* input;
     render::Camera camera = { { 0.f, -1.f, 1.5f }, { 0.f, 1.f, 0.f } };
     render::Context *context;
 };

@@ -129,18 +129,22 @@ void Context::bindSrv(Resource resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle) {
 }
 
 bool Context::present() {
-    auto sceneList = scene->populate();
-    auto viewList = display->populate();
+    try {
+        auto sceneList = scene->populate();
+        auto viewList = display->populate();
 
-    ID3D12CommandList* lists[] = { sceneList, viewList };
-    directCommandQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
+        ID3D12CommandList* lists[] = { sceneList, viewList };
+        directCommandQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);
 
-    auto interval = info.vsync ? 1 : 0;
-    auto flags = info.vsync ? 0 : getFactory().presentFlags();
+        auto interval = info.vsync ? 1 : 0;
+        auto flags = info.vsync ? 0 : getFactory().presentFlags();
 
-    check(swapchain->Present(interval, flags), "Present failed");
+        check(swapchain->Present(interval, flags), "Present failed");
 
-    nextFrame();
+        nextFrame();
+    } catch (...) {
+        return false;
+    }
 
     return true;
 }

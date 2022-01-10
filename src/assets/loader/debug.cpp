@@ -12,6 +12,14 @@ struct WorldDebugObject : debug::DebugObject {
 
     virtual void info() override {
         ImGui::Text("World");
+        for (size_t i = 0; i < world->indexBuffers.size(); i++) {
+            const auto& buffer = world->indexBuffers[i];
+
+            ImGui::Text("Index Buffer %zu. Size %zu", i, buffer.size());
+            for (size_t j = 0; j < buffer.size(); j++) {
+                ImGui::Text("\t%zu: %u", j, buffer[j]);
+            }
+        }
     }
 
 private:

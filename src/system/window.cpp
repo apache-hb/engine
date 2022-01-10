@@ -29,6 +29,7 @@ namespace {
         }
 
         case WM_KEYDOWN: case WM_KEYUP:
+        case WM_MOUSEMOVE:
             self->addEvent({ msg, wparam, lparam });
             break;
 
