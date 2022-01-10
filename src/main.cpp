@@ -136,7 +136,7 @@ struct GameInput {
 private:
     enum { XBOX, MNK } device = MNK;
     xinput::Device xbox{0, kLStickDeadzone, kRStickDeadzone, kLTriggerDeadzone, kRTriggerDeadzone};
-    input::MnK mnk{15.f, kShiftAccel};
+    input::MnK mnk{1.f, kShiftAccel};
     std::jthread* thread;
 };
 

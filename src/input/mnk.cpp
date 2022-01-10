@@ -21,8 +21,8 @@ namespace engine::input {
 
         float accel = (keys[VK_SHIFT] || keys[VK_LSHIFT] || keys[VK_RSHIFT] ? shiftAccel : 1.f);
 
-        result.rstick.x = float(newX - mouseX) * sensitivity;
-        result.rstick.y = -float(newY - mouseY) * sensitivity;
+        result.rstick.x = float(newX - mouseX) * sensitivity + float(keys[VK_RIGHT] - keys[VK_LEFT]) * sensitivity;
+        result.rstick.y = -float(newY - mouseY) * sensitivity + float(keys[VK_UP] - keys[VK_DOWN]) * sensitivity;
 
         result.lstick.x = -float(keys['A'] - keys['D']) * accel;
         result.lstick.y = -float(keys['S'] - keys['W']) * accel;
