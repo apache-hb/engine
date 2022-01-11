@@ -96,7 +96,8 @@ const auto* kDefaultWorld = &kDefaultWorldData;
 
 #else
 
-const auto* kDefaultWorld = loader::gltfWorld("C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Duck\\glTF\\Duck.gltf");
+constexpr auto kWorldPath = "C:\\Users\\elliot\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\BoxTextured\\glTF\\BoxTextured.gltf";
+const auto* kDefaultWorld = loader::gltfWorld(kWorldPath);
 
 #endif
 
@@ -210,6 +211,7 @@ void initImGui(size_t dpi) {
 
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
+    render::enableSm6();
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

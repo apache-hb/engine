@@ -59,11 +59,12 @@ src = [
     'src/main.cpp'
 ]
 
-python = find_program('python')
-dxc = generator(python,
-    arguments : [ '@INPUT@', '@OUTPUT@', 'ps,vs', '6_0' ],
-    output : [ '@BASENAME@.ps.pso', '@BASENAME@.vs.pso' ]
-)
+
+# python = find_program('python')
+# dxc = generator(python,
+#     arguments : [ '@INPUT@', '@OUTPUT@', 'ps,vs', '6_0' ],
+#     output : [ '@BASENAME@.ps.pso', '@BASENAME@.vs.pso' ]
+# )
 
 args = [ '-DUNICODE=1', '/wd4324' ]
 
