@@ -29,9 +29,9 @@ private:
 static CameraDebugObject* cameraDebugObject = nullptr;
 
 namespace engine::render {
-    constexpr auto kPitchLimit = XM_PIDIV4;
+    constexpr auto kPitchLimit = kPiDiv4<float>;
 
-    Camera::Camera(XMFLOAT3 pos, XMFLOAT3 dir, float fov)
+    Camera::Camera(float3 pos, float3 dir, float fov)
         : position(pos)
         , direction(dir)
         , pitch(dir.x)
@@ -44,19 +44,19 @@ namespace engine::render {
     void Camera::move(float x, float y, float z) {
         auto pos = getPosition();
 
-        auto move = XMFLOAT3(x, y, z);
+        auto move = float3::from(x, y, z);
 
         if (fabs(x) > 0.1f && fabs(y) > 0.1f) {
-            auto vec = XMVector3Normalize(XMLoadFloat3(&move));
-            move.x = XMVectorGetX(vec);
-            move.y = XMVectorGetY(vec);
+            auto vec = move.normal();
+            move.x = vec.x;
+            move.y = vec.y;
         }
 
         float newX = pos.x - (cos(yaw) * x) + (sin(yaw) * y);
         float newY = pos.y - (sin(yaw) * x) - (cos(yaw) * y);
         float newZ = z + pos.z;
 
-        position = XMFLOAT3(newX, newY, newZ);
+        position = float3::from(newX, newY, newZ);
     }
 
     void Camera::rotate(float yawChange, float pitchChange) {
@@ -66,21 +66,18 @@ namespace engine::render {
 
         float rot = cosf(newPitch);
 
-        direction = XMFLOAT3(rot * sinf(newYaw), rot * -cosf(newYaw), sinf(newPitch));
+        direction = float3::from(rot * sinf(newYaw), rot * -cosf(newYaw), sinf(newPitch));
         pitch = newPitch;
         yaw = newYaw;
     }
 
-    void Camera::store(XMFLOAT4X4* view, XMFLOAT4X4* projection, float aspect) const {
-        auto where = getPosition();
-        auto look = getDirection();
+    void Camera::store(float4x4* view, float4x4* projection, float aspect) const {
+        auto where = getPosition().vec4(0.f);
+        auto look = getDirection().vec4(0.f);
 
-        auto up = XMVectorSet(0.f, 0.f, 1.f, 1.f);
-
-        auto viewMatrix = XMMatrixLookToRH(XMLoadFloat3(&where), XMLoadFloat3(&look), up);
-        auto projectionMatrix = XMMatrixPerspectiveFovRH(fov * (XM_PI / 180.f), aspect, 0.1f, 100000.f);
-
-        XMStoreFloat4x4(view, XMMatrixTranspose(viewMatrix));
-        XMStoreFloat4x4(projection, XMMatrixTranspose(projectionMatrix));
+        auto up = float4::from(0.f, 0.f, 1.f, 1.f);
+        
+        *view = float4x4::lookToRH(where, look, up).transpose();
+        *projection = float4x4::perspectiveRH(fov * (kPi<float> / 180.f), aspect, 0.1f, 1000.f).transpose();
     }
 }

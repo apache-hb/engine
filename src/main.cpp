@@ -1,4 +1,5 @@
 #include "logging/log.h"
+#include "logging/debug.h"
 #include "system/system.h"
 #include "render/render.h"
 #include "render/objects/factory.h"
@@ -14,6 +15,7 @@
 #include "assets/loader.h"
 
 #include <thread>
+#include <atomic>
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
@@ -23,15 +25,28 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 using namespace engine;
 
-constexpr xinput::Deadzone kLStickDeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
-constexpr xinput::Deadzone kRStickDeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
-constexpr int16_t kLTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-constexpr int16_t kRTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+xinput::Deadzone kLStickDeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
+xinput::Deadzone kRStickDeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
+int16_t kLTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
+int16_t kRTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
-constexpr float kLookSensitivity = 1.f;
-constexpr float kMoveSensitivity = 1.f;
-constexpr float kUpDownSensitivity = 1.f;
-constexpr float kShiftAccel = 50.f;
+float kLookSensitivity = 1.f;
+float kMoveSensitivity = 1.f;
+float kUpDownSensitivity = 1.f;
+float kShiftAccel = 50.f;
+
+struct MovementDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    MovementDebugObject() : Super("Movement") {}
+
+    virtual void info() override {
+        ImGui::SliderFloat("Look Sensitivity", &kLookSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Move Sensitivity", &kMoveSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Up/Down Sensitivity", &kUpDownSensitivity, 0.f, 10.f);
+    }
+};
+
+auto* kMovementDebugObject = new MovementDebugObject();
 
 #if 0
 const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
@@ -96,7 +111,7 @@ const auto* kDefaultWorld = &kDefaultWorldData;
 
 #else
 
-constexpr auto kWorldPath = "C:\\Users\\elliot\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\BoxTextured\\glTF\\BoxTextured.gltf";
+constexpr auto kWorldPath = "C:\\Users\\ehb56\\Documents\\GitHub\\deccer-cubes\\SM_Deccer_Cubes_Textured.gltf";
 const auto* kDefaultWorld = loader::gltfWorld(kWorldPath);
 
 #endif

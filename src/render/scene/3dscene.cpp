@@ -100,12 +100,12 @@ struct SceneDebugObject : debug::DebugObject {
     using Super = debug::DebugObject;
     SceneDebugObject(Scene3D* scene): Super("Scene"), scene(scene) {}
 
-    static void matrixInfo(XMFLOAT4X4* matrix) {
+    static void matrixInfo(float4x4* matrix) {
         ImGui::Separator();
-        ImGui::Text("%f %f %f %f", matrix->_11, matrix->_12, matrix->_13, matrix->_14);
-        ImGui::Text("%f %f %f %f", matrix->_21, matrix->_22, matrix->_23, matrix->_24);
-        ImGui::Text("%f %f %f %f", matrix->_31, matrix->_32, matrix->_33, matrix->_34);
-        ImGui::Text("%f %f %f %f", matrix->_41, matrix->_42, matrix->_43, matrix->_44);
+        ImGui::Text("%f %f %f %f", matrix->at(0, 0), matrix->at(0, 1), matrix->at(0, 2), matrix->at(0, 3));
+        ImGui::Text("%f %f %f %f", matrix->at(1, 0), matrix->at(1, 1), matrix->at(1, 2), matrix->at(1, 3));
+        ImGui::Text("%f %f %f %f", matrix->at(2, 0), matrix->at(2, 1), matrix->at(2, 2), matrix->at(2, 3));
+        ImGui::Text("%f %f %f %f", matrix->at(3, 0), matrix->at(3, 1), matrix->at(3, 2), matrix->at(3, 3));
     }
 
     virtual void info() override {
@@ -125,7 +125,7 @@ SceneDebugObject* sceneDebugObject = nullptr;
 
 Scene3D::Scene3D(Context* context, Camera* camera, const assets::World* world): Scene(context), camera(camera), world(world) {
     shaders = ShaderLibrary(kShaderInfo);
-    XMStoreFloat4x4(&cameraBuffer.model, XMMatrixScaling(1.f, 1.f, 1.f));
+    cameraBuffer.model = float4x4::scaling(1.f, 1.f, 1.f);
     sceneDebugObject = new SceneDebugObject(this);
 }
 

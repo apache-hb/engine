@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cmath>
-#include <DirectXMath.h>
 
 namespace engine::math {
     template<typename T>
@@ -69,8 +68,8 @@ namespace engine::math {
             return from(-x, -y, -z);
         }
 
-        constexpr Vec4<T> vec4() const {
-            return Vec4<T>::from(x, y, z, 0);
+        constexpr Vec4<T> vec4(T w) const {
+            return Vec4<T>::from(x, y, z, w);
         }
     };
 
@@ -80,6 +79,16 @@ namespace engine::math {
         T y;
         T z;
         T w;
+
+        constexpr T at(size_t index) const {
+            switch (index) {
+            case 0: return x;
+            case 1: return y;
+            case 2: return z;
+            case 3: return w;
+            default: return T(0);
+            }
+        }
 
         static constexpr Vec4 from(T x, T y, T z, T w) {
             return { x, y, z, w };
@@ -151,6 +160,14 @@ namespace engine::math {
         using Row = Vec4<T>;
         Row rows[4];
 
+        constexpr Row at(size_t row) const {
+            return rows[row];
+        }
+
+        constexpr T at(size_t row, size_t col) const {
+            return at(row).at(col);
+        }
+
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {
             return { { row0, row1, row2, row3 } };
         }
@@ -212,12 +229,12 @@ namespace engine::math {
 
             auto height = fovCos / fovSin;
             auto width = height / aspect;
-            auto range = farLimit / (farLimit - nearLimit);
+            auto range = farLimit / (nearLimit - farLimit);
 
             auto r0 = Row::from(width, 0, 0, 0);
             auto r1 = Row::from(0, height, 0, 0);
             auto r2 = Row::from(0, 0, range, -1);
-            auto r3 = Row::from(0, 0, -(range * nearLimit), 0);
+            auto r3 = Row::from(0, 0, range * nearLimit, 0);
             return from(r0, r1, r2, r3);
         }
     };
@@ -227,4 +244,6 @@ namespace engine::math {
     using float4 = Vec4<float>;
     using float3x3 = Mat3x3<float>;
     using float4x4 = Mat4x4<float>;
+
+    static_assert(sizeof(float4x4) == sizeof(float) * 4 * 4);
 }

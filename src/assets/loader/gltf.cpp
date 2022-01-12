@@ -4,7 +4,6 @@
 #include "debug.h"
 
 #include <unordered_map>
-#include <DirectXMath.h>
 
 template<>
 struct std::hash<engine::math::float3> {
@@ -21,7 +20,6 @@ struct std::equal_to<engine::math::float3> {
 };
 
 namespace engine::loader {
-    using namespace DirectX;
     using namespace engine::math;
     namespace gltf = tinygltf;
 
@@ -29,17 +27,15 @@ namespace engine::loader {
 
     // gltf operates with +y up, we use +z up
     // so we need to flip the y and z axis
-    XMVECTOR getVec3(const uint8_t* data) {
+    float3 getVec3(const uint8_t* data) {
         const float3* vec = reinterpret_cast<const float3*>(data);
-        return XMVectorSet(vec->x, vec->z, vec->y, 0.f);
+        return float3::from(vec->x, vec->z, vec->y);
     }
 
     float2 getVec2(const uint8_t* data) {
         const float2* vec = reinterpret_cast<const float2*>(data);
         return { vec->x, vec->y };
     }
-
-    using TransformMatrix = XMMATRIX;
 
     struct AttributeData {
         const uint8_t* data;
@@ -53,15 +49,13 @@ namespace engine::loader {
         assets::Mesh mesh;
     };
 
-    MeshData getVec3Array(assets::World* world, const AttributeData& position, const AttributeData& texcoord, const TransformMatrix& transform, bool genIndices) {
+    MeshData getVec3Array(assets::World* world, const AttributeData& position, const AttributeData& texcoord, bool genIndices) {
         std::vector<assets::Vertex> vertices;
         std::vector<uint32_t> indices;
         std::unordered_map<float3, uint32_t> unique;
 
         for (size_t i = 0; i < position.length; i++) {
-            auto xmvec = getVec3(position.data + i * position.stride);
-            auto transformed = XMVector3Transform(xmvec, transform);
-            auto vec = float3::from(XMVectorGetX(transformed), XMVectorGetY(transformed), XMVectorGetZ(transformed));
+            auto vec = getVec3(position.data + i * position.stride);
             auto coords = position.data == nullptr ? float2 { 0.f, 0.f } 
                 : getVec2(texcoord.data + i * texcoord.stride);
 
@@ -143,48 +137,9 @@ namespace engine::loader {
         return indices;
     }
 
-    XMMATRIX getMatrix(const std::vector<double>& vec) {
-        auto mat = XMFLOAT4X4(
-            float(vec[0]), float(vec[1]), float(vec[2]), float(vec[3]),
-            float(vec[4]), float(vec[5]), float(vec[6]), float(vec[7]),
-            float(vec[8]), float(vec[9]), float(vec[10]), float(vec[11]),
-            float(vec[12]), float(vec[13]), float(vec[14]), float(vec[15])
-        );
-        return XMLoadFloat4x4(&mat);
-    }
-
-    XMVECTOR getVector(const std::vector<double>& vec) {
-        auto data = XMFLOAT4(float(vec[0]), float(vec[1]), float(vec[2]), float(vec[3]));
-        return XMLoadFloat4(&data);
-    }
-
-    void buildNode(assets::World* world, const gltf::Model& model, const TransformMatrix& matrix, size_t index) {
+    void buildNode(assets::World* world, const gltf::Model& model, size_t index) {
         const auto& node = model.nodes[index];
         int meshIndex = node.mesh;
-
-        auto transform = matrix;
-
-        if (!node.matrix.empty()) {
-            transform = XMMatrixMultiply(matrix, getMatrix(node.matrix));
-        } else {
-            if (!node.translation.empty()) {
-                auto vec = getVector(node.translation);
-                auto translate = XMVector3Transform(vec, matrix);
-                transform = XMMatrixMultiply(XMMatrixTranslationFromVector(translate), matrix);
-            }
-
-            if (!node.rotation.empty()) {
-                auto vec = getVector(node.rotation);
-                auto rotate = XMQuaternionRotationRollPitchYawFromVector(vec);
-                transform = XMMatrixMultiply(XMMatrixRotationQuaternion(rotate), transform);
-            }
-
-            if (!node.scale.empty()) {
-                auto vec = getVector(node.scale);
-                auto scale = XMVector3Transform(vec, matrix);
-                transform = XMMatrixMultiply(XMMatrixScalingFromVector(scale), transform);
-            }
-        }
 
         if (meshIndex != -1) {
             const auto& mesh = model.meshes[node.mesh];
@@ -225,7 +180,7 @@ namespace engine::loader {
                 // figure out if we need indices
                 const auto& indexData = primitive.indices;
                 if (indexData != -1) {
-                    auto data = getVec3Array(world, positionData, texData, transform, false);
+                    auto data = getVec3Array(world, positionData, texData, false);
                     auto indices = getIndexArray(model, indexData);
 
                     data.mesh.views[0].length = indices.size();
@@ -235,7 +190,7 @@ namespace engine::loader {
                     world->indexBuffers.push_back(indices);
                     world->meshes.push_back(data.mesh);
                 } else {
-                    auto [vertices, indices, data] = getVec3Array(world, positionData, texData, transform, true);
+                    auto [vertices, indices, data] = getVec3Array(world, positionData, texData, true);
                     
                     data.material = material;
 
@@ -247,7 +202,7 @@ namespace engine::loader {
         }
 
         for (int child : node.children) {
-            buildNode(world, model, transform, child);
+            buildNode(world, model, child);
         }
     }
 
@@ -285,7 +240,6 @@ namespace engine::loader {
         }
 
         auto* world = new assets::World();
-        auto matrix = XMMatrixScaling(1.f, 1.f, 1.f);
 
         size_t numImages = model.images.size();
         size_t numSamplers = model.samplers.size();
@@ -315,7 +269,7 @@ namespace engine::loader {
 
         const auto& scene = model.scenes[model.defaultScene];
         for (const auto& index : scene.nodes) {
-            buildNode(world, model, matrix, index);
+            buildNode(world, model, index);
         }
 
         newDebugObject(world);
