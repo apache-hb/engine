@@ -98,15 +98,13 @@ namespace engine::loader {
         const auto stride = accessor.ByteStride(bufferView);
         const auto elements = accessor.count;
 
-        log::loader->info("loading {} elements of type {} with stride {}", elements, accessor.componentType, stride);
-
         std::vector<uint32_t> indices(elements);
 
 #define COPY_INDICES(type) \
-            const auto* begin = reinterpret_cast<const type*>(data); \
-            const auto* end = reinterpret_cast<const type*>(data) + elements; \
-            std::copy(begin, end, indices.begin()); \
-            break; 
+            for (size_t i = 0; i < elements; i++) { \
+                indices[i] = *reinterpret_cast<const type*>(data + i * stride); \
+            } \
+            break;
 
         /**
          * i hate the antichrist (whoever wrote the gltf 2 spec)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <DirectXMath.h>
 
 namespace engine::math {
     template<typename T>
@@ -166,6 +167,20 @@ namespace engine::math {
 
         constexpr T at(size_t row, size_t col) const {
             return at(row).at(col);
+        }
+
+        constexpr Row mul(Row other) const {
+            auto row0 = at(0);
+            auto row1 = at(1);
+            auto row2 = at(2);
+            auto row3 = at(3);
+
+            auto x = row0.x * other.x + row0.y * other.y + row0.z * other.z + row0.w * other.w;
+            auto y = row1.x * other.x + row1.y * other.y + row1.z * other.z + row1.w * other.w;
+            auto z = row2.x * other.x + row2.y * other.y + row2.z * other.z + row2.w * other.w;
+            auto w = row3.x * other.x + row3.y * other.y + row3.z * other.z + row3.w * other.w;
+
+            return Row::from(x, y, z, w);
         }
 
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {

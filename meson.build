@@ -6,7 +6,9 @@ project('engine', [ 'c', 'cpp' ],
         'warning_level=3',
         'werror=true',
         'b_vscrt=static_from_buildtype', # needs to be `md` for the dlss sdk to link
-        'default_library=static'
+        'default_library=static',
+        'b_lto=true',
+        'b_lundef=true',
     ]
 )
 

@@ -76,7 +76,7 @@ namespace engine::discord {
     IDiscordCoreEvents kCoreEvents = nullptr;
     DiscordCreateParams kCreateParams = {
         .client_id = kClientID,
-        .flags = DiscordCreateFlags_Default,
+        .flags = DiscordCreateFlags_NoRequireDiscord, /// prevent the "do you want to install discord?" dialog if discord isnt installed
         .events = &kCoreEvents,
         .event_data = nullptr
     };
