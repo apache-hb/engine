@@ -50,6 +50,8 @@ namespace engine::render {
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(UINT index);
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 
+        CD3DX12_CPU_DESCRIPTOR_HANDLE nodeCpuHandle(UINT i);
+
         void createCommandList();
         void destroyCommandList();
 
@@ -59,8 +61,8 @@ namespace engine::render {
         void createCbvSrvHeap();
         void destroyCbvSrvHeap();
 
-        void createCameraBuffer();
-        void destroyCameraBuffer();
+        void createConstBuffers();
+        void destroyConstBuffers();
 
         void createDepthStencil();
         void destroyDepthStencil();
@@ -83,14 +85,23 @@ namespace engine::render {
 
         DescriptorHeap cbvSrvHeap;
 
-    public:
+    public: 
+        struct ModelTransform {
+            float4x4 model;
+            CameraBuffer* data;
+            Resource resource;
+        };
+
+#if 0
         CameraBuffer cameraBuffer;
         CameraBuffer *cameraData;
         Resource cameraResource;
+#endif
 
         std::vector<VertexBuffer> vertexBuffers;
         std::vector<IndexBuffer> indexBuffers;
         std::vector<Resource> textures;
+        std::vector<ModelTransform> transforms;
 
         ShaderLibrary shaders;
         Object<ID3D12GraphicsCommandList> commandList;

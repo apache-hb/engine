@@ -1,7 +1,7 @@
 #include "system.h"
 
 #include <windowsx.h>
-
+#include "logging/log.h"
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
@@ -69,7 +69,7 @@ namespace {
 namespace engine::system {
     void Window::popup(std::string_view title, std::string_view message) {
         if (!MessageBoxA(handle, message.data(), title.data(), MB_ICONWARNING | MB_OK)) {
-            throw win32::Error("MessageBoxA");
+            log::global->warn("failed to show message box");
         }
     }
 

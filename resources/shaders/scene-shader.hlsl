@@ -1,9 +1,11 @@
 /// only needs to be bound for the vertex shader stage
 /// contains the basic model view projection matricies
-cbuffer CameraBuffer : register(b0) {
+cbuffer ModelViewProjection : register(b0) {
+    float4x4 mvp;
+    /*
     float4x4 model;
     float4x4 view;
-    float4x4 projection;
+    float4x4 projection;*/
 };
 
 /// only need to be bound for the pixel shader stage
@@ -24,11 +26,12 @@ struct PSInput {
 };
 
 float4 perspective(float3 position) {
-    float4 pos = float4(position, 1.0f);
+    return mul(float4(position, 1.0f), mvp);
+    /*
     pos = mul(pos, model);
     pos = mul(pos, view);
     pos = mul(pos, projection);
-    return pos;
+    return pos;*/
 }
 
 PSInput vsMain(float3 position : POSITION, float2 uv : TEXCOORD) {    

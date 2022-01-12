@@ -1,5 +1,7 @@
 #include "system.h"
 
+#include "logging/log.h"
+
 #include <psapi.h>
 
 namespace engine::system {
@@ -84,7 +86,7 @@ namespace engine::system {
 
     void init() {
         if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)) {
-            throw win32::Error("SetProcessDpiAwarenessContext");
+            log::global->warn("SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)");
         }
     }
 }

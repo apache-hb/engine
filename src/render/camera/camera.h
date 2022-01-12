@@ -17,7 +17,8 @@ namespace engine::render {
         void rotate(float pitchChange, float yawChange);
 
         void store(float4x4* view, float4x4* projection, float aspect) const;
-    
+        float4x4 getMvp(const float4x4& model, float aspect) const;
+
         float3 getPosition() const { return position; }
         float3 getDirection() const { return direction; }
         float getFov() const { return fov; }
@@ -37,8 +38,10 @@ namespace engine::render {
     };
 
     cbuffer CameraBuffer {
+        float4x4 mvp;
+        /*
         float4x4 model;
         float4x4 view;
-        float4x4 projection;
+        float4x4 projection;*/
     };
 }

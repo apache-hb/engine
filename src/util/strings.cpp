@@ -66,7 +66,7 @@ namespace engine::strings {
 
         errno_t err = wcstombs_s(&size, result.data(), result.size(), str.data(), str.size());
         if (err != 0) {
-            throw engine::Errno(err);
+            return "";
         }
 
         result.resize(size - 1);

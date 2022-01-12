@@ -183,6 +183,56 @@ namespace engine::math {
             return Row::from(x, y, z, w);
         }
 
+        constexpr Mat4x4 mul(const Mat4x4& other) const {
+            auto row0 = at(0);
+            auto row1 = at(1);
+            auto row2 = at(2);
+            auto row3 = at(3);
+
+            auto other0 = other.at(0);
+            auto other1 = other.at(1);
+            auto other2 = other.at(2);
+            auto other3 = other.at(3);
+
+            auto out0 = Row::from(
+                (other0.x * row0.x) + (other1.x * row0.y) + (other2.x * row0.z) + (other3.x * row0.w),
+                (other0.y * row0.x) + (other1.y * row0.y) + (other2.y * row0.z) + (other3.y * row0.w),
+                (other0.z * row0.x) + (other1.z * row0.y) + (other2.z * row0.z) + (other3.z * row0.w),
+                (other0.w * row0.x) + (other1.w * row0.y) + (other2.w * row0.z) + (other3.w * row0.w)
+            );
+
+            auto out1 = Row::from(
+                (other0.x * row1.x) + (other1.x * row1.y) + (other2.x * row1.z) + (other3.x * row1.w),
+                (other0.y * row1.x) + (other1.y * row1.y) + (other2.y * row1.z) + (other3.y * row1.w),
+                (other0.z * row1.x) + (other1.z * row1.y) + (other2.z * row1.z) + (other3.z * row1.w),
+                (other0.w * row1.x) + (other1.w * row1.y) + (other2.w * row1.z) + (other3.w * row1.w)
+            );
+
+            auto out2 = Row::from(
+                (other0.x * row2.x) + (other1.x * row2.y) + (other2.x * row2.z) + (other3.x * row2.w),
+                (other0.y * row2.x) + (other1.y * row2.y) + (other2.y * row2.z) + (other3.y * row2.w),
+                (other0.z * row2.x) + (other1.z * row2.y) + (other2.z * row2.z) + (other3.z * row2.w),
+                (other0.w * row2.x) + (other1.w * row2.y) + (other2.w * row2.z) + (other3.w * row2.w)
+            );
+            
+            auto out3 = Row::from(
+                (other0.x * row3.x) + (other1.x * row3.y) + (other2.x * row3.z) + (other3.x * row3.w),
+                (other0.y * row3.x) + (other1.y * row3.y) + (other2.y * row3.z) + (other3.y * row3.w),
+                (other0.z * row3.x) + (other1.z * row3.y) + (other2.z * row3.z) + (other3.z * row3.w),
+                (other0.w * row3.x) + (other1.w * row3.y) + (other2.w * row3.z) + (other3.w * row3.w)
+            );
+            
+            return Mat4x4::from(out0, out1, out2, out3);
+        }
+
+        constexpr Mat4x4 operator*(const Mat4x4& other) const {
+            return mul(other);
+        }
+
+        constexpr Mat4x4 operator*=(const Mat4x4& other) {
+            return *this = *this * other;
+        }
+
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {
             return { { row0, row1, row2, row3 } };
         }
@@ -196,6 +246,62 @@ namespace engine::math {
             auto row1 = Row::from(0, y, 0, 0);
             auto row2 = Row::from(0, 0, z, 0);
             auto row3 = Row::from(0, 0, 0, 1);
+            return from(row0, row1, row2, row3);
+        }
+
+        static constexpr Mat4x4 translation(T x, T y, T z) {
+            auto row0 = Row::from(1, 0, 0, x);
+            auto row1 = Row::from(0, 1, 0, y);
+            auto row2 = Row::from(0, 0, 1, z);
+            auto row3 = Row::from(0, 0, 0, 1);
+            return from(row0, row1, row2, row3);
+        }
+
+        static constexpr Mat4x4 rotation(T angle, Vec3<T> axis) {
+            auto c = std::cos(angle);
+            auto s = std::sin(angle);
+            auto t = 1 - c;
+
+            auto x = axis.x;
+            auto y = axis.y;
+            auto z = axis.z;
+
+            auto xy = x * y;
+            auto xz = x * z;
+            auto yz = y * z;
+
+            auto xs = x * s;
+            auto ys = y * s;
+            auto zs = z * s;
+
+            auto row0 = Row::from(
+                t * x * x + c,
+                xy * t + zs,
+                xz * t - ys,
+                0
+            );
+
+            auto row1 = Row::from(
+                xy * t - zs,
+                t * y * y + c,
+                yz * t + xs,
+                0
+            );
+
+            auto row2 = Row::from(
+                xz * t + ys,
+                yz * t - xs,
+                t * z * z + c,
+                0
+            );
+
+            auto row3 = Row::from(
+                0,
+                0,
+                0,
+                1
+            );
+
             return from(row0, row1, row2, row3);
         }
 

@@ -11,6 +11,7 @@ namespace engine::assets {
 
     struct Mesh {
         std::vector<IndexBufferView> views;
+        float4x4 transform;
 
         size_t buffer;
         Material material;

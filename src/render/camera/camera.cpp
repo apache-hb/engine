@@ -80,4 +80,13 @@ namespace engine::render {
         *view = float4x4::lookToRH(where, look, up).transpose();
         *projection = float4x4::perspectiveRH(fov * (kPi<float> / 180.f), aspect, 0.1f, 1000.f).transpose();
     }
+
+    float4x4 Camera::getMvp(const float4x4& model, float aspect) const {
+        auto where = getPosition().vec4(0.f);
+        auto look = getDirection().vec4(0.f);
+        auto up = float4::from(0.f, 0.f, 1.f, 1.f);
+        auto view = float4x4::lookToRH(where, look, up).transpose();
+        auto projection = float4x4::perspectiveRH(fov * (kPi<float> / 180.f), aspect, 0.1f, 1000.f).transpose();
+        return projection * view * model;
+    }
 }

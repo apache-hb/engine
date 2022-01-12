@@ -96,43 +96,14 @@ constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
-struct SceneDebugObject : debug::DebugObject {
-    using Super = debug::DebugObject;
-    SceneDebugObject(Scene3D* scene): Super("Scene"), scene(scene) {}
-
-    static void matrixInfo(float4x4* matrix) {
-        ImGui::Separator();
-        ImGui::Text("%f %f %f %f", matrix->at(0, 0), matrix->at(0, 1), matrix->at(0, 2), matrix->at(0, 3));
-        ImGui::Text("%f %f %f %f", matrix->at(1, 0), matrix->at(1, 1), matrix->at(1, 2), matrix->at(1, 3));
-        ImGui::Text("%f %f %f %f", matrix->at(2, 0), matrix->at(2, 1), matrix->at(2, 2), matrix->at(2, 3));
-        ImGui::Text("%f %f %f %f", matrix->at(3, 0), matrix->at(3, 1), matrix->at(3, 2), matrix->at(3, 3));
-    }
-
-    virtual void info() override {
-        ImGui::Text("Model");
-        matrixInfo(&scene->cameraBuffer.model);
-        ImGui::Text("View");
-        matrixInfo(&scene->cameraBuffer.view);
-        ImGui::Text("Projection");
-        matrixInfo(&scene->cameraBuffer.projection);
-    }
-
-private:
-    Scene3D* scene;
-};
-
-SceneDebugObject* sceneDebugObject = nullptr;
-
 Scene3D::Scene3D(Context* context, Camera* camera, const assets::World* world): Scene(context), camera(camera), world(world) {
     shaders = ShaderLibrary(kShaderInfo);
-    cameraBuffer.model = float4x4::scaling(1.f, 1.f, 1.f);
-    sceneDebugObject = new SceneDebugObject(this);
 }
 
 void Scene3D::create() {
     createDsvHeap();
     createCbvSrvHeap();
-    createCameraBuffer();
+    createConstBuffers();
     createDepthStencil();
     createRootSignature();
     createPipelineState();
@@ -146,7 +117,7 @@ void Scene3D::destroy() {
     destroyPipelineState();
     destroyRootSignature();
     destroyDepthStencil();
-    destroyCameraBuffer();
+    destroyConstBuffers();
     destroyCbvSrvHeap();
     destroyDsvHeap();
 }
@@ -158,6 +129,7 @@ ID3D12CommandList* Scene3D::populate() {
     
     size_t numVertexBuffers = std::size(vertexBuffers);
     size_t numMeshes = std::size(world->meshes);
+    float aspect = ctx->getInternalResolution().aspectRatio();
 
     for (size_t i = 0; i < numVertexBuffers; i++) {
         const auto& buffer = vertexBuffers[i];
@@ -167,9 +139,13 @@ ID3D12CommandList* Scene3D::populate() {
     for (size_t i = 0; i < numMeshes; i++) {
         const auto& mesh = world->meshes[i];
         const auto& indexBuffer = indexBuffers[mesh.buffer];
+        auto& transform = transforms[i];
+
+        transform.data->mvp = camera->getMvp(transform.model, aspect);
 
         UINT values[] = { UINT(mesh.material.texture), UINT(mesh.material.sampler) };
 
+        commandList->SetGraphicsRootConstantBufferView(0, transform.resource.gpuAddress());
         commandList->SetGraphicsRoot32BitConstants(1, 2, values, 0);
         commandList->IASetIndexBuffer(&indexBuffer.view);
 
@@ -183,8 +159,11 @@ ID3D12CommandList* Scene3D::populate() {
 }
 
 void Scene3D::begin() {
+    /*
+    cameraData->mvp = camera->getMvp(float4x4::scaling(1.f, 1.f, 1.f), ctx->getInternalResolution().aspectRatio());
     camera->store(&cameraBuffer.view, &cameraBuffer.projection, ctx->getInternalResolution().aspectRatio());
     *cameraData = cameraBuffer;
+    */
 
     auto& allocator = ctx->getAllocator(Allocator::Scene);
     const auto [scissor, viewport] = ctx->getSceneView();
@@ -206,8 +185,6 @@ void Scene3D::begin() {
     commandList->SetDescriptorHeaps(UINT(std::size(heaps)), heaps);
     commandList->SetGraphicsRootSignature(rootSignature.get());
 
-    commandList->SetGraphicsRootConstantBufferView(0, cameraResource.gpuAddress());
-    commandList->SetGraphicsRoot32BitConstant(1, 0, 0);
     commandList->SetGraphicsRootDescriptorTable(2, cbvSrvHeap.gpuHandle(SceneData::Total));
 }
 
@@ -248,28 +225,38 @@ void Scene3D::destroyDsvHeap() {
     dsvHeap.tryDrop("scene-dsv-heap");
 }
 
-void Scene3D::createCameraBuffer() {
+void Scene3D::createConstBuffers() {
     auto& device = getDevice();
     UINT size = sizeof(CameraBuffer);
     const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(size);
 
-    cameraResource = device.newCommittedResource(L"camera-buffer",
-        kUploadProps, D3D12_HEAP_FLAG_NONE,
-        buffer, D3D12_RESOURCE_STATE_GENERIC_READ
-    );
+    size_t numMeshes = std::size(world->meshes);
+    transforms.resize(numMeshes);
 
-    D3D12_CONSTANT_BUFFER_VIEW_DESC view = {
-        .BufferLocation = cameraResource.gpuAddress(),
-        .SizeInBytes = size
-    };
+    for (size_t i = 0; i < numMeshes; i++) {
+        const auto name = std::format(L"transform-{}", i);
+        auto resource = device.newCommittedResource(name,
+            kUploadProps, D3D12_HEAP_FLAG_NONE,
+            buffer, D3D12_RESOURCE_STATE_GENERIC_READ
+        );
 
-    device->CreateConstantBufferView(&view, cbvSrvHeap.cpuHandle(SceneData::Camera));
+        D3D12_CONSTANT_BUFFER_VIEW_DESC view = {
+            .BufferLocation = resource.gpuAddress(),
+            .SizeInBytes = size
+        };
 
-    cameraData = cameraResource.map<CameraBuffer>(0);
+        device->CreateConstantBufferView(&view, nodeCpuHandle(UINT(i)));
+        auto* data = resource.map<CameraBuffer>(0);
+
+        transforms[i] = { world->meshes[i].transform, data, resource };
+    }
 }
 
-void Scene3D::destroyCameraBuffer() {
-    cameraResource.tryDrop("camera-buffer");
+void Scene3D::destroyConstBuffers() {
+    for (auto& transform : transforms) {
+        transform.resource.tryDrop("transform");
+    }
+    transforms.clear();
 }
 
 void Scene3D::createDepthStencil() {
@@ -369,7 +356,7 @@ void Scene3D::destroySceneData() {
 }
 
 UINT Scene3D::getRequiredCbvSrvSize() const {
-    return UINT(SceneData::Total + std::size(world->textures));
+    return UINT(SceneData::Total + std::size(world->textures) + std::size(world->meshes));
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvCpuHandle(UINT index) {
@@ -378,6 +365,10 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvCpuHandle(UINT index) {
 
 CD3DX12_GPU_DESCRIPTOR_HANDLE Scene3D::cbvSrvGpuHandle(UINT index) {
     return cbvSrvHeap.gpuHandle(index + SceneData::Total);
+}
+
+CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::nodeCpuHandle(UINT i) {
+    return cbvSrvCpuHandle(UINT(std::size(world->textures) + i));
 }
 
 CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::dsvHandle() {

@@ -111,7 +111,7 @@ const auto* kDefaultWorld = &kDefaultWorldData;
 
 #else
 
-constexpr auto kWorldPath = "C:\\Users\\ehb56\\Documents\\GitHub\\deccer-cubes\\SM_Deccer_Cubes_Textured.gltf";
+constexpr auto kWorldPath = "C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\Sponza.gltf";
 const auto* kDefaultWorld = loader::gltfWorld(kWorldPath);
 
 #endif

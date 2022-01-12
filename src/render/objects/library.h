@@ -17,6 +17,8 @@ namespace engine::render {
 
     void enableSm6();
 
+    using ShaderBlob = Com<ID3DBlob>;
+
     struct ShaderLibrary {
         struct Create {
             std::wstring_view path;

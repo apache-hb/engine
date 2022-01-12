@@ -49,10 +49,15 @@ namespace engine::loader {
         assets::Mesh mesh;
     };
 
-    MeshData getVec3Array(assets::World* world, const AttributeData& position, const AttributeData& texcoord, bool genIndices) {
+    struct DataSink {
+        std::unordered_map<float3, uint32_t> unique;
+
         std::vector<assets::Vertex> vertices;
         std::vector<uint32_t> indices;
-        std::unordered_map<float3, uint32_t> unique;
+    };
+
+    assets::Mesh getVec3Array(const AttributeData& position, const AttributeData& texcoord, DataSink* sink, bool genIndices) {
+        size_t indexStart = sink->indices.size();
 
         for (size_t i = 0; i < position.length; i++) {
             auto vec = getVec3(position.data + i * position.stride);
@@ -60,36 +65,32 @@ namespace engine::loader {
                 : getVec2(texcoord.data + i * texcoord.stride);
 
             if (genIndices) {
-                if (auto iter = unique.find(vec); iter != unique.end()) {
-                    indices.push_back(iter->second);
+                if (auto iter = sink->unique.find(vec); iter != sink->unique.end()) {
+                    sink->indices.push_back(iter->second);
                 } else {
-                    auto index = uint32_t(vertices.size());
+                    auto index = uint32_t(sink->vertices.size());
 
-                    vertices.push_back({ vec, coords });
-                    indices.push_back(index);
-                    unique[vec] = index;
+                    sink->vertices.push_back({ vec, coords });
+                    sink->indices.push_back(index);
+                    sink->unique[vec] = index;
                 }
             } else {
-                vertices.push_back({ vec, coords });
+                sink->vertices.push_back({ vec, coords });
             }
         }
 
-        assets::IndexBufferView view = { .offset = 0, .length = indices.size() };
+        assets::IndexBufferView view = { .offset = indexStart, .length = sink->indices.size() - indexStart };
 
         assets::Mesh mesh = {
             .views = { view },
-            .buffer = world->indexBuffers.size(),
+            .buffer = 0,
             .material = { 0, 0 }
         };
 
-        return {
-            .vertices = vertices,
-            .indices = indices,
-            .mesh = mesh
-        };
+        return mesh;
     }
 
-    std::vector<uint32_t> getIndexArray(const gltf::Model& model, int index) {
+    assets::IndexBufferView getIndexArray(const gltf::Model& model, DataSink* sink, int index) {
         const auto& accessor = model.accessors[index];
         const auto& bufferView = model.bufferViews[accessor.bufferView];
         const auto& buffer = model.buffers[bufferView.buffer];
@@ -98,11 +99,12 @@ namespace engine::loader {
         const auto stride = accessor.ByteStride(bufferView);
         const auto elements = accessor.count;
 
-        std::vector<uint32_t> indices(elements);
+        size_t start = sink->indices.size();
+        sink->indices.resize(start + elements);
 
 #define COPY_INDICES(type) \
             for (size_t i = 0; i < elements; i++) { \
-                indices[i] = *reinterpret_cast<const type*>(data + i * stride); \
+                sink->indices[i + start] = *reinterpret_cast<const type*>(data + i * stride); \
             } \
             break;
 
@@ -132,12 +134,46 @@ namespace engine::loader {
             break;
         }
 
-        return indices;
+        return { start, elements };
     }
 
-    void buildNode(assets::World* world, const gltf::Model& model, size_t index) {
+    float4x4 getTransformMatrix(const gltf::Node& node) {
+        const auto& matrix = node.matrix;
+        if (matrix.size() == 16) {
+            return float4x4::from(
+                float4::from(float(matrix[0]), float(matrix[1]), float(matrix[2]), float(matrix[3])),
+                float4::from(float(matrix[4]), float(matrix[5]), float(matrix[6]), float(matrix[7])),
+                float4::from(float(matrix[8]), float(matrix[9]), float(matrix[10]), float(matrix[11])),
+                float4::from(float(matrix[12]), float(matrix[13]), float(matrix[14]), float(matrix[15]))
+            );
+        } else {
+            auto result = float4x4::scaling(1.f, 1.f, 1.f);
+
+            const auto& scaling = node.scale;
+            const auto& move = node.translation;
+            const auto& rotation = node.rotation;
+            
+            if (move.size() == 3) {
+                result *= float4x4::translation(float(move[0]), float(move[2]), float(move[1]));
+            }
+
+            if (rotation.size() == 4) {
+                result *= float4x4::rotation(float(rotation[3]), float3::from(float(rotation[0]), float(rotation[1]), float(rotation[2])));
+            }
+
+            if (scaling.size() == 3) {
+                result *= float4x4::scaling(float(scaling[0]), float(scaling[1]), float(scaling[2]));
+            }
+
+            return result;
+        }
+    }
+
+    void buildNode(assets::World* world, const gltf::Model& model, DataSink* sink, float4x4 matrix, size_t index) {
         const auto& node = model.nodes[index];
         int meshIndex = node.mesh;
+
+        auto transform = matrix * getTransformMatrix(node);
 
         if (meshIndex != -1) {
             const auto& mesh = model.meshes[node.mesh];
@@ -178,29 +214,26 @@ namespace engine::loader {
                 // figure out if we need indices
                 const auto& indexData = primitive.indices;
                 if (indexData != -1) {
-                    auto data = getVec3Array(world, positionData, texData, false);
-                    auto indices = getIndexArray(model, indexData);
+                    auto data = getVec3Array(positionData, texData, sink, false);
+                    auto view = getIndexArray(model, sink, indexData);
 
-                    data.mesh.views[0].length = indices.size();
-                    data.mesh.material = material;
-
-                    world->vertexBuffers.push_back(data.vertices);
-                    world->indexBuffers.push_back(indices);
-                    world->meshes.push_back(data.mesh);
+                    data.views[0] = view;
+                    data.material = material;
+                    data.transform = transform;
+                    world->meshes.push_back(data);
                 } else {
-                    auto [vertices, indices, data] = getVec3Array(world, positionData, texData, true);
+                    auto data = getVec3Array(positionData, texData, sink, true);
                     
                     data.material = material;
+                    data.transform = transform;
 
-                    world->vertexBuffers.push_back(vertices);
-                    world->indexBuffers.push_back(indices);
                     world->meshes.push_back(data);
                 }
             }
         }
 
         for (int child : node.children) {
-            buildNode(world, model, child);
+            buildNode(world, model, sink, transform, child);
         }
     }
 
@@ -265,10 +298,14 @@ namespace engine::loader {
             world->samplers[i + 1] = { getWrap(sampler.wrapS), getWrap(sampler.wrapT) };
         }
 
+        DataSink sink;
         const auto& scene = model.scenes[model.defaultScene];
         for (const auto& index : scene.nodes) {
-            buildNode(world, model, index);
+            buildNode(world, model, &sink, float4x4::scaling(1.f, 1.f, 1.f), index);
         }
+
+        world->indexBuffers.push_back(sink.indices);
+        world->vertexBuffers.push_back(sink.vertices);
 
         newDebugObject(world);
 
