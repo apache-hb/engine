@@ -145,6 +145,7 @@ namespace engine::render {
         }
 
         void bindSrv(Resource resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle);
+        void bindCbv(Resource resource, UINT size, CD3DX12_CPU_DESCRIPTOR_HANDLE handle);
 
         Factory& getFactory();
         Adapter& getAdapter();

@@ -128,10 +128,19 @@ void Context::bindSrv(Resource resource, CD3DX12_CPU_DESCRIPTOR_HANDLE handle) {
     getDevice()->CreateShaderResourceView(resource.get(), nullptr, handle);
 }
 
+void Context::bindCbv(Resource resource, UINT size, CD3DX12_CPU_DESCRIPTOR_HANDLE handle) {
+    D3D12_CONSTANT_BUFFER_VIEW_DESC view = {
+        .BufferLocation = resource.gpuAddress(),
+        .SizeInBytes = size
+    };
+    
+    getDevice()->CreateConstantBufferView(&view, handle);
+}
+
 bool Context::present() {
     try {
-        auto sceneList = scene->populate();
         auto viewList = display->populate();
+        auto sceneList = scene->populate();
 
         ID3D12CommandList* lists[] = { sceneList, viewList };
         directCommandQueue->ExecuteCommandLists(UINT(std::size(lists)), lists);

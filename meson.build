@@ -72,6 +72,7 @@ src = [
 args = [ '-DUNICODE=1', '/wd4324' ]
 
 imgui = subproject('imgui').get_variable('imgui')
+widgets = subproject('imgui-widgets').get_variable('widgets')
 queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
@@ -79,7 +80,7 @@ gltf = subproject('gltf').get_variable('gltf')
 obj = subproject('obj').get_variable('obj')
 gamesdk = subproject('discord').get_variable('gamesdk')
 
-deps = [ imgui, queue, stb, d3d12, gltf, obj, gamesdk ]
+deps = [ imgui, widgets, queue, stb, d3d12, gltf, obj, gamesdk ]
 
 links = [ 
     'd3d12.lib', 

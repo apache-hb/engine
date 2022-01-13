@@ -27,6 +27,11 @@ namespace engine::render {
         virtual ID3D12CommandList* populate() = 0;
 
     protected:
+        void createCommandList();
+        void destroyCommandList();
+
+        Object<ID3D12GraphicsCommandList> commandList;
+
         Context* ctx;
     };
 
@@ -36,10 +41,14 @@ namespace engine::render {
 
         virtual void create() override;
         virtual void destroy() override;
+        void changeScene(const assets::World* world);
 
         virtual ID3D12CommandList* populate() override;
 
     private:
+        void createScene();
+        void destroyScene();
+
         Camera* camera;
         const assets::World* world;
 
@@ -51,9 +60,6 @@ namespace engine::render {
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 
         CD3DX12_CPU_DESCRIPTOR_HANDLE nodeCpuHandle(UINT i);
-
-        void createCommandList();
-        void destroyCommandList();
 
         void createDsvHeap();
         void destroyDsvHeap();
@@ -92,19 +98,12 @@ namespace engine::render {
             Resource resource;
         };
 
-#if 0
-        CameraBuffer cameraBuffer;
-        CameraBuffer *cameraData;
-        Resource cameraResource;
-#endif
-
         std::vector<VertexBuffer> vertexBuffers;
         std::vector<IndexBuffer> indexBuffers;
         std::vector<Resource> textures;
         std::vector<ModelTransform> transforms;
 
         ShaderLibrary shaders;
-        Object<ID3D12GraphicsCommandList> commandList;
         Object<ID3D12RootSignature> rootSignature;
         Object<ID3D12PipelineState> pipelineState;
     };

@@ -9,6 +9,8 @@
 #include "assets/texture.h"
 #include "assets/mesh.h"
 #include "imgui/imgui.h"
+#include "imgui-file-dialog.h"
+#include "assets/loader.h"
 
 using namespace engine;
 using namespace engine::math;
@@ -96,8 +98,33 @@ constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
     D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS     |
     D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
+struct LoaderDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    LoaderDebugObject(Scene3D* scene) : Super("Loader"), scene(scene) {}
+
+    virtual void info() override {
+        if (ImGui::Button("Load gltf file")) {
+            ImGuiFileDialog::Instance()->OpenDialog("GltfLoadKey", "Chooise file", ".gltf", ".");
+        }
+
+        if (ImGuiFileDialog::Instance()->Display("GltfLoadKey")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) {
+                auto path = ImGuiFileDialog::Instance()->GetFilePathName();
+                auto* world = loader::gltfWorld(path);
+                scene->changeScene(world);
+            }
+            ImGuiFileDialog::Instance()->Close();
+        }
+    }
+
+    Scene3D* scene;
+};
+
+LoaderDebugObject* kLoaderDebug = nullptr;
+
 Scene3D::Scene3D(Context* context, Camera* camera, const assets::World* world): Scene(context), camera(camera), world(world) {
     shaders = ShaderLibrary(kShaderInfo);
+    kLoaderDebug = new LoaderDebugObject(this);
 }
 
 void Scene3D::create() {
@@ -122,7 +149,31 @@ void Scene3D::destroy() {
     destroyDsvHeap();
 }
 
+void Scene3D::changeScene(const assets::World* other) {
+    log::render->info("changing scene");
+    destroyScene();
+    world = other;
+    createScene();
+}
+
+void Scene3D::createScene() {
+    createCbvSrvHeap();
+    createConstBuffers();
+    createRootSignature();
+    createPipelineState();
+    createSceneData();
+}
+
+void Scene3D::destroyScene() {
+    destroySceneData();
+    destroyPipelineState();
+    destroyRootSignature();
+    destroyConstBuffers();
+    destroyCbvSrvHeap();
+}
+
 ID3D12CommandList* Scene3D::populate() {
+    log::render->info("populating scene");
     begin();
     
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -155,16 +206,11 @@ ID3D12CommandList* Scene3D::populate() {
     }
 
     end();
+    log::render->info("scene populated");
     return commandList.get();
 }
 
 void Scene3D::begin() {
-    /*
-    cameraData->mvp = camera->getMvp(float4x4::scaling(1.f, 1.f, 1.f), ctx->getInternalResolution().aspectRatio());
-    camera->store(&cameraBuffer.view, &cameraBuffer.projection, ctx->getInternalResolution().aspectRatio());
-    *cameraData = cameraBuffer;
-    */
-
     auto& allocator = ctx->getAllocator(Allocator::Scene);
     const auto [scissor, viewport] = ctx->getSceneView();
     auto targetHandle = ctx->sceneTargetRtvCpuHandle();
@@ -192,13 +238,13 @@ void Scene3D::end() {
     check(commandList->Close(), "failed to close command list");
 }
 
-void Scene3D::createCommandList() {
+void Scene::createCommandList() {
     auto& allocator = ctx->getAllocator(Allocator::Scene);
     commandList = getDevice().newCommandList(L"scene-command-list", commands::kDirect, allocator);
     check(commandList->Close(), "failed to close command list");
 }
 
-void Scene3D::destroyCommandList() {
+void Scene::destroyCommandList() {
     commandList.tryDrop("scene-command-list");
 }
 

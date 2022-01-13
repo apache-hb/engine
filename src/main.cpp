@@ -20,6 +20,7 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
+#include "imgui-file-dialog.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -34,19 +35,6 @@ float kLookSensitivity = 1.f;
 float kMoveSensitivity = 1.f;
 float kUpDownSensitivity = 1.f;
 float kShiftAccel = 50.f;
-
-struct MovementDebugObject : debug::DebugObject {
-    using Super = debug::DebugObject;
-    MovementDebugObject() : Super("Movement") {}
-
-    virtual void info() override {
-        ImGui::SliderFloat("Look Sensitivity", &kLookSensitivity, 0.f, 10.f);
-        ImGui::SliderFloat("Move Sensitivity", &kMoveSensitivity, 0.f, 10.f);
-        ImGui::SliderFloat("Up/Down Sensitivity", &kUpDownSensitivity, 0.f, 10.f);
-    }
-};
-
-auto* kMovementDebugObject = new MovementDebugObject();
 
 #if 0
 const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
@@ -115,6 +103,19 @@ constexpr auto kWorldPath = "C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Mo
 const auto* kDefaultWorld = loader::gltfWorld(kWorldPath);
 
 #endif
+
+struct MovementDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    MovementDebugObject() : Super("Movement") {}
+
+    virtual void info() override {
+        ImGui::SliderFloat("Look Sensitivity", &kLookSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Move Sensitivity", &kMoveSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Up/Down Sensitivity", &kUpDownSensitivity, 0.f, 10.f);
+    }
+};
+
+auto* kMovementDebugObject = new MovementDebugObject();
 
 using WindowCallbacks = system::Window::Callbacks;
 
