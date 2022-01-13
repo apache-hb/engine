@@ -2,13 +2,12 @@
 
 #include <functional>
 
+#include "util/macros.h"
 #include "system/system.h"
-#include "objects/device.h"
+#include "objects/factory.h"
 #include "atomic-queue/queue.h"
 
 namespace engine::render {
-    struct Factory;
-    struct Adapter;
     struct Context;
 
     namespace Allocators {
@@ -19,9 +18,45 @@ namespace engine::render {
         };
     }
 
-    using Event = std::function<void(Context*)>;
+    namespace Targets {
+        enum Index : size_t {
+            Scene,
+            Total
+        };
+    }
+
+    namespace Queues {
+        enum Index : size_t {
+            Direct,
+            Copy,
+            Total
+        };
+
+        constexpr CommandList::Type type(Index index) {
+            switch (index) {
+            case Direct: return CommandList::kDirect;
+            case Copy: return CommandList::kCopy;
+            default: UNREACHABLE;
+            }
+        }
+
+        constexpr std::string_view name(Index index) {
+            switch (index) {
+            case Direct: return "direct-command-queue";
+            case Copy: return "copy-command-queue";
+            default: UNREACHABLE;
+            }
+        }
+    }
 
     struct Context {
+        using Event = std::function<void()>;
+
+        struct FrameData {
+            Fence::Value value = 0;
+            Resource target;
+        };
+
         struct Budget {
             size_t queueSize;
         };
@@ -44,12 +79,16 @@ namespace engine::render {
 
         Context(Create&& create);
 
+        // external api
         void create();
         void destroy();
 
         void present();
 
         void addEvent(Event&& event);
+
+        // binding api
+        void bindRtv(Resource resource, DescriptorHeap::CpuHandle handle);
 
     private:
         // api agnostic data and creation data
@@ -58,6 +97,10 @@ namespace engine::render {
 
         Factory& getFactory();
         Adapter& getAdapter();
+        system::Window& getWindow();
+
+        DXGI_FORMAT getFormat();
+        UINT getBufferCount();
 
         Resolution getSceneResolution();
         Resolution getPostResolution();
@@ -66,10 +109,37 @@ namespace engine::render {
         void createDevice();
         void destroyDevice();
 
-        void createViews();
+        void createCommandQueues();
+        void destroyCommandQueues();
+
+        void createSwapChain();
+        void destroySwapChain();
+
+        void createRtvHeap();
+        void destroyRtvHeap();
+
+        void createFrameData();
+        void destroyFrameData();
 
         Device device;
+        CommandQueue queues[Queues::Total];
+        SwapChain3 swapchain;
+        UINT frameIndex;
 
+        // our our render targets including our scene target
+        // layed out such that
+        // [0] = scene target
+        // [1..N] = back buffers
+        DescriptorHeap rtvHeap;
+
+        DescriptorHeap::CpuHandle rtvCpuHandle(UINT index);
+
+        Resource sceneTarget;
+        FrameData* frameData;
+
+        // display managment
+
+        void createViews();
 
         // our internal resolution
         // by extension this is the resolution of our intermediate target

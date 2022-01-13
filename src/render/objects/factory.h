@@ -14,7 +14,10 @@ namespace engine::render {
     };
 
     using SwapChain1 = Com<IDXGISwapChain1>;
-    using SwapChain3 = Com<IDXGISwapChain3>;
+
+    struct SwapChain3 : Com<IDXGISwapChain3> {
+        Resource getBuffer(UINT index);
+    };
 
     struct Adapter : Com<IDXGIAdapter1> {
         using Super = Com<IDXGIAdapter1>;

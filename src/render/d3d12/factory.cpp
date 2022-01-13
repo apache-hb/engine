@@ -8,6 +8,13 @@ constexpr auto kTearingFeatureFlag = DXGI_FEATURE_PRESENT_ALLOW_TEARING;
 constexpr auto kTearingSwapChainFlag = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 constexpr auto kTearingPresentFlag = DXGI_PRESENT_ALLOW_TEARING;
 
+Resource SwapChain3::getBuffer(UINT index) {
+    ID3D12Resource* resource = nullptr;
+    HRESULT hr = get()->GetBuffer(index, IID_PPV_ARGS(&resource));
+    check(hr, "failed to get back buffer");
+    return resource;
+}
+
 Adapter::Adapter(IDXGIAdapter1* adapter): Super(adapter) {
     check(adapter->GetDesc1(&desc), "failed to get adapter desc");
 }
@@ -84,5 +91,5 @@ SwapChain3 Factory::newSwapChain(CommandQueue queue, HWND handle, const DXGI_SWA
     Com<IDXGISwapChain1> swapChain;
     check(get()->CreateSwapChainForHwnd(queue.get(), handle, &desc, nullptr, nullptr, &swapChain), "failed to create swap chain");
     check(get()->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER), "failed to make window association");
-    return swapChain.as<IDXGISwapChain3>();
+    return SwapChain3(swapChain.as<IDXGISwapChain3>().get());
 }

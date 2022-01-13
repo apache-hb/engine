@@ -36,8 +36,8 @@ src = [
     'src/render/d3d12/factory.cpp',
     'src/render/d3d12/device.cpp',
     'src/render/d3d12/library.cpp',
+    'src/render/d3d12/heap.cpp',
     #'src/render/objects/signature.cpp',
-    #'src/render/objects/heap.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',

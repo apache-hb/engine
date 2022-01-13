@@ -2915,11 +2915,11 @@ typedef struct D3D12_MESSAGE
 typedef struct D3D12_INFO_QUEUE_FILTER_DESC
     {
     UINT NumCategories;
-    _Field_size_(NumCategories)  D3D12_MESSAGE_CATEGORY *pCategoryList;
+    _Field_size_(NumCategories) const D3D12_MESSAGE_CATEGORY *pCategoryList;
     UINT NumSeverities;
-    _Field_size_(NumSeverities)  D3D12_MESSAGE_SEVERITY *pSeverityList;
+    _Field_size_(NumSeverities) const D3D12_MESSAGE_SEVERITY *pSeverityList;
     UINT NumIDs;
-    _Field_size_(NumIDs)  D3D12_MESSAGE_ID *pIDList;
+    _Field_size_(NumIDs) const D3D12_MESSAGE_ID *pIDList;
     } 	D3D12_INFO_QUEUE_FILTER_DESC;
 
 typedef struct D3D12_INFO_QUEUE_FILTER
@@ -2972,7 +2972,7 @@ EXTERN_C const IID IID_ID3D12InfoQueue;
         virtual UINT64 STDMETHODCALLTYPE GetMessageCountLimit( void) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE AddStorageFilterEntries( 
-            _In_  D3D12_INFO_QUEUE_FILTER *pFilter) = 0;
+            _In_ const D3D12_INFO_QUEUE_FILTER *pFilter) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetStorageFilter( 
             _Out_writes_bytes_opt_(*pFilterByteLength)  D3D12_INFO_QUEUE_FILTER *pFilter,
