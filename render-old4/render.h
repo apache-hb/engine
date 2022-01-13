@@ -11,6 +11,7 @@ namespace engine::render {
     struct Scene;
     struct Factory;
     struct Adapter;
+    struct Context;
 
     constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
@@ -54,6 +55,8 @@ namespace engine::render {
         Object<ID3D12CommandAllocator> allocators[Allocator::Total];
     };
 
+    using Event = std::function<void(Context*)>;
+
     struct Context {
         struct Create {
             Factory* factory;
@@ -75,8 +78,10 @@ namespace engine::render {
 
         bool present();
 
+        void addEvent(Event&& event);
     private:
         Create info;
+        ubn::queue<Event> events;
 
         void createDevice();
         void destroyDevice();

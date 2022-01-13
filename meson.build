@@ -17,28 +17,27 @@ src = [
     # render utility objects
     'src/render/util.cpp',
 
-    'src/render/debug/debug.cpp',
-
     # core render objects
     'src/render/context/context.cpp',
     'src/render/context/lifetime.cpp',
     'src/render/context/access.cpp',
-    'src/render/context/upload.cpp',
-    'src/render/context/sync.cpp',
+    #'src/render/context/upload.cpp',
+    #'src/render/context/sync.cpp',
 
-    'src/render/camera/camera.cpp',
+    #'src/render/camera/camera.cpp',
 
-    'src/render/viewport/viewport.cpp',
+    #'src/render/viewport/viewport.cpp',
 
     # scene rendering
-    'src/render/scene/3dscene.cpp',
+    #'src/render/scene/3dscene.cpp',
 
     # d3d wrapper objects
-    'src/render/objects/factory.cpp',
-    'src/render/objects/resource.cpp',
-    'src/render/objects/library.cpp',
-    'src/render/objects/signature.cpp',
-    'src/render/objects/heap.cpp',
+    'src/render/d3d12/debug.cpp',
+    'src/render/d3d12/factory.cpp',
+    'src/render/d3d12/device.cpp',
+    'src/render/d3d12/library.cpp',
+    #'src/render/objects/signature.cpp',
+    #'src/render/objects/heap.cpp',
 
     'src/util/strings.cpp',
     'src/util/units.cpp',

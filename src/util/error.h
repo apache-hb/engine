@@ -1,5 +1,7 @@
 #pragma once
 
+#include "logging/log.h"
+
 #include <string>
 #include <format>
 #include <string_view>
@@ -10,7 +12,9 @@ namespace engine {
         Error(std::string message = "", std::source_location location = std::source_location::current())
             : message(message)
             , location(location)
-        { }
+        {
+            log::global->warn("exception: {}", message);
+        }
 
         virtual std::string query() const { return std::string(message); }
 

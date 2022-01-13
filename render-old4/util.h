@@ -44,9 +44,6 @@ namespace engine::render {
     template<typename T>
     concept IsD3D12Object = std::is_convertible_v<T*, ID3D12Object*>;
 
-    template<typename T>
-    concept IsObjectName = std::is_convertible_v<T, std::string_view> 
-                        || std::is_convertible_v<T, std::wstring_view>;
 
 
     template<IsComObject T>
@@ -120,6 +117,12 @@ namespace engine::render {
         using Super = Com<T>;
         using Super::Super;
 
+        Object(T* self, std::wstring_view name): Super(self) {
+            if (self != nullptr) {
+                rename(name);
+            }
+        }
+
         void rename(std::wstring_view name) {
             Super::get()->SetName(name.data());
         }
@@ -128,26 +131,6 @@ namespace engine::render {
             rename(strings::widen(name));
         }
     };
-
-#define OBJECT(type, super)     \
-    using Super = Object<super>;\
-    using Super::Super;         \
-    template<IsObjectName N>    \
-    type named(N name) {        \
-        rename(name);           \
-        return *this;           \
-    }                           \
-                                \
-    template<IsObjectName N>    \
-    type operator%(N name) {    \
-        return named(name);     \
-    }
-
-    template<IsComObject T>
-    using AtomicCom = Com<std::atomic<T>>;
-
-    template<IsD3D12Object T>
-    using AtomicObject = Object<std::atomic<T>>;
 
     struct Scissor : D3D12_RECT {
         using Super = D3D12_RECT;

@@ -1,17 +1,21 @@
 #include "logging/log.h"
 #include "logging/debug.h"
+
 #include "system/system.h"
-#include "render/render.h"
+#include "system/gamesdk.h"
+
+#include "render/context.h"
+#include "render/debug.h"
 #include "render/objects/factory.h"
-#include "render/viewport/viewport.h"
-#include "render/scene/scene.h"
-#include "render/debug/debug.h"
+#include "render/objects/library.h"
+
 #include "util/strings.h"
 #include "util/timer.h"
+#include "util/macros.h"
+
 #include "input/inputx.h"
 #include "input/mnk.h"
-#include "util/macros.h"
-#include "system/gamesdk.h"
+
 #include "assets/loader.h"
 
 #include <thread>
@@ -20,12 +24,12 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
-#include "imgui-file-dialog.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 using namespace engine;
 
+#if 0
 xinput::Deadzone kLStickDeadzone = { XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE };
 xinput::Deadzone kRStickDeadzone = { XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE };
 int16_t kLTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
@@ -35,89 +39,6 @@ float kLookSensitivity = 1.f;
 float kMoveSensitivity = 1.f;
 float kUpDownSensitivity = 1.f;
 float kShiftAccel = 50.f;
-
-#if 0
-const auto kMissingTexture = assets::genMissingTexture({ 512, 512 }, assets::Texture::Format::RGB);
-
-const auto kCubeVertices = std::vector<assets::Vertex>({
-    { { 0.f, 1.f, 1.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 1.f }, { 0.f, 1.f } },
-    { { 0.f, 0.f, 1.f }, { 1.f, 1.f } },
-    { { 1.f, 0.f, 1.f }, { 1.f, 0.f } },
-
-    { { 0.f, 1.f, 0.f }, { 0.f, 0.f } },
-    { { 1.f, 1.f, 0.f }, { 0.f, 1.f } },
-    { { 0.f, 0.f, 0.f }, { 1.f, 0.f } },
-    { { 1.f, 0.f, 0.f }, { 1.f, 1.f } }
-});
-
-const auto kCubeIndices = std::vector<uint32_t>({ 
-    // back face
-    0, 1, 2,
-    1, 3, 2,
-
-    // front face
-    4, 6, 5,
-    5, 6, 7,
-
-    // top face
-    0, 4, 1,
-    4, 5, 1,
-
-    // bottom face
-    2, 3, 6,
-    3, 7, 6,
-
-    // left face
-    0, 2, 4,
-    2, 6, 4,
-
-    // right face
-    1, 5, 3,
-    5, 7, 3
-});
-
-const assets::IndexBufferView kBufferView = {
-    .offset = 0,
-    .length = kCubeIndices.size()
-};
-
-const assets::Mesh kCubeMesh = {
-    .views = { kBufferView },
-    .buffer = 0,
-    .texture = 0
-};
-
-const assets::World kDefaultWorldData = {
-    .vertexBuffers = { kCubeVertices },
-    .indexBuffers = { kCubeIndices },
-    .textures = { kMissingTexture },
-    .meshes = { kCubeMesh }
-};
-
-const auto* kDefaultWorld = &kDefaultWorldData;
-
-#else
-
-constexpr auto kWorldPath = "C:\\Users\\ehb56\\Documents\\GitHub\\glTF-Sample-Models\\2.0\\Sponza\\glTF\\Sponza.gltf";
-const auto* kDefaultWorld = loader::gltfWorld(kWorldPath);
-
-#endif
-
-struct MovementDebugObject : debug::DebugObject {
-    using Super = debug::DebugObject;
-    MovementDebugObject() : Super("Movement") {}
-
-    virtual void info() override {
-        ImGui::SliderFloat("Look Sensitivity", &kLookSensitivity, 0.f, 10.f);
-        ImGui::SliderFloat("Move Sensitivity", &kMoveSensitivity, 0.f, 10.f);
-        ImGui::SliderFloat("Up/Down Sensitivity", &kUpDownSensitivity, 0.f, 10.f);
-    }
-};
-
-auto* kMovementDebugObject = new MovementDebugObject();
-
-using WindowCallbacks = system::Window::Callbacks;
 
 struct GameInput {
     GameInput(WindowCallbacks* callbacks) {
@@ -157,6 +78,22 @@ private:
     std::jthread* thread;
 };
 
+struct MovementDebugObject : debug::DebugObject {
+    using Super = debug::DebugObject;
+    MovementDebugObject() : Super("Movement") {}
+
+    virtual void info() override {
+        ImGui::SliderFloat("Look Sensitivity", &kLookSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Move Sensitivity", &kMoveSensitivity, 0.f, 10.f);
+        ImGui::SliderFloat("Up/Down Sensitivity", &kUpDownSensitivity, 0.f, 10.f);
+    }
+};
+
+auto* kMovementDebugObject = new MovementDebugObject();
+#endif
+
+using WindowCallbacks = system::Window::Callbacks;
+
 struct MainWindow final : WindowCallbacks {
     using WindowCallbacks::WindowCallbacks;
 
@@ -165,13 +102,15 @@ struct MainWindow final : WindowCallbacks {
             .factory = new render::Factory(),
             .adapter = 0,
             .window = window,
+            .resolution = { 1920, 1080 },
             .buffers = 2,
             .vsync = false,
-            .resolution = { 1920, 1080 },
-            .getViewport = [](auto* ctx) { return new render::DisplayViewport(ctx); },
-            .getScene = [=](auto* ctx) -> render::Scene* { return new render::Scene3D(ctx, &camera, kDefaultWorld); }
+            .budget = {
+                .queueSize = 32
+            }
         });
 
+#if 0
         poll = new std::jthread([this](auto stop) {
             auto timer = util::createTimer();
             while (!stop.stop_requested()) {
@@ -182,16 +121,14 @@ struct MainWindow final : WindowCallbacks {
                 camera.rotate(data.rstick.x * delta * kLookSensitivity, data.rstick.y * delta * kLookSensitivity);
             }
         });
+#endif
 
         draw = new std::jthread([this](auto stop) {
             try {
                 context->create();
 
                 while (!stop.stop_requested()) {
-                    if (!context->present()) {
-                        log::global->fatal("present failed");
-                        break;
-                    }
+                    context->present();
                 }
             } catch (const engine::Error& error) {
                 log::global->fatal("{}", error.what());
@@ -200,21 +137,21 @@ struct MainWindow final : WindowCallbacks {
             context->destroy();
         });
 
-        input = new GameInput(this);
+        //input = new GameInput(this);
     }
 
     virtual void onDestroy() override {
-        delete poll;
+        //delete poll;
         delete draw;
         delete context;
     }
 
 private:
-    std::jthread* poll;
+    //std::jthread* poll;
     std::jthread* draw;
 
-    GameInput* input;
-    render::Camera camera = { { 0.f, -1.f, 1.5f }, { 0.f, 1.f, 0.f } };
+    //GameInput* input;
+    //render::Camera camera = { { 0.f, -1.f, 1.5f }, { 0.f, 1.f, 0.f } };
     render::Context *context;
 };
 

@@ -26,7 +26,9 @@ namespace engine::render {
         virtual void destroy() = 0;
         virtual ID3D12CommandList* populate() = 0;
 
-    protected:
+    public:
+        Device<ID3D12Device4>& getDevice();
+
         void createCommandList();
         void destroyCommandList();
 
@@ -55,7 +57,6 @@ namespace engine::render {
         void begin();
         void end();
 
-        Device<ID3D12Device4>& getDevice();
         CD3DX12_CPU_DESCRIPTOR_HANDLE cbvSrvCpuHandle(UINT index);
         CD3DX12_GPU_DESCRIPTOR_HANDLE cbvSrvGpuHandle(UINT index);
 

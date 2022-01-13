@@ -1,5 +1,4 @@
-#include "debug.h"
-
+#include "render/debug.h"
 #include "render/util.h"
 
 #include <dxgidebug.h>

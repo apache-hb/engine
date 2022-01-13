@@ -111,7 +111,9 @@ struct LoaderDebugObject : debug::DebugObject {
             if (ImGuiFileDialog::Instance()->IsOk()) {
                 auto path = ImGuiFileDialog::Instance()->GetFilePathName();
                 auto* world = loader::gltfWorld(path);
-                scene->changeScene(world);
+                scene->ctx->addEvent([=](UNUSED auto* context) {
+                    scene->changeScene(world);
+                });
             }
             ImGuiFileDialog::Instance()->Close();
         }
@@ -150,7 +152,6 @@ void Scene3D::destroy() {
 }
 
 void Scene3D::changeScene(const assets::World* other) {
-    log::render->info("changing scene");
     destroyScene();
     world = other;
     createScene();
@@ -173,7 +174,6 @@ void Scene3D::destroyScene() {
 }
 
 ID3D12CommandList* Scene3D::populate() {
-    log::render->info("populating scene");
     begin();
     
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -206,7 +206,6 @@ ID3D12CommandList* Scene3D::populate() {
     }
 
     end();
-    log::render->info("scene populated");
     return commandList.get();
 }
 
@@ -421,6 +420,6 @@ CD3DX12_CPU_DESCRIPTOR_HANDLE Scene3D::dsvHandle() {
     return CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
-Device<ID3D12Device4>& Scene3D::getDevice() {
+Device<ID3D12Device4>& Scene::getDevice() {
     return ctx->getDevice();
 }
