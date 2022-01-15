@@ -9,6 +9,8 @@
 
 namespace engine::render {
     struct Context;
+    
+    constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
     namespace Allocators {
         enum Index : size_t {
@@ -89,6 +91,8 @@ namespace engine::render {
 
         // binding api
         void bindRtv(Resource resource, DescriptorHeap::CpuHandle handle);
+        void bindSrv(Resource resource, DescriptorHeap::CpuHandle handle);
+        void bindCbv(Resource resource, UINT size, DescriptorHeap::CpuHandle handle);
 
     private:
         // api agnostic data and creation data
@@ -118,8 +122,14 @@ namespace engine::render {
         void createRtvHeap();
         void destroyRtvHeap();
 
+        void createCbvHeap();
+        void destroyCbvHeap();
+
         void createFrameData();
         void destroyFrameData();
+
+        void createFence();
+        void destroyFence();
 
         Device device;
         CommandQueue queues[Queues::Total];
@@ -131,11 +141,22 @@ namespace engine::render {
         // [0] = scene target
         // [1..N] = back buffers
         DescriptorHeap rtvHeap;
+    
+        // our constant buffer views
+        // layout derived from Targets::Index
+        DescriptorHeap cbvHeap;
 
         DescriptorHeap::CpuHandle rtvCpuHandle(UINT index);
 
         Resource sceneTarget;
         FrameData* frameData;
+
+        // sync objects and methods
+        Fence fence;
+        HANDLE fenceEvent;
+
+        void waitForGpu();
+        void nextFrame();
 
         // display managment
 

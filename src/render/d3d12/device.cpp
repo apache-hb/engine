@@ -45,12 +45,19 @@ DescriptorHeap Device::newHeap(DescriptorHeap::Type type, UINT size, DescriptorH
     return DescriptorHeap(heap, increment);
 }
 
+Fence Device::newFence(Fence::Value initial, D3D12_FENCE_FLAGS flags) {
+    ID3D12Fence* fence = nullptr;
+    HRESULT hr = get()->CreateFence(initial, flags, IID_PPV_ARGS(&fence));
+    check(hr, "failed to create fence");
+    return Fence(fence);
+}
+
 Resource Device::newCommittedResource(
     const D3D12_HEAP_PROPERTIES& props,
-    D3D12_HEAP_FLAGS flags,
     const D3D12_RESOURCE_DESC& desc,
     D3D12_RESOURCE_STATES initial,
-    const D3D12_CLEAR_VALUE* clear
+    const D3D12_CLEAR_VALUE* clear,
+    D3D12_HEAP_FLAGS flags
 )
 {
     ID3D12Resource* resource = nullptr;
@@ -60,7 +67,6 @@ Resource Device::newCommittedResource(
 }
 
 constexpr auto kFilterFlags = D3D12_MESSAGE_CALLBACK_FLAG_NONE;
-
 
 constexpr auto kFilters = std::to_array({
     D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE

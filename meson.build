@@ -21,8 +21,8 @@ src = [
     'src/render/context/context.cpp',
     'src/render/context/lifetime.cpp',
     'src/render/context/access.cpp',
+    'src/render/context/sync.cpp',
     #'src/render/context/upload.cpp',
-    #'src/render/context/sync.cpp',
 
     #'src/render/camera/camera.cpp',
 
@@ -37,6 +37,7 @@ src = [
     'src/render/d3d12/device.cpp',
     'src/render/d3d12/library.cpp',
     'src/render/d3d12/heap.cpp',
+    'src/render/d3d12/resource.cpp',
     #'src/render/objects/signature.cpp',
 
     'src/util/strings.cpp',

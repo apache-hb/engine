@@ -17,6 +17,8 @@ namespace engine::render::debug {
         }
 
         if (d3dDebug) { d3dDebug->EnableDebugLayer(); }
+
+        log::render->info("debug layer enabled");
     }
 
     void disable() {

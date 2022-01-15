@@ -6,6 +6,8 @@ using namespace engine::render;
 constexpr auto kSwapSampleCount = 1;
 constexpr auto kSwapSampleQuality = 0;
 
+constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
 void Context::createDevice() {
     device = getAdapter().newDevice(D3D_FEATURE_LEVEL_11_0) % "device";
     device.attachInfoQueue([](auto category, auto severity, auto id, auto desc, UNUSED void* ctx) {
@@ -70,16 +72,41 @@ void Context::destroySwapChain() {
 }
 
 void Context::createRtvHeap() {
-    rtvHeap = device.newHeap(DescriptorHeap::kRtv, Targets::Total + getBufferCount())
-        % "rtv-heap";
+    rtvHeap = device.newHeap(DescriptorHeap::kRtv, Targets::Total + getBufferCount()) % "rtv-heap";
 }
 
 void Context::destroyRtvHeap() {
     rtvHeap.tryDrop("rtv-heap");
 }
 
+void Context::createCbvHeap() {
+    cbvHeap = device.newHeap(DescriptorHeap::kCbvSrvUav, Targets::Total) % "cbv-heap";
+}
+
+void Context::destroyCbvHeap() {
+    cbvHeap.tryDrop("cbv-heap");
+}
+
 void Context::createFrameData() {
+    const auto format = getFormat();
+    const auto [width, height] = getPostResolution();
+    const auto clear = CD3DX12_CLEAR_VALUE(format, kClearColour);
+    const auto desc = CD3DX12_RESOURCE_DESC::Tex2D(
+        /* format = */ format,
+        /* width = */ width,
+        /* height = */ height,
+        /* arraySize = */ 1,
+        /* mipLevels = */ 1,
+        /* sampleCount = */ kSwapSampleCount,
+        /* sampleQuality = */ kSwapSampleQuality,
+        /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+    );
     const auto count = getBufferCount();
+
+    sceneTarget = device.newCommittedResource(kDefaultProps, desc, D3D12_RESOURCE_STATE_RENDER_TARGET, &clear) % "scene-target";
+
+    bindRtv(sceneTarget, rtvHeap.cpuHandle(Targets::Scene));
+    bindSrv(sceneTarget, cbvHeap.cpuHandle(Targets::Scene));
 
     for (UINT i = 0; i < count; i++) {
         auto target = swapchain.getBuffer(i) % std::format(L"frame-{}", i);
@@ -93,14 +120,28 @@ void Context::createFrameData() {
 }
 
 void Context::destroyFrameData() {
+    sceneTarget.tryDrop("scene-target");
+
     const auto count = getBufferCount();
     for (size_t i = 0; i < count; i++) {
         frameData[i].target.release(); // render targets share a reference counter
     }
 }
 
+void Context::createFence() {
+    frameData[frameIndex].value = 1;
+    fence = device.newFence(0) % "fence";
+    fenceEvent = CreateEvent(nullptr, false, false, TEXT("fence-event"));
+    if (!fenceEvent) { throw win32::Error("CreateEvent"); }
+}
+
+void Context::destroyFence() {
+    CloseHandle(fenceEvent);
+    fence.tryDrop("fence");
+}
+
 void Context::createViews() {
-// get our current internal and external resolution
+    // get our current internal and external resolution
     auto [displayWidth, displayHeight] = getPostResolution();
     auto [internalWidth, internalHeight] = getSceneResolution();
 

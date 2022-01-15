@@ -3,5 +3,5 @@
 #include "render/util.h"
 
 namespace engine::render {
-    void enableSm6();
+    bool enableSm6();
 }

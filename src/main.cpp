@@ -164,7 +164,9 @@ void initImGui(size_t dpi) {
 
 int runEngine(HINSTANCE instance, int show) {
     render::debug::enable();
-    render::enableSm6();
+    if (!render::enableSm6()) {
+        log::render->warn("failed to enable shader model 6");
+    }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();

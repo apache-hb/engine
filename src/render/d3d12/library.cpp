@@ -8,8 +8,8 @@ constexpr GUID sm6Id = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
 };
 
 namespace engine::render {
-    void enableSm6() {
+    bool enableSm6() {
         HRESULT hr = D3D12EnableExperimentalFeatures(1, &sm6Id, nullptr, nullptr);
-        check(hr, "failed to enable sm6");
+        return !FAILED(hr);
     }
 }
