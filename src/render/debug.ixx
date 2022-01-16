@@ -6,7 +6,7 @@ module;
 
 #include "util.h"
 
-export module RenderDebug;
+export module render.debug;
 
 #define ALWAYS_SHADER_FLAGS D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_WARNINGS_ARE_ERRORS
 

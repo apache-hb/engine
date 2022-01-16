@@ -1,6 +1,6 @@
 #include "render/objects/factory.h"
 
-import RenderDebug;
+import render.debug;
 
 using namespace engine::render;
 

@@ -23,7 +23,7 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 
-import RenderDebug;
+import render.debug;
 
 using namespace engine;
 
