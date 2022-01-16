@@ -31,8 +31,10 @@ src = [
     # scene rendering
     #'src/render/scene/3dscene.cpp',
 
+    'src/render/debug.ixx',
+
     # d3d wrapper objects
-    'src/render/d3d12/debug.cpp',
+    #'src/render/d3d12/debug.cpp',
     'src/render/d3d12/factory.cpp',
     'src/render/d3d12/device.cpp',
     'src/render/d3d12/library.cpp',
@@ -59,7 +61,7 @@ src = [
     'src/input/inputx.cpp',
     'src/input/mnk.cpp',
 
-    'src/main.cpp'
+    'src/main.ixx'
 ]
 
 

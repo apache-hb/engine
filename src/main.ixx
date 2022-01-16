@@ -5,7 +5,6 @@
 #include "system/gamesdk.h"
 
 #include "render/context.h"
-#include "render/debug.h"
 #include "render/objects/factory.h"
 #include "render/objects/library.h"
 
@@ -23,9 +22,8 @@
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
-#include "imgui/backends/imgui_impl_dx12.h"
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+import RenderDebug;
 
 using namespace engine;
 
