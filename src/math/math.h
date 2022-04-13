@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cmath>
-#include <DirectXMath.h>
 
 namespace engine::math {
     template<typename T>
@@ -76,12 +75,14 @@ namespace engine::math {
 
     template<typename T>
     struct alignas(16) Vec4 {
+        enum Select { X = (1 << 0), Y = (1 << 1), Z = (1 << 2), W = (1 << 3) };
+
         T x;
         T y;
         T z;
         T w;
 
-        constexpr T at(size_t index) const {
+        constexpr T& at(size_t index) const { 
             switch (index) {
             case 0: return x;
             case 1: return y;
@@ -99,11 +100,11 @@ namespace engine::math {
             return from(it, it, it, it);
         }
 
-        static constexpr Vec4 select(const Vec4& lhs, const Vec4& rhs, const Vec4<bool>& control) {
-            auto x = control.x ? rhs.x : lhs.x;
-            auto y = control.y ? rhs.y : lhs.y;
-            auto z = control.z ? rhs.z : lhs.z;
-            auto w = control.w ? rhs.w : lhs.w;
+        static constexpr Vec4 select(const Vec4& lhs, const Vec4& rhs, Select control) {
+            auto x = control & X ? rhs.x : lhs.x;
+            auto y = control & Y ? rhs.y : lhs.y;
+            auto z = control & Z ? rhs.z : lhs.z;
+            auto w = control & W ? rhs.w : lhs.w;
 
             return from(x, y, z, w);
         }
@@ -331,7 +332,7 @@ namespace engine::math {
             auto d1 = Row::dot(r1, negEye);
             auto d2 = Row::dot(r2, negEye);
 
-            auto control = Vec4<bool>::from(true, true, true, false);
+            auto control = Row::X | Row::Y | Row::Z;
             auto s0 = Row::select(d0, r0, control);
             auto s1 = Row::select(d1, r1, control);
             auto s2 = Row::select(d2, r2, control);
@@ -366,5 +367,9 @@ namespace engine::math {
     using float3x3 = Mat3x3<float>;
     using float4x4 = Mat4x4<float>;
 
+    static_assert(sizeof(float2) == sizeof(float) * 2);
+    static_assert(sizeof(float3) == sizeof(float) * 3);
+    static_assert(sizeof(float4) == sizeof(float) * 4);
+    static_assert(sizeof(float3x3) == sizeof(float) * 3 * 3);
     static_assert(sizeof(float4x4) == sizeof(float) * 4 * 4);
 }

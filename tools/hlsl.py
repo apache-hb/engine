@@ -30,4 +30,4 @@ for target in targets.split(','):
     result = run(args)
     if result.returncode != 0:
         print('Error compiling ' + target + ' shader')
-        exit(1)
+        exit(result.returncode)
