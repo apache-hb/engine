@@ -46,12 +46,20 @@ namespace engine::system {
         return paths;
     }
 
+    constexpr auto badModules = std::to_array({
+        "AsusWallpaperSettingHook.dll",
+        "RTSSHooks64.dll"
+    });
+
     std::vector<std::string> detrimentalModules(const std::vector<std::string>& all) {
         std::vector<std::string> result;
         
         for (auto mod : all) {
-            if (mod.find("AsusWallpaperSettingHook.dll") != std::string::npos) {
-                result.push_back(mod);
+            for (auto bad : badModules) {
+                if (mod.find(bad) != std::string::npos) {
+                    result.push_back(mod);
+                    break;
+                }
             }
         }
 
