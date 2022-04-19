@@ -14,8 +14,9 @@ namespace engine::math {
         T width;
         T height;
 
-        float aspectRatio() const {
-            return float(width) / float(height);
+        template<typename U>
+        U aspectRatio() const {
+            return U(width) / U(height);
         }
     };
 
@@ -82,16 +83,6 @@ namespace engine::math {
         T z;
         T w;
 
-        constexpr T& at(size_t index) const { 
-            switch (index) {
-            case 0: return x;
-            case 1: return y;
-            case 2: return z;
-            case 3: return w;
-            default: return T(0);
-            }
-        }
-
         static constexpr Vec4 from(T x, T y, T z, T w) {
             return { x, y, z, w };
         }
@@ -135,6 +126,13 @@ namespace engine::math {
         constexpr Vec3<T> vec3() const {
             return Vec3<T>::from(x, y, z);
         }
+
+        constexpr T& at(size_t index) const { 
+            return this->*components[index];
+        }
+
+    private:
+        static constexpr T Vec4::*components[] { &Vec4::x, &Vec4::y, &Vec4::z, &Vec4::w };
     };
 
     template<typename T>
