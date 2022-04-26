@@ -23,53 +23,49 @@
 
 using namespace engine;
 
-const char* levelString(log::Level level) {
-    switch (level) {
-    case log::INFO: return "info";
-    case log::WARN: return "warn";
-    case log::FATAL: return "fatal";
-    default: return "error";
-    }
-}
+namespace {
+    static const char *kLevelStrings[engine::log::TOTAL] = {
+        "info",
+        "warn",
+        "fatal"
+    };
+    
+    static const char *kColouredLevelStrings[engine::log::TOTAL] = {
+        GREEN "info" RESET,
+        YELLOW "warn" RESET,
+        RED "fatal" RESET
+    };
 
-const char* levelStringWithColour(log::Level level) {
-    switch (level) {
-    case log::INFO: return GREEN "info" RESET;
-    case log::WARN: return YELLOW "warn" RESET;
-    case log::FATAL: return RED "fatal" RESET;
-    default: return CYAN "error" RESET;
-    }
-}
 
-struct LogDebugObject : debug::DebugObject {
-    using Super = debug::DebugObject;
-    LogDebugObject() : Super("log") { }
+    struct LogDebugObject : debug::DebugObject {
+        using Super = debug::DebugObject;
+        LogDebugObject() : Super("log") { }
 
-    virtual void info() override {
-        std::lock_guard guard(lock);
+        virtual void info() override {
+            std::lock_guard guard(lock);
 
-        if (ImGui::BeginTabBar("channels")) {
-            for (const auto& [channel, entries] : channels) {
-                if (ImGui::BeginTabItem(channel.data())) {
-                    for (const auto& [level, message] : entries) {
-                        ImGui::Text("[%s] %s", levelString(level), message.c_str());
+            if (ImGui::BeginTabBar("channels")) {
+                for (const auto& [channel, entries] : channels) {
+                    if (ImGui::BeginTabItem(channel.data())) {
+                        for (const auto& [level, message] : entries) {
+                            ImGui::Text("[%s] %s", kLevelStrings[level], message.c_str());
+                        }
+                        ImGui::EndTabItem();
                     }
-                    ImGui::EndTabItem();
                 }
+
+                ImGui::EndTabBar();
             }
-
-            ImGui::EndTabBar();
         }
-    }
 
-    using Entry = std::pair<log::Level, std::string>;
+        using Entry = std::pair<log::Level, std::string>;
 
-    std::mutex lock;
-    std::map<std::string_view, std::vector<Entry>> channels;
-};
+        std::mutex lock;
+        std::map<std::string_view, std::vector<Entry>> channels;
+    };
 
-auto* kDebug = new LogDebugObject();
-
+    auto* kDebug = new LogDebugObject();
+}
 
 namespace engine::log {
     void Channel::log(Level report, std::string_view message) {
@@ -92,7 +88,7 @@ namespace engine::log {
     }
         
     void ConsoleChannel::send(Level report, std::string_view message) {
-        auto view = levelStringWithColour(report);
+        auto view = kColouredLevelStrings[report];
         const std::string full = std::format("{}[{}]: {}", channel(), view, message);
         fprintf(file, "%s\n", full.c_str());
     }

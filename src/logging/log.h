@@ -10,7 +10,8 @@ namespace engine::log {
     enum Level {
         INFO,
         WARN,
-        FATAL
+        FATAL,
+        TOTAL
     };
 
     struct Channel {
