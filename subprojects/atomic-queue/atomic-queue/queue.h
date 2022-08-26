@@ -82,14 +82,14 @@ namespace ubn {
             ~container_t() noexcept { if (m_idx_.load(std::memory_order::acquire)) { destruct(); } }
             
             template <typename... Args>
-            constexpr void construct(Args&&... args) noexcept { new(&storage_t) V(std::forward<Args>(args)...); }
-            constexpr void destruct ()               noexcept { reinterpret_cast<V*>(&storage_t)->~V(); }
-            constexpr V&&  move     ()               noexcept { return reinterpret_cast<V&&>(storage_t); }
+            constexpr void construct(Args&&... args) noexcept { new(&storage) V(std::forward<Args>(args)...); }
+            constexpr void destruct ()               noexcept { reinterpret_cast<V*>(&storage)->~V(); }
+            constexpr V&&  move     ()               noexcept { return reinterpret_cast<V&&>(storage); }
             
             alignas(hardware_constructive_interference_size) std::atomic_size_t mutable m_idx_ { 0 };
             
         private:
-            typename std::aligned_storage_t<sizeof(V), alignof(V)> storage_t;
+            alignas(V) std::byte storage[sizeof(V)];
         };
         
     private:

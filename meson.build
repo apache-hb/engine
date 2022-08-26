@@ -2,7 +2,7 @@ project('engine', [ 'c', 'cpp' ],
     license : 'GPLv3',
     version : '0.0.1',
     default_options : [
-        'cpp_std=c++latest',
+        'cpp_std=c++20',
         'cpp_rtti=false',
         'warning_level=3',
         'werror=true',
@@ -14,34 +14,6 @@ project('engine', [ 'c', 'cpp' ],
 )
 
 src = [ 
-    # render utility objects
-    'src/render/util.cpp',
-
-    # core render objects
-    'src/render/context/context.cpp',
-    'src/render/context/lifetime.cpp',
-    'src/render/context/access.cpp',
-    'src/render/context/sync.cpp',
-    #'src/render/context/upload.cpp',
-
-    #'src/render/camera/camera.cpp',
-
-    #'src/render/viewport/viewport.cpp',
-
-    # scene rendering
-    #'src/render/scene/3dscene.cpp',
-
-    'src/render/debug.ixx',
-
-    # d3d wrapper objects
-    #'src/render/d3d12/debug.cpp',
-    'src/render/d3d12/factory.cpp',
-    'src/render/d3d12/device.cpp',
-    'src/render/d3d12/library.cpp',
-    'src/render/d3d12/heap.cpp',
-    'src/render/d3d12/resource.cpp',
-    #'src/render/objects/signature.cpp',
-
     'src/util/strings.cpp',
     'src/util/units.cpp',
     'src/util/timer.cpp',
@@ -61,9 +33,8 @@ src = [
     'src/input/inputx.cpp',
     'src/input/mnk.cpp',
 
-    'src/main.ixx'
+    'src/main.cpp'
 ]
-
 
 # python = find_program('python')
 # dxc = generator(python,
@@ -79,10 +50,9 @@ queue = subproject('atomic-queue').get_variable('queue')
 stb = subproject('stb').get_variable('stb')
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('gltf').get_variable('gltf')
-obj = subproject('obj').get_variable('obj')
 gamesdk = subproject('discord').get_variable('gamesdk')
 
-deps = [ imgui, widgets, queue, stb, d3d12, gltf, obj, gamesdk ]
+deps = [ imgui, widgets, queue, stb, d3d12, gltf, gamesdk ]
 
 links = [ 
     'd3d12.lib', 
@@ -101,7 +71,7 @@ message('dlss-sdk: @0@'.format(dlss))
 message('debug-d3d12: @0@'.format(debugd3d12))
 
 if agility
-    src += [ 'src/render/agility/agility.cpp' ]
+    # src += [ 'src/render/agility/agility.cpp' ]
     args += [ '-DENABLE_AGILITY=1' ]
 else
     args += [ '-DENABLE_AGILITY=0' ]
@@ -110,7 +80,7 @@ endif
 if dlss
     ndk = subproject('ndk').get_variable('ndk')
     deps += [ ndk ]
-    src += [ 'src/render/dlss/dlss.cpp' ]
+    # src += [ 'src/render/dlss/dlss.cpp' ]
     args += [ '-DENABLE_DLSS=1' ]
 else
     args += [ '-DENABLE_DLSS=0' ]

@@ -89,7 +89,7 @@ namespace engine::system {
     void* Module::getAddr(std::string_view name) const {
         if (!found()) { return nullptr; }
         
-        return GetProcAddress(handle, name.data());
+        return (void*)GetProcAddress(handle, name.data());
     }
 
     void init() {

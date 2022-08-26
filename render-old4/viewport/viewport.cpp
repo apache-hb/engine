@@ -4,7 +4,6 @@
 
 #include "logging/debug.h"
 #include "viewport.h"
-#include "system/gamesdk.h"
 #include "render/scene/scene.h"
 #include "render/objects/factory.h"
 #include "render/objects/commands.h"
