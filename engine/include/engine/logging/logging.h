@@ -50,7 +50,7 @@ namespace engine::logging {
         { }
 
     protected:
-        virtual void send(Level level, std::string message) override;
+        virtual void send(Level level, const std::string_view message) override;
 
     private:
         Io *io;

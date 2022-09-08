@@ -1,3 +1,4 @@
+#include "engine/base/io.h"
 #include "engine/logging/logging.h"
 #include "engine/platform/platform.h"
 #include "engine/base/macros.h"
@@ -8,10 +9,13 @@
 using namespace engine;
 
 int commonMain(UNUSED HINSTANCE instance, UNUSED int show) noexcept {
+    Io *logFile = Io::open("game.log", Io::eWrite);
+    logging::IoChannel logger {"general", logFile};
     platform::System machine;
-    std::cout << "name: " << machine.name << std::endl;
+
+    logger.info("name: {}", machine.name);
     for (const auto &display : machine.displays) {
-        std::cout << "display[" << display.name << "]: " << display.desc << std::endl;
+        logger.info("display[{}]: {}", display.name, display.desc);
     }
     return 0;
 }
