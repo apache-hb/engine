@@ -12,7 +12,7 @@ struct File : Io {
         DWORD dwCreate = (mode & eWrite ? CREATE_NEW : OPEN_EXISTING);
         handle = CreateFileA(std::string(name).c_str(), dwAccess, dwShare, nullptr, dwCreate, FILE_ATTRIBUTE_NORMAL, nullptr);
     }
-    
+
     File(File&& other) : Io(other.name) {
         handle = other.handle;
         other.handle = nullptr;

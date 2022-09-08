@@ -3,24 +3,25 @@
 #include "engine/platform/platform.h"
 #include "engine/base/macros.h"
 
-#include <windows.h>
-#include <iostream>
-
 using namespace engine;
 
-int commonMain(UNUSED HINSTANCE instance, UNUSED int show) noexcept {
+int commonMain(UNUSED HINSTANCE instance, UNUSED int show) {
     Io *logFile = Io::open("game.log", Io::eWrite);
     logging::IoChannel logger {"general", logFile};
-    platform::System machine;
+    platform::System machine {instance};
 
     logger.info("name: {}", machine.name);
-    for (const auto &display : machine.displays) {
-        logger.info("display[{}]: {}", display.name, display.desc);
-    }
+
+    auto *window = machine.primaryDisplay().open("game", { 640, 480 });
+
+    machine.run();
+
+    delete window;
+
     return 0;
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR CmdLine, int nCmdShow) {
+int WINAPI WinMain(UNUSED HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR CmdLine, int nCmdShow) {
     return commonMain(hInstance, nCmdShow);
 }
 

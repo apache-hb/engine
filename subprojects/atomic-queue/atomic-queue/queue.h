@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <memory>
-#include <limits>
 #include <ranges>
 #include <cstdint>
 #include <cstddef>
@@ -15,6 +14,8 @@ namespace ubn {
     template <typename T>
     class queue {
     public:
+        queue() = delete;
+        
         constexpr explicit queue(const std::size_t capacity = UINT16_MAX) :
         m_capacity(capacity), m_allocator(std::allocator<container_t<T>>()), m_head(0ul), m_tail(0ul) {
             m_container = m_allocator.allocate(m_capacity + 1);

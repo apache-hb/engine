@@ -25,6 +25,14 @@ namespace engine::math {
         T x;
         T y;
 
+        constexpr bool operator==(const Vec2& other) const {
+            return x == other.x && y == other.y;
+        }
+
+        constexpr Vec2 operator+(const Vec2& other) const {
+            return { x + other.x, y + other.y };
+        }
+
         static constexpr Vec2 from(T x, T y) {
             return { x, y };
         }

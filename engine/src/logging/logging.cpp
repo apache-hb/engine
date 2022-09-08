@@ -14,7 +14,6 @@ namespace {
         default: return "unknown";
         }
     }
-
 }
 
 void Channel::process(Level level, std::string_view message) {
