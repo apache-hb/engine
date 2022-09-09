@@ -9,7 +9,7 @@ struct File : Io {
         DWORD dwAccess = ((mode & eRead) ? GENERIC_READ : 0)
                        | ((mode & eWrite) ? GENERIC_WRITE : 0);
         DWORD dwShare = (mode & eWrite ? 0 : FILE_SHARE_READ);
-        DWORD dwCreate = (mode & eWrite ? CREATE_NEW : OPEN_EXISTING);
+        DWORD dwCreate = (mode & eWrite ? CREATE_ALWAYS : OPEN_EXISTING);
         handle = CreateFileA(std::string(name).c_str(), dwAccess, dwShare, nullptr, dwCreate, FILE_ATTRIBUTE_NORMAL, nullptr);
     }
 

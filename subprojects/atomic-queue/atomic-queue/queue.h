@@ -14,8 +14,6 @@ namespace ubn {
     template <typename T>
     class queue {
     public:
-        queue() = delete;
-        
         constexpr explicit queue(const std::size_t capacity = UINT16_MAX) :
         m_capacity(capacity), m_allocator(std::allocator<container_t<T>>()), m_head(0ul), m_tail(0ul) {
             m_container = m_allocator.allocate(m_capacity + 1);
@@ -25,7 +23,7 @@ namespace ubn {
         constexpr queue           (const queue&) = delete;
         constexpr queue &operator=(const queue&) = delete;
         
-        ~queue(void) noexcept {
+        ~queue() noexcept {
             for (const auto& i : std::views::iota(0ul, m_capacity)) { m_container[i].~container_t(); }
             m_allocator.deallocate(m_container, m_capacity + 1);
         }
@@ -64,7 +62,6 @@ namespace ubn {
             const auto head      { (tail / m_capacity) * 2 };
             auto*      container { &m_container[tail % m_capacity] };
             
-            
             while (true) {
                 const auto now { container->m_idx_.load(std::memory_order::acquire) };
                 if (now == head) { break; }
@@ -90,7 +87,7 @@ namespace ubn {
             alignas(hardware_constructive_interference_size) std::atomic_size_t mutable m_idx_ { 0 };
             
         private:
-            alignas(V) std::byte storage[sizeof(V)];
+            alignas(alignof(V)) std::byte storage[sizeof(V)];
         };
         
     private:

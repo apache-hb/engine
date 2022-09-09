@@ -1,11 +1,12 @@
 #pragma once
 
+#include "engine/base/win32.h"
 #include "engine/math/math.h"
 
 #include <string>
 #include <vector>
 
-#include <windows.h>
+#include "atomic-queue/queue.h"
 
 namespace engine::platform {
     using Size = math::Resolution<long>;
@@ -22,36 +23,25 @@ namespace engine::platform {
     struct Window {
         friend struct Display;
 
-        Window() = default;
+        Window() : events(512) { }
         Window(const Window&) = delete;
         Window(Window&&) = delete;
 
-        virtual ~Window() = default;
-
+        void addEvent(Event event);
+        Event getEvent();
     private:
         void create(HINSTANCE instance, const char *title, Size size, Position position);
 
+        ubn::queue<Event> events;
         HWND window;
     };
-
-    template<typename T>
-    concept IsWindow = std::is_base_of<Window, T>::value;
 
     struct Display {
         friend struct System;
 
         Display() = delete;
 
-        template<IsWindow T = Window>
-        T *open(const std::string &title, Size windowSize, Position windowPos = kCenter) {
-            if (windowPos == kCenter) {
-                windowPos = Position::from((size.width - windowSize.width) / 2, (size.height - windowSize.height) / 2);
-            }
-            
-            auto *it = new T();
-            it->create(instance, title.c_str(), windowSize, windowPos + position);
-            return it;
-        }
+        Window *open(const std::string &title, Size windowSize, Position windowPos = kCenter);
 
         Size size;
         std::string name;

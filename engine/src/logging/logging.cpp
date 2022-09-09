@@ -16,12 +16,24 @@ namespace {
     }
 }
 
-void Channel::process(Level level, std::string_view message) {
+void Channel::process(Level reportLevel, std::string_view message) {
+    if (level > reportLevel) { return; }
+
     for (const auto part : std::views::split(message, "\n")) {
-        send(level, std::string_view(part.begin(), part.end()));
+        send(reportLevel, std::string_view(part.begin(), part.end()));
     }
 }
 
-void IoChannel::send(Level level, const std::string_view message) {
-    io->write(fmt::format("[{}:{}]: {}\n", name, levelName(level), message));
+void IoChannel::send(Level reportLevel, const std::string_view message) {
+    io->write(fmt::format("[{}:{}]: {}\n", name, levelName(reportLevel), message));
+}
+
+void ConsoleChannel::send(Level reportLevel, const std::string_view message) {
+    fmt::print("[{}:{}]: {}\n", name, levelName(reportLevel), message);
+}
+
+void MultiChannel::send(Level reportLevel, const std::string_view message) {
+    for (auto channel : channels) {
+        channel->process(reportLevel, message);
+    }
 }

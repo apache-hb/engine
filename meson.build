@@ -16,12 +16,14 @@ project('engine', 'cpp',
 
 args = [ '-D_HAS_EXCEPTIONS=0' ]
 
+d3d12 = subproject('d3d12').get_variable('d3d12')
+ubn = subproject('atomic-queue').get_variable('queue')
 fmt = subproject('fmt').get_variable('fmt')
 
 subdir('engine')
 
 executable('game', 'game/main.cpp',
-    dependencies : [ platform, logging ],
+    dependencies : [ platform, logging, render ],
     cpp_args : args,
     win_subsystem : 'console'
 )
