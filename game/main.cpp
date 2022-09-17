@@ -8,10 +8,21 @@
 
 using namespace engine;
 
+struct Action {
+    template<typename F>
+    Action(F&& func) : self(func) { }
+    ~Action() { 
+        self.request_stop();
+    }
+
+private:
+    std::jthread self;
+};
+
 int commonMain(UNUSED HINSTANCE instance, UNUSED int show) {
     Io *logFile = Io::open("game.log", Io::eWrite);
     logging::IoChannel fileLogger {"general", logFile, logging::eFatal};
-    logging::ConsoleChannel consoleLogger { "general" , logging::eDebug};
+    logging::ConsoleChannel consoleLogger { "general", logging::eDebug};
 
     logging::Channel *channels[] { &fileLogger, &consoleLogger };
     logging::MultiChannel logger { "general", channels };
@@ -20,22 +31,19 @@ int commonMain(UNUSED HINSTANCE instance, UNUSED int show) {
 
     logger.info("name: {}", machine.name);
 
-    auto window = machine.primaryDisplay().open("game", { 640, 480 });
+    [[maybe_unused]] auto window = machine.primaryDisplay().open("game", { 640, 480 });
 
-    auto thread = std::jthread([&, window](auto stop) {
+    Action inputAction([&](auto stop) {
         while (!stop.stop_requested()) {
             auto event = window->getEvent();
+            if (event.msg == WM_QUIT || event.msg == WM_DESTROY || event.msg == WM_CLOSE) break;
             logger.debug("event {{ {}, {}, {} }}", event.msg, event.lparam, event.wparam);
         }
     });
 
-    thread.detach();
-
-    render::Context render { window };
+    // render::Context render { window };
 
     machine.run();
-
-    thread.request_stop();
 
     return 0;
 }

@@ -44,12 +44,14 @@ namespace {
             break;
 
         case WM_DESTROY:
+        case WM_QUIT:
+            self->addEvent({ msg, wparam, lparam });
             PostQuitMessage(0);
             break;
 
         case WM_CLOSE:
             DestroyWindow(window);
-            return 0;
+            break;
 
         default:
            break;
@@ -96,6 +98,7 @@ Window *Display::open(const std::string &title, Size windowSize, Position window
 
 System::System(HINSTANCE instance)
     : name(getComputerName())
+    , primary(SIZE_MAX)
     , instance(instance)
 { 
     /* make sure we get the current monitor sizes */
