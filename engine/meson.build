@@ -12,13 +12,13 @@ base = declare_dependency(
 
 libplatform = library('platform', 'src/platform'/ target_machine.system() + '.cpp',
     cpp_args : args,
-    dependencies : [ ubn ],
+    dependencies : [ ubn, glfw ],
     include_directories : 'include'
 )
 
 platform = declare_dependency(
     link_with : libplatform,
-    dependencies : [ ubn ],
+    dependencies : [ ubn, glfw ],
     include_directories : 'include'
 )
 

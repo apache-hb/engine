@@ -36,8 +36,8 @@ int commonMain(UNUSED HINSTANCE instance, UNUSED int show) {
     Action inputAction([&](auto stop) {
         while (!stop.stop_requested()) {
             auto event = window->getEvent();
-            if (event.msg == WM_QUIT || event.msg == WM_DESTROY || event.msg == WM_CLOSE) break;
-            logger.debug("event {{ {}, {}, {} }}", event.msg, event.lparam, event.wparam);
+            if (!event) break;
+            logger.debug("event {{ {}, {}, {} }}", event->msg, event->lparam, event->wparam);
         }
     });
 

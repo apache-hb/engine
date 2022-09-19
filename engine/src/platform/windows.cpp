@@ -45,7 +45,8 @@ namespace {
 
         case WM_DESTROY:
         case WM_QUIT:
-            self->addEvent({ msg, wparam, lparam });
+            self->close();
+            self->addEvent({ msg, wparam, lparam }); // add the close event to make the main loop work
             PostQuitMessage(0);
             break;
 
@@ -64,7 +65,14 @@ void Window::addEvent(Event event) {
     events.push(event); 
 }
 
-Event Window::getEvent() {
+void Window::close() {
+    running = false;
+}
+
+std::optional<Event> Window::getEvent() {
+    if (!running) {
+        return std::nullopt;
+    }
     return events.pop();
 }
 

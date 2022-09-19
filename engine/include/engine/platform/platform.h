@@ -8,6 +8,8 @@
 
 #include "atomic-queue/queue.h"
 
+#include <glfw/glfw3.h>
+
 namespace engine::platform {
     using Size = math::Resolution<long>;
     using Position = math::Vec2<long>;
@@ -28,11 +30,14 @@ namespace engine::platform {
         Window(Window&&) = delete;
 
         void addEvent(Event event);
-        Event getEvent();
+        void close();
+
+        std::optional<Event> getEvent();
     private:
         void create(HINSTANCE instance, const char *title, Size size, Position position);
 
         ubn::queue<Event> events;
+        std::atomic_bool running = true;
         HWND window;
     };
 

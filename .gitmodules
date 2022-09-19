@@ -1,3 +1,6 @@
 [submodule "subprojects/fmt/fmt"]
 	path = subprojects/fmt/fmt
 	url = https://github.com/fmtlib/fmt
+[submodule "subprojects/glfw/glfw"]
+	path = subprojects/glfw/glfw
+	url = https://github.com/glfw/glfw
