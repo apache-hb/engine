@@ -18,13 +18,12 @@ args = [ '-D_HAS_EXCEPTIONS=0' ]
 
 glfw = dependency('glfw3', fallback : [ 'glfw', 'glfw' ])
 d3d12 = subproject('d3d12').get_variable('d3d12')
-ubn = subproject('atomic-queue').get_variable('queue')
 fmt = subproject('fmt').get_variable('fmt')
 
 subdir('engine')
 
 executable('game', 'game/main.cpp',
-    dependencies : [ platform, logging, render ],
+    dependencies : [ glfw, logging, render ],
     cpp_args : args,
     win_subsystem : 'console'
 )

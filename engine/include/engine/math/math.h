@@ -14,8 +14,12 @@ namespace engine::math {
         T width;
         T height;
 
+        constexpr static Resolution of(T it) {
+            return { it, it };
+        }
+
         template<typename U>
-        U aspectRatio() const {
+        constexpr U aspectRatio() const {
             return U(width) / U(height);
         }
     };
