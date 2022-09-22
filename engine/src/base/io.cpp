@@ -1,10 +1,11 @@
 #include "engine/base/io.h"
+#include "engine/base/panic.h"
 #include "engine/base/win32.h"
 
 using namespace engine;
 
 struct File : Io {
-    File(std::string_view name, Mode mode) : Io(name) {
+    File(std::string_view name, Mode mode) : Io(name, mode) {
         DWORD dwAccess = ((mode & eRead) ? GENERIC_READ : 0)
                        | ((mode & eWrite) ? GENERIC_WRITE : 0);
         DWORD dwShare = (mode & eWrite ? 0 : FILE_SHARE_READ);
@@ -12,24 +13,17 @@ struct File : Io {
         handle = CreateFileA(std::string(name).c_str(), dwAccess, dwShare, nullptr, dwCreate, FILE_ATTRIBUTE_NORMAL, nullptr);
     }
 
-    File(File&& other) : Io(other.name) {
-        handle = other.handle;
-        other.handle = nullptr;
-    }
-
     ~File() override {
-        if (handle != nullptr) {
-            CloseHandle(handle);
-        }
+        CloseHandle(handle);
     }
 
-    size_t read(void *dst, size_t size) override {
+    size_t innerRead(void *dst, size_t size) override {
         DWORD total = 0;
         ReadFile(handle, dst, static_cast<DWORD>(size), &total, nullptr);
         return total;
     }
 
-    size_t write(const void *src, size_t size) override {
+    size_t innerWrite(const void *src, size_t size) override {
         DWORD total = 0;
         WriteFile(handle, src, static_cast<DWORD>(size), &total, nullptr);
         return total;
@@ -39,9 +33,16 @@ private:
     HANDLE handle = nullptr;
 };
 
-Io::Io(std::string_view name)
-    : name(name)
-{ }
+
+size_t Io::read(void *dst, size_t size) {
+    ASSERT(mode & Io::eRead);
+    return innerRead(dst, size);
+}
+
+size_t Io::write(const void *src, size_t size) {
+    ASSERT(mode & Io::eWrite);
+    return innerWrite(src, size);
+}
 
 void Io::write(std::string_view text) {
     write(text.data(), text.size());

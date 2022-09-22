@@ -1,27 +1,10 @@
 #include "engine/base/macros.h"
 #include "engine/base/io.h"
-#include "engine/logging/logging.h"
+#include "engine/base/logging.h"
 #include "engine/render/render.h"
-
 #include "engine/base/win32.h"
 
-#include <GLFW/glfw3.h>
-
-#include <gl/gl.h>
-#include <thread>
-
 using namespace engine;
-
-struct Action {
-    template<typename F>
-    Action(F&& func) : self(func) { }
-    ~Action() { 
-        self.request_stop();
-    }
-
-private:
-    std::jthread self;
-};
 
 int commonMain() {
     // we want to be dpi aware
@@ -35,22 +18,21 @@ int commonMain() {
     logging::Channel *channels[] { &fileLogger, &consoleLogger };
     logging::MultiChannel logger { "general", channels };
 
-    // we wont be using opengl so dont init it
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-
     // make a fullscreen borderless window on the primary monitor
     const auto *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    auto *window = glfwCreateWindow(mode->width, mode->height, "game", nullptr, nullptr);
 
-    glfwSetKeyCallback(window, +[](GLFWwindow *, int, int, int, int) {
+    Window window { mode->width, mode->height, "game" };
 
-    });
+    render::Context render { &window, &logger };
 
-    while (!glfwWindowShouldClose(window)) {
+    while (!window.shouldClose()) {
+        render.begin();
+
+        render.end();
         glfwPollEvents();
     }
 
+    render.close();
     glfwTerminate();
 
     return 0;

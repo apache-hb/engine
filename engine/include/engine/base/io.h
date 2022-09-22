@@ -7,13 +7,12 @@
 namespace engine {
     struct Io {
         enum Mode {
-            eRead,
-            eWrite
+            eRead = (1 << 0),
+            eWrite = (1 << 1)
         };
 
         static Io *open(std::string_view name, Mode mode);
 
-        Io() = delete;
         Io(const Io&) = delete;
         virtual ~Io() = default;
 
@@ -31,12 +30,19 @@ namespace engine {
             write((const void*)data.data(), data.bytes_size());
         }
 
-        virtual size_t read(void *dst, size_t size) = 0;
-        virtual size_t write(const void *src, size_t size) = 0;
+        size_t read(void *dst, size_t size);
+        size_t write(const void *src, size_t size);
 
         std::string_view name;
+        const Mode mode;
 
     protected:
-        Io(std::string_view name);
+        virtual size_t innerRead(void *dst, size_t size) = 0;
+        virtual size_t innerWrite(const void *src, size_t size) = 0;
+
+        Io(std::string_view name, Mode mode)
+            : name(name)
+            , mode(mode)
+        { }
     };
 }

@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "dx/d3d12.h"
+#include <dxgi1_6.h>
 
 namespace engine::render {
     template<typename T>
@@ -24,6 +25,12 @@ namespace engine::render {
 
         Com(const Com&) = delete;
         Com &operator=(const Com&) = delete;
+
+        Com &operator=(Com&& other) {
+            self = other.self;
+            other.self = nullptr;
+            return *this;
+        }
 
         operator bool() const { return self != nullptr; }
         bool valid() const { return self != nullptr; }
@@ -56,7 +63,7 @@ namespace engine::render {
             O *other = nullptr;
             
             if (HRESULT hr = self->QueryInterface(IID_PPV_ARGS(&other)); FAILED(hr)) {
-                return Com<O>::invalid();
+                return Com<O>();
             }
 
             // QueryInterface adds a reference, so we need to release it
