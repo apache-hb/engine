@@ -6,6 +6,7 @@
 #include "dx/dxgiformat.h"
 #include "dx/d3d12sdklayers.h"
 
+#include <array>
 #include <cmath>
 #include <d3dcompiler.h>
 
@@ -217,13 +218,14 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
     {
         auto aspectRatio = size.aspectRatio<float>();
-        const Vertex kTriangle[] = {
-            { { 0.f, 0.25f * aspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
-            { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
-            { { -0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } }
-        };
+        const auto kTriangle = std::to_array<Vertex>({
+            { { -0.25f, -0.25f * aspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
+            { { -0.25f, 0.25f * aspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
+            { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
+            { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
+        });
 
-        const auto kBufferSize = sizeof(kTriangle);
+        const auto kBufferSize = kTriangle.size() * sizeof(Vertex);
         const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
         CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBuffer)));
@@ -231,13 +233,37 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         void *vertexData;
         CD3DX12_RANGE range(0, 0);
         CHECK(vertexBuffer->Map(0, &range, &vertexData));
-        memcpy(vertexData, &kTriangle, kBufferSize);
+        memcpy(vertexData, kTriangle.data(), kBufferSize);
         vertexBuffer->Unmap(0, nullptr);
 
         vertexBufferView = {
             .BufferLocation = vertexBuffer->GetGPUVirtualAddress(),
             .SizeInBytes = kBufferSize,
             .StrideInBytes = sizeof(Vertex)
+        };
+    }
+
+    {
+        constexpr auto kIndices = std::to_array<UINT32>({
+            0, 1, 2,
+            2, 1, 3
+        });
+
+        const auto kBufferSize = kIndices.size() * sizeof(UINT32);
+        const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
+
+        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBuffer)));
+
+        void *vertexData;
+        CD3DX12_RANGE range(0, 0);
+        CHECK(indexBuffer->Map(0, &range, &vertexData));
+        memcpy(vertexData, kIndices.data(), kBufferSize);
+        indexBuffer->Unmap(0, nullptr);
+
+        indexBufferView = {
+            .BufferLocation = indexBuffer->GetGPUVirtualAddress(),
+            .SizeInBytes = kBufferSize,
+            .Format = DXGI_FORMAT_R32_UINT
         };
     }
 
@@ -303,7 +329,8 @@ void Context::begin(float elapsed) {
     commandList->ClearRenderTargetView(rtvHandle, kClear, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-    commandList->DrawInstanced(3, 1, 0, 0);
+    commandList->IASetIndexBuffer(&indexBufferView);
+    commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
     
     addTransition(commandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
