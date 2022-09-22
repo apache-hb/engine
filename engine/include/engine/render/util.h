@@ -9,6 +9,7 @@
 #include <dxgi1_6.h>
 
 #define DX_CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+#define CHECK(expr) ASSERT(SUCCEEDED(expr))
 
 namespace engine::render {
     template<typename T>

@@ -1,12 +1,14 @@
 #pragma once
 
+#include "dx/d3d12.h"
 #include "engine/base/logging.h"
 
 #include "engine/render/window.h"
 
-#include "engine/render/objects/queue.h"
+#include "engine/render/objects/device.h"
 #include "engine/render/objects/resource.h"
 #include "engine/render/objects/commands.h"
+#include "engine/render/objects/fence.h"
 
 namespace engine::render {
     constexpr auto kFrameCount = 2;
@@ -35,14 +37,20 @@ namespace engine::render {
         Com<IDXGIFactory4> factory;
         Com<IDXGIAdapter1> adapter;
         Com<IDXGISwapChain3> swapChain;
-        Com<ID3D12Device> device;
+        d3d12::Device<> device;
 
         // cached features
         bool tearing = false;
 
-        // general pipeline state
+        // graphics pipeline state
         d3d12::CommandQueue<> commandQueue;
         d3d12::GraphicsCommandList<> graphicsCommandList;
+
+        // copy related resources
+        d3d12::CommandQueue<> copyQueue;
+        d3d12::GraphicsCommandList<> copyCommandList;
+        Object<ID3D12CommandAllocator> copyAllocator;
+
         Com<ID3D12PipelineState> pipelineState;
         
         d3d12::View view;
@@ -72,9 +80,11 @@ namespace engine::render {
         // synchronization objects
         UINT frameIndex;
         
-        Com<ID3D12Fence> fence;
+        d3d12::Fence<> fence;
+
         UINT64 fenceValue;
-        HANDLE fenceEvent;
+
+        d3d12::Resource<> uploadBuffer(size_t size, const void *src);
 
     private:
         void waitForFrame();

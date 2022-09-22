@@ -1,10 +1,11 @@
 #include "engine/render/render.h"
-#include "dx/d3d12.h"
-#include "dx/d3dx12.h"
-#include "engine/base/panic.h"
 
-#include "dx/dxgiformat.h"
+#include "dx/d3d12.h"
+#include "engine/base/panic.h"
+#include "engine/base/util.h"
+
 #include "dx/d3d12sdklayers.h"
+#include "engine/render/objects/commands.h"
 
 #include <array>
 #include <cmath>
@@ -14,8 +15,6 @@
 using namespace engine;
 using namespace math;
 using namespace engine::render;
-
-#define CHECK(expr) ASSERT(SUCCEEDED(expr))
 
 constexpr GUID kSm6Guid = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
     0x76f5573e,
@@ -34,7 +33,7 @@ static ID3DBlob *loadShader(logging::Channel *channel, LPCWSTR path) {
     ID3DBlob *blob;
 
     CHECK(D3DReadFileToBlob(path, &blob));
-    channel->info("loaded shader from {}", path);
+    channel->info("loaded shader from {}", engine::narrow(path));
 
     return blob;
 }
@@ -48,6 +47,44 @@ static bool checkTearingSupport(Com<IDXGIFactory4> &factory) {
     BOOL tearing = FALSE;
     CHECK(it->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(BOOL)));
     return tearing;
+}
+
+const auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+const auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+d3d12::Resource<> Context::uploadBuffer(size_t size, const void *src) {
+    const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
+
+    d3d12::Resource<> finalResource;
+    d3d12::Resource<> uploadResource;
+
+    CHECK(device->CreateCommittedResource(
+        &kUploadProps, 
+        D3D12_HEAP_FLAG_NONE, 
+        &kBufferSize, 
+        D3D12_RESOURCE_STATE_GENERIC_READ, 
+        nullptr,
+        IID_PPV_ARGS(&uploadResource)
+    ));
+
+    CHECK(device->CreateCommittedResource(
+        &kDefaultProps, 
+        D3D12_HEAP_FLAG_NONE,
+        &kBufferSize, 
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr, 
+        IID_PPV_ARGS(&finalResource)
+    ));
+
+    void *ptr;
+    CD3DX12_RANGE range(0, 0);
+    CHECK(uploadResource->Map(0, &range, &ptr));
+    memcpy(ptr, src, size);
+    uploadResource->Unmap(0, &range);
+
+    copyCommandList->CopyBufferRegion(finalResource.get(), 0, uploadResource.get(), 0, size);
+
+    return finalResource;
 }
 
 Context::Context(engine::Window *window, logging::Channel *channel) {
@@ -75,11 +112,8 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
     CHECK(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {
-        .Type = D3D12_COMMAND_LIST_TYPE_DIRECT
-    };
-
-    CHECK(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue)));
+    commandQueue = device.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_DIRECT });
+    copyQueue = device.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_COPY });
 
     auto size = window->size();
     channel->info("size: {}x{}", size.width, size.height);
@@ -144,9 +178,12 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
     }
 
     CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[frameIndex].get(), nullptr, IID_PPV_ARGS(&graphicsCommandList)));
-
     CHECK(graphicsCommandList->Close());
+    
 
+    // setup api objects for copying data
+    CHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&copyAllocator)));
+    CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, copyAllocator.get(), nullptr, IID_PPV_ARGS(&copyCommandList)));
 
     {
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
@@ -210,51 +247,28 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
     }
 
-    const auto kUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
     {
-        d3d12::Resource<> buffer;
         auto aspectRatio = size.aspectRatio<float>();
-        const Vertex kTriangle[]{
+        const Vertex kTriangle[] = {
             { { -0.25f, -0.25f * aspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
             { { -0.25f, 0.25f * aspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
             { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
             { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
         };
 
-        const auto kBufferSize = sizeof(kTriangle);
-        const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
+        auto buffer = uploadBuffer(sizeof(kTriangle), kTriangle);
 
-        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
-
-        void *vertexData;
-        CD3DX12_RANGE range(0, 0);
-        CHECK(buffer->Map(0, &range, &vertexData));
-        memcpy(vertexData, kTriangle, kBufferSize);
-        buffer->Unmap(0, nullptr);
-
-        vertexBuffer = d3d12::VertexBuffer(buffer.get(), kBufferSize, sizeof(Vertex));
+        vertexBuffer = d3d12::VertexBuffer(buffer.get(), sizeof(kTriangle), sizeof(Vertex));
     }
 
     {
-        d3d12::Resource<> buffer;
-        constexpr auto kIndices = std::to_array<UINT32>({
+        constexpr UINT32 kIndices[] = {
             0, 1, 2,
             2, 1, 3
-        });
+        };
 
-        const auto kBufferSize = kIndices.size() * sizeof(UINT32);
-        const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
-
-        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
-
-        void *vertexData;
-        CD3DX12_RANGE range(0, 0);
-        CHECK(buffer->Map(0, &range, &vertexData));
-        memcpy(vertexData, kIndices.data(), kBufferSize);
-        buffer->Unmap(0, nullptr);
-
-        indexBuffer = d3d12::IndexBuffer(buffer.get(), kBufferSize, DXGI_FORMAT_R32_UINT);
+        auto buffer = uploadBuffer(sizeof(kIndices), kIndices);
+        indexBuffer = d3d12::IndexBuffer(buffer.get(), sizeof(kIndices), DXGI_FORMAT_R32_UINT);
     }
 
     {
@@ -262,7 +276,7 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
         const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
-        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&constantBuffer)));
+        CHECK(device->CreateCommittedResource(&kUploadProps, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&constantBuffer)));
 
         D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {
             .BufferLocation = constantBuffer->GetGPUVirtualAddress(),
@@ -275,21 +289,23 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         memcpy(bufferPtr, &bufferData, sizeof(ConstBuffer));
     }
 
-    {
-        CHECK(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-        fenceValue = 1;
+    fenceValue = 1;
+    fence = device.newFence();
 
-        fenceEvent = CreateEvent(nullptr, false, false, nullptr);
-        ASSERTF(fenceEvent != nullptr, "{:x}", HRESULT_FROM_WIN32(GetLastError()));
-    }
+    CHECK(copyCommandList->Close());
+
+    ID3D12CommandList *lists[] = { copyCommandList.get() };
+    copyQueue.execute(lists);
 
     waitForFrame();
 }
 
-void addTransition(ID3D12GraphicsCommandList *list, ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
+void addTransition(d3d12::GraphicsCommandList<> &list, ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+    auto barriers = std::to_array({
+        CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after)
+    });
 
-    list->ResourceBarrier(1, &barrier);
+    list->ResourceBarrier((UINT)barriers.size(), barriers.data());
 }
 
 void Context::begin(float elapsed) {
@@ -310,7 +326,7 @@ void Context::begin(float elapsed) {
 
     graphicsCommandList.setView(view);
 
-    addTransition(graphicsCommandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    addTransition(graphicsCommandList, renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvSize);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
@@ -322,7 +338,7 @@ void Context::begin(float elapsed) {
     graphicsCommandList->IASetIndexBuffer(&indexBuffer.view);
     graphicsCommandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
     
-    addTransition(graphicsCommandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    addTransition(graphicsCommandList, renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
     CHECK(graphicsCommandList->Close());
 }
@@ -340,8 +356,6 @@ void Context::end() {
 
 void Context::close() {
     waitForFrame();
-
-    CloseHandle(fenceEvent);
 }
 
 void Context::waitForFrame() {
@@ -349,10 +363,7 @@ void Context::waitForFrame() {
     CHECK(commandQueue->Signal(fence.get(), oldValue));
     fenceValue += 1;
 
-    if (fence->GetCompletedValue() < oldValue) {
-        CHECK(fence->SetEventOnCompletion(oldValue, fenceEvent));
-        WaitForSingleObject(fenceEvent, INFINITE);
-    }
+    fence.waitUntil(oldValue);
 
     frameIndex = swapChain->GetCurrentBackBufferIndex();
 }

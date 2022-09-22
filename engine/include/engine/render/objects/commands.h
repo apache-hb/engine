@@ -4,6 +4,8 @@
 
 #include "engine/render/util.h"
 
+#include <span>
+
 namespace engine::render::d3d12 {
     template<typename T>
     concept IsGraphicsCommandList = std::is_base_of_v<ID3D12GraphicsCommandList, T>;

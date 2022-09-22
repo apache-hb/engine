@@ -1,4 +1,4 @@
-src = [ 'src/base/panic.cpp', 'src/base/io.cpp', 'src/base/logging.cpp' ]
+src = [ 'src/base/panic.cpp', 'src/base/io.cpp', 'src/base/logging.cpp', 'src/base/util.cpp' ]
 
 libbase = library('base', src,
     cpp_args : args,
