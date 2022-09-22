@@ -87,7 +87,7 @@ namespace engine::math {
     };
 
     template<typename T>
-    struct alignas(16) Vec4 {
+    struct Vec4 {
         enum Select { X = (1 << 0), Y = (1 << 1), Z = (1 << 2), W = (1 << 3) };
 
         T x;
@@ -168,7 +168,7 @@ namespace engine::math {
     };
 
     template<typename T>
-    struct alignas(16) Mat4x4 {
+    struct Mat4x4 {
         using Row = Vec4<T>;
         Row rows[4];
 

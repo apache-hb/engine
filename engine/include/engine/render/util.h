@@ -6,6 +6,8 @@
 #include "dx/d3d12.h"
 #include <dxgi1_6.h>
 
+#define DX_CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+
 namespace engine::render {
     template<typename T>
     concept IsObjectName = std::is_convertible_v<T, std::string_view>;

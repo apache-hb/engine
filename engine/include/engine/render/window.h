@@ -10,7 +10,7 @@ namespace engine {
     struct Window {
         Window(int width, int height, const char *title);
 
-        math::Vec2<int> size();
+        math::Resolution<int> size();
         HWND handle();
 
         bool shouldClose();

@@ -1,6 +1,8 @@
 #include "engine/render/window.h"
 #include "GLFW/glfw3.h"
 
+#include <fmt/printf.h>
+
 using namespace engine;
 
 Window::Window(int width, int height, const char *title) { 
@@ -11,11 +13,11 @@ Window::Window(int width, int height, const char *title) {
     window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 }
 
-math::Vec2<int> Window::size() {
-    int left, top, right, bottom;
-    glfwGetWindowFrameSize(window, &left, &top, &right, &bottom);
+math::Resolution<int> Window::size() {
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
 
-    return { (right - left), (bottom - top) };
+    return { width, height };
 }
 
 HWND Window::handle() {

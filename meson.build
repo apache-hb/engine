@@ -14,7 +14,7 @@ project('engine', [ 'cpp', 'c' ],
     ]
 )
 
-args = [ '-D_HAS_EXCEPTIONS=0' ]
+args = [ '-D_HAS_EXCEPTIONS=0', '/wd4324' ]
 
 glfw = dependency('glfw3', fallback : [ 'glfw', 'glfw' ])
 d3d12 = subproject('d3d12').get_variable('d3d12')

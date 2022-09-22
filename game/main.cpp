@@ -29,8 +29,17 @@ int commonMain() {
 
     render::Context render { &window, &logger };
 
+    LARGE_INTEGER start;
+    LARGE_INTEGER frequency;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&start);    
+
     while (!window.shouldClose()) {
-        render.begin();
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        auto elapsed = float(now.QuadPart - start.QuadPart) / frequency.QuadPart;
+
+        render.begin(elapsed);
 
         render.end();
         glfwPollEvents();
