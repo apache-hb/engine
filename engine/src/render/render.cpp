@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <d3dcompiler.h>
+#include <dxgi.h>
 
 using namespace engine;
 using namespace math;
@@ -16,7 +17,7 @@ using namespace engine::render;
 
 #define CHECK(expr) ASSERT(SUCCEEDED(expr))
 
-void compileText(ID3DBlob **shader, std::string_view text, const char *entry, const char *version, logging::Channel *channel) {
+static void compileText(ID3DBlob **shader, std::string_view text, const char *entry, const char *version, logging::Channel *channel) {
     constexpr auto kCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 
     Com<ID3DBlob> error;
@@ -28,6 +29,17 @@ void compileText(ID3DBlob **shader, std::string_view text, const char *entry, co
     }
 
     CHECK(hr);
+}
+
+static bool checkTearingSupport(Com<IDXGIFactory4> &factory) {
+    auto it = factory.as<IDXGIFactory5>();
+    if (!it.valid()) {
+        return false;
+    }
+
+    BOOL tearing = FALSE;
+    CHECK(it->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(BOOL)));
+    return tearing;
 }
 
 Context::Context(engine::Window *window, logging::Channel *channel) {
@@ -51,6 +63,8 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         break;
     }
 
+    tearing = checkTearingSupport(factory);
+
     CHECK(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {
@@ -64,9 +78,8 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
     auto [width, height] = size;
 
-    viewport = CD3DX12_VIEWPORT(0.f, 0.f, float(width), float(height));
-    scissor = CD3DX12_RECT(0, 0, width, height);
-    
+    view = d3d12::View(width, height);
+
     DXGI_SWAP_CHAIN_DESC1 swapDesc = {
         .Width = static_cast<UINT>(width),
         .Height = static_cast<UINT>(height),
@@ -76,7 +89,8 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         },
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = kFrameCount,
-        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD
+        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        .Flags = tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u
     };
 
     Com<IDXGISwapChain1> swapChain1;
@@ -217,33 +231,31 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
     const auto kUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
     {
+        d3d12::Resource<> buffer;
         auto aspectRatio = size.aspectRatio<float>();
-        const auto kTriangle = std::to_array<Vertex>({
+        const Vertex kTriangle[]{
             { { -0.25f, -0.25f * aspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
             { { -0.25f, 0.25f * aspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
             { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
             { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
-        });
+        };
 
-        const auto kBufferSize = kTriangle.size() * sizeof(Vertex);
+        const auto kBufferSize = sizeof(kTriangle);
         const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
-        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBuffer)));
+        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
 
         void *vertexData;
         CD3DX12_RANGE range(0, 0);
-        CHECK(vertexBuffer->Map(0, &range, &vertexData));
-        memcpy(vertexData, kTriangle.data(), kBufferSize);
-        vertexBuffer->Unmap(0, nullptr);
+        CHECK(buffer->Map(0, &range, &vertexData));
+        memcpy(vertexData, kTriangle, kBufferSize);
+        buffer->Unmap(0, nullptr);
 
-        vertexBufferView = {
-            .BufferLocation = vertexBuffer->GetGPUVirtualAddress(),
-            .SizeInBytes = kBufferSize,
-            .StrideInBytes = sizeof(Vertex)
-        };
+        vertexBuffer = d3d12::VertexBuffer(buffer.get(), kBufferSize, sizeof(Vertex));
     }
 
     {
+        d3d12::Resource<> buffer;
         constexpr auto kIndices = std::to_array<UINT32>({
             0, 1, 2,
             2, 1, 3
@@ -252,19 +264,15 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         const auto kBufferSize = kIndices.size() * sizeof(UINT32);
         const auto kBuffer = CD3DX12_RESOURCE_DESC::Buffer(kBufferSize);
 
-        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBuffer)));
+        CHECK(device->CreateCommittedResource(&kUpload, D3D12_HEAP_FLAG_NONE, &kBuffer, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&buffer)));
 
         void *vertexData;
         CD3DX12_RANGE range(0, 0);
-        CHECK(indexBuffer->Map(0, &range, &vertexData));
+        CHECK(buffer->Map(0, &range, &vertexData));
         memcpy(vertexData, kIndices.data(), kBufferSize);
-        indexBuffer->Unmap(0, nullptr);
+        buffer->Unmap(0, nullptr);
 
-        indexBufferView = {
-            .BufferLocation = indexBuffer->GetGPUVirtualAddress(),
-            .SizeInBytes = kBufferSize,
-            .Format = DXGI_FORMAT_R32_UINT
-        };
+        indexBuffer = d3d12::IndexBuffer(buffer.get(), kBufferSize, DXGI_FORMAT_R32_UINT);
     }
 
     {
@@ -317,8 +325,8 @@ void Context::begin(float elapsed) {
     commandList->SetDescriptorHeaps(sizeof(heaps) / sizeof(ID3D12DescriptorHeap*), heaps);
 
     commandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
-    commandList->RSSetViewports(1, &viewport);
-    commandList->RSSetScissorRects(1, &scissor);
+    commandList->RSSetViewports(1, &view.viewport);
+    commandList->RSSetScissorRects(1, &view.scissor);
 
     addTransition(commandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
@@ -328,8 +336,8 @@ void Context::begin(float elapsed) {
     constexpr float kClear[] = { 0.f, 0.2f, 0.4f, 1.f };
     commandList->ClearRenderTargetView(rtvHandle, kClear, 0, nullptr);
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-    commandList->IASetIndexBuffer(&indexBufferView);
+    commandList->IASetVertexBuffers(0, 1, &vertexBuffer.view);
+    commandList->IASetIndexBuffer(&indexBuffer.view);
     commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
     
     addTransition(commandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -339,9 +347,11 @@ void Context::begin(float elapsed) {
 
 void Context::end() {
     ID3D12CommandList *lists[] = { commandList.get() };
-    commandQueue->ExecuteCommandLists(sizeof(lists) / sizeof(ID3D12CommandList*), lists);
+    commandQueue.execute(lists);
 
-    CHECK(swapChain->Present(1, 0));
+    auto flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
+
+    CHECK(swapChain->Present(0, flags));
 
     waitForFrame();
 }

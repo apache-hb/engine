@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/base/panic.h"
+
 #include <type_traits>
 #include <string_view>
 
@@ -13,10 +15,10 @@ namespace engine::render {
     concept IsObjectName = std::is_convertible_v<T, std::string_view>;
 
     template<typename T>
-    concept IsComObject = std::is_convertible_v<T*, IUnknown*>;
+    concept IsComObject = std::is_base_of_v<IUnknown, T>;
 
     template<typename T>
-    concept IsD3D12Object = std::is_convertible_v<T*, ID3D12Object*>;
+    concept IsD3D12Object = std::is_base_of_v<ID3D12Object, T>;
 
     template<IsComObject T>
     struct Com {
@@ -50,7 +52,8 @@ namespace engine::render {
         const T **addr() const { return &self; }
         
         void drop() {
-            release();
+            auto refs = release();
+            ASSERT(refs == 0);
         }
 
         void tryDrop() {
@@ -58,7 +61,7 @@ namespace engine::render {
             drop();
         }
 
-        auto release() { return self->Release(); }
+        ULONG release() { return self->Release(); }
 
         template<IsComObject O>
         Com<O> as() {

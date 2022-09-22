@@ -4,10 +4,9 @@
 
 #include "engine/render/window.h"
 
-#include "dx/d3dx12.h"
-#include "dx/d3d12.h"
-
-#include "util.h"
+#include "engine/render/objects/queue.h"
+#include "engine/render/objects/view.h"
+#include "engine/render/objects/resource.h"
 
 namespace engine::render {
     constexpr auto kFrameCount = 2;
@@ -36,13 +35,15 @@ namespace engine::render {
         Com<IDXGISwapChain3> swapChain;
         Com<ID3D12Device> device;
 
+        // cached features
+        bool tearing = false;
+
         // general pipeline state
-        Com<ID3D12CommandQueue> commandQueue;
+        d3d12::CommandQueue<> commandQueue;
         Com<ID3D12GraphicsCommandList> commandList;
         Com<ID3D12PipelineState> pipelineState;
         
-        CD3DX12_VIEWPORT viewport;
-        CD3DX12_RECT scissor;
+        d3d12::View view;
 
         // render target heap
         Com<ID3D12DescriptorHeap> rtvHeap;
@@ -57,11 +58,8 @@ namespace engine::render {
         // render data
         Com<ID3D12RootSignature> rootSignature;
 
-        Com<ID3D12Resource> vertexBuffer;
-        D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
-
-        Com<ID3D12Resource> indexBuffer;
-        D3D12_INDEX_BUFFER_VIEW indexBufferView;
+        d3d12::VertexBuffer<> vertexBuffer;
+        d3d12::IndexBuffer<> indexBuffer;
 
         Com<ID3D12Resource> constantBuffer;
         ConstBuffer bufferData;
