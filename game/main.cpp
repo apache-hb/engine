@@ -13,6 +13,7 @@ int commonMain() {
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
 
+    // setup glfw
     glfwInit();
 
     std::unique_ptr<Io> logFile { Io::open("game.log", Io::eWrite) };

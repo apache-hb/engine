@@ -21,12 +21,18 @@ namespace engine::render {
     template<typename T>
     concept IsD3D12Object = std::is_base_of_v<ID3D12Object, T>;
 
+    constexpr auto kComRelease = [](IUnknown *ptr) {
+        ptr->Release();
+    };
+
     template<IsComObject T>
     struct Com {
         using Self = T;
 
         Com(T *self = nullptr) : self(self) { }
         Com(Com &&other) : self(other.self) { other.self = nullptr; }
+
+        ~Com() { tryDrop(); }
 
         Com(const Com&) = delete;
         Com &operator=(const Com&) = delete;

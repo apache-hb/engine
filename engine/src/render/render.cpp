@@ -112,8 +112,9 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
     CHECK(D3D12CreateDevice(adapter.get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
-    commandQueue = device.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_DIRECT });
-    copyQueue = device.newCommandQueue({ .Type = D3D12_COMMAND_LIST_TYPE_COPY });
+    for (auto i = 0u; i < Queues::eTotal; i++) {
+        queues[i] = device.newCommandQueue({ .Type = Queues::kType[i] });
+    }
 
     auto size = window->size();
     channel->info("size: {}x{}", size.width, size.height);
@@ -137,7 +138,7 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
     Com<IDXGISwapChain1> swapChain1;
     CHECK(factory->CreateSwapChainForHwnd(
-        commandQueue.get(),
+        queues[Queues::eDirect].get(),
         window->handle(),
         &swapDesc,
         nullptr,
@@ -247,29 +248,25 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
     }
 
-    {
-        auto aspectRatio = size.aspectRatio<float>();
-        const Vertex kTriangle[] = {
-            { { -0.25f, -0.25f * aspectRatio, 0.f }, { 1.f, 0.f, 0.f, 1.f } },
-            { { -0.25f, 0.25f * aspectRatio, 0.f }, { 0.f, 1.f, 0.f, 1.f } },
-            { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-            { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
-        };
+    auto aspectRatio = size.aspectRatio<float>();
+    const Vertex kTriangle[] = {
+        { { -0.25f, -0.25f * aspectRatio, 0.25f }, { 1.f, 0.f, 0.f, 1.f } },
+        { { -0.25f, 0.25f * aspectRatio, 0.25f }, { 0.f, 1.f, 0.f, 1.f } },
+        { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
+        { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
+    };
 
-        auto buffer = uploadBuffer(sizeof(kTriangle), kTriangle);
+    auto triangleBuffer = uploadBuffer(sizeof(kTriangle), kTriangle);
 
-        vertexBuffer = d3d12::VertexBuffer(buffer.get(), sizeof(kTriangle), sizeof(Vertex));
-    }
+    vertexBuffer = d3d12::VertexBuffer(triangleBuffer.get(), sizeof(kTriangle), sizeof(Vertex));
 
-    {
-        constexpr UINT32 kIndices[] = {
-            0, 1, 2,
-            2, 1, 3
-        };
+    constexpr UINT32 kIndices[] = {
+        0, 1, 2,
+        2, 1, 3
+    };
 
-        auto buffer = uploadBuffer(sizeof(kIndices), kIndices);
-        indexBuffer = d3d12::IndexBuffer(buffer.get(), sizeof(kIndices), DXGI_FORMAT_R32_UINT);
-    }
+    auto indicesBuffer = uploadBuffer(sizeof(kIndices), kIndices);
+    indexBuffer = d3d12::IndexBuffer(indicesBuffer.get(), sizeof(kIndices), DXGI_FORMAT_R32_UINT);
 
     {
         constexpr auto kBufferSize = sizeof(ConstBuffer);
@@ -295,7 +292,9 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
     CHECK(copyCommandList->Close());
 
     ID3D12CommandList *lists[] = { copyCommandList.get() };
-    copyQueue.execute(lists);
+    queues[Queues::eCopy].execute(lists);
+
+    waitOnQueue(Queues::eCopy, 1); // wait for our copy commands to complete
 
     waitForFrame();
 }
@@ -345,7 +344,7 @@ void Context::begin(float elapsed) {
 
 void Context::end() {
     ID3D12CommandList *lists[] = { graphicsCommandList.get() };
-    commandQueue.execute(lists);
+    queues[Queues::eDirect].execute(lists);
 
     auto flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;
 
@@ -360,10 +359,14 @@ void Context::close() {
 
 void Context::waitForFrame() {
     const auto oldValue = fenceValue;
-    CHECK(commandQueue->Signal(fence.get(), oldValue));
     fenceValue += 1;
 
-    fence.waitUntil(oldValue);
+    waitOnQueue(Queues::eDirect, oldValue);
 
     frameIndex = swapChain->GetCurrentBackBufferIndex();
+}
+
+void Context::waitOnQueue(Queues::Slot slot, UINT64 value) {
+    CHECK(queues[slot]->Signal(fence.get(), value));
+    fence.waitUntil(value);
 }

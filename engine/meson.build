@@ -17,13 +17,13 @@ src = [ 'src/render/agility.cpp', 'src/render/render.cpp', 'src/render/window.cp
 librender = library('render', src,
     cpp_args : args,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'd3dcompiler.lib' ],
-    dependencies : [ base, glfw, d3d12 ],
+    dependencies : [ base, glfw, d3d12, imgui ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'd3dcompiler.lib' ],
-    dependencies : [ base, glfw, d3d12 ],
+    dependencies : [ base, glfw, d3d12, imgui ],
     include_directories : 'include'
 )

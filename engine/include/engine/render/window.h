@@ -15,7 +15,6 @@ namespace engine {
 
         bool shouldClose();
 
-    private:
         GLFWwindow *window;
     };
 }
