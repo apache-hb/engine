@@ -135,9 +135,9 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
         }
     }
 
-    CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[frameIndex].get(), nullptr, IID_PPV_ARGS(&commandList)));
+    CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, commandAllocators[frameIndex].get(), nullptr, IID_PPV_ARGS(&graphicsCommandList)));
 
-    CHECK(commandList->Close());
+    CHECK(graphicsCommandList->Close());
 
 
     {
@@ -317,36 +317,36 @@ void Context::begin(float elapsed) {
 
     CHECK(commandAllocators[frameIndex]->Reset());
 
-    CHECK(commandList->Reset(commandAllocators[frameIndex].get(), pipelineState.get()));
+    CHECK(graphicsCommandList->Reset(commandAllocators[frameIndex].get(), pipelineState.get()));
 
-    commandList->SetGraphicsRootSignature(rootSignature.get());
+    graphicsCommandList->SetGraphicsRootSignature(rootSignature.get());
 
     ID3D12DescriptorHeap *heaps[] = { cbvHeap.get() };
-    commandList->SetDescriptorHeaps(sizeof(heaps) / sizeof(ID3D12DescriptorHeap*), heaps);
+    graphicsCommandList->SetDescriptorHeaps(sizeof(heaps) / sizeof(ID3D12DescriptorHeap*), heaps);
 
-    commandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
-    commandList->RSSetViewports(1, &view.viewport);
-    commandList->RSSetScissorRects(1, &view.scissor);
+    graphicsCommandList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
 
-    addTransition(commandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    graphicsCommandList.setView(view);
+
+    addTransition(graphicsCommandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvSize);
-    commandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+    graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
 
     constexpr float kClear[] = { 0.f, 0.2f, 0.4f, 1.f };
-    commandList->ClearRenderTargetView(rtvHandle, kClear, 0, nullptr);
-    commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commandList->IASetVertexBuffers(0, 1, &vertexBuffer.view);
-    commandList->IASetIndexBuffer(&indexBuffer.view);
-    commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+    graphicsCommandList->ClearRenderTargetView(rtvHandle, kClear, 0, nullptr);
+    graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    graphicsCommandList->IASetVertexBuffers(0, 1, &vertexBuffer.view);
+    graphicsCommandList->IASetIndexBuffer(&indexBuffer.view);
+    graphicsCommandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
     
-    addTransition(commandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    addTransition(graphicsCommandList.get(), renderTargets[frameIndex].get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-    CHECK(commandList->Close());
+    CHECK(graphicsCommandList->Close());
 }
 
 void Context::end() {
-    ID3D12CommandList *lists[] = { commandList.get() };
+    ID3D12CommandList *lists[] = { graphicsCommandList.get() };
     commandQueue.execute(lists);
 
     auto flags = tearing ? DXGI_PRESENT_ALLOW_TEARING : 0;

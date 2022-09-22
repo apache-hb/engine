@@ -5,8 +5,8 @@
 #include "engine/render/window.h"
 
 #include "engine/render/objects/queue.h"
-#include "engine/render/objects/view.h"
 #include "engine/render/objects/resource.h"
+#include "engine/render/objects/commands.h"
 
 namespace engine::render {
     constexpr auto kFrameCount = 2;
@@ -40,7 +40,7 @@ namespace engine::render {
 
         // general pipeline state
         d3d12::CommandQueue<> commandQueue;
-        Com<ID3D12GraphicsCommandList> commandList;
+        d3d12::GraphicsCommandList<> graphicsCommandList;
         Com<ID3D12PipelineState> pipelineState;
         
         d3d12::View view;
@@ -67,6 +67,7 @@ namespace engine::render {
 
         // synchronization objects
         UINT frameIndex;
+        
         Com<ID3D12Fence> fence;
         UINT64 fenceValue;
         HANDLE fenceEvent;
