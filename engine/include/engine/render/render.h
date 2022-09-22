@@ -20,6 +20,8 @@ namespace engine::render {
         math::float4 offset { 0.3f, 0.f, 0.f, 0.f };
     };
 
+    void enableSm6(logging::Channel *channel);
+
     struct Context {
         Context(Window *window, logging::Channel *channel);
 
@@ -60,6 +62,8 @@ namespace engine::render {
 
         d3d12::VertexBuffer<> vertexBuffer;
         d3d12::IndexBuffer<> indexBuffer;
+
+        // d3d12::ConstBuffer<ConstBuffer> constBuffer;
 
         Com<ID3D12Resource> constantBuffer;
         ConstBuffer bufferData;

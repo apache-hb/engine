@@ -22,6 +22,8 @@ int commonMain() {
     logging::Channel *channels[] { &fileLogger, &consoleLogger };
     logging::MultiChannel logger { "general", channels };
 
+    render::enableSm6(&logger);
+
     // make a fullscreen borderless window on the primary monitor
     const auto *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 

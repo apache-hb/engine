@@ -17,18 +17,26 @@ using namespace engine::render;
 
 #define CHECK(expr) ASSERT(SUCCEEDED(expr))
 
-static void compileText(ID3DBlob **shader, std::string_view text, const char *entry, const char *version, logging::Channel *channel) {
-    constexpr auto kCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+constexpr GUID kSm6Guid = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
+    0x76f5573e,
+    0xf13a,
+    0x40f5,
+    { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
+};
 
-    Com<ID3DBlob> error;
-
-    HRESULT hr = (D3DCompile(text.data(), text.size(), nullptr, nullptr, nullptr, entry, version, kCompileFlags, 0, shader, &error));
-
-    if (!SUCCEEDED(hr)) {
-        channel->fatal("{}", std::string{(const char*)error->GetBufferPointer(), error->GetBufferSize()});
-    }
-
+void render::enableSm6(logging::Channel *channel) {
+    HRESULT hr = D3D12EnableExperimentalFeatures(1, &kSm6Guid, nullptr, nullptr);
     CHECK(hr);
+    channel->info("enabled sm6");
+}
+
+static ID3DBlob *loadShader(logging::Channel *channel, LPCWSTR path) {
+    ID3DBlob *blob;
+
+    CHECK(D3DReadFileToBlob(path, &blob));
+    channel->info("loaded shader from {}", path);
+
+    return blob;
 }
 
 static bool checkTearingSupport(Com<IDXGIFactory4> &factory) {
@@ -169,34 +177,8 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
     }
 
     {
-        Com<ID3DBlob> vertexShader;
-        Com<ID3DBlob> pixelShader;
-
-        constexpr auto kShader = R"(
-            cbuffer Data : register(b0) {
-                float4 offset;
-                float4 padding[15];
-            };
-
-            struct PSInput {
-                float4 pos : SV_POSITION;
-                float4 colour : COLOUR;
-            };
-
-            PSInput vsMain(float4 pos : POSITION, float4 colour : COLOUR) {
-                PSInput result;
-                result.pos = pos + offset;
-                result.colour = colour;
-                return result;
-            }
-
-            float4 psMain(PSInput input) : SV_TARGET {
-                return input.colour;
-            }
-        )";
-
-        compileText(&vertexShader, kShader, "vsMain", "vs_5_0", channel);
-        compileText(&pixelShader, kShader, "psMain", "ps_5_0", channel);
+        Com<ID3DBlob> vertexShader = loadShader(channel, L"resources\\shaders\\post-shader.vs.pso");
+        Com<ID3DBlob> pixelShader = loadShader(channel, L"resources\\shaders\\post-shader.ps.pso");
 
         D3D12_INPUT_ELEMENT_DESC inputDesc[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

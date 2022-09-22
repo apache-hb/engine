@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dx/d3d12.h"
+#include "dx/d3dx12.h"
 #include "engine/render/util.h"
 
 namespace engine::render::d3d12 {
@@ -43,5 +43,29 @@ namespace engine::render::d3d12 {
         { }
 
         D3D12_INDEX_BUFFER_VIEW view;
+    };
+
+    template<typename T, IsResource R = ID3D12Resource>
+    struct ConstBuffer : Resource<R> {
+        using Super = Resource<R>;
+
+        ConstBuffer() : Super(nullptr), data(nullptr) { }
+
+        ConstBuffer(R *resource, T *data) 
+            : Super(resource)
+            , data(data)
+        {
+            CD3DX12_RANGE range(0, 0);
+            CHECK(resource->Map(0, &range, &ptr));
+            update();
+        }
+
+        void update() {
+            memcpy(ptr, data, sizeof(T));
+        }
+
+        T *data;
+    private:
+        void *ptr;
     };
 }

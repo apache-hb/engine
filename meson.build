@@ -14,6 +14,12 @@ project('engine', [ 'cpp', 'c' ],
     ]
 )
 
+# python = find_program('python')
+# dxc = generator(python,
+#     arguments : [ '@INPUT@', '@OUTPUT@', 'ps,vs', '6_0' ],
+#     output : [ '@BASENAME@.ps.pso', '@BASENAME@.vs.pso' ]
+# )
+
 args = [ '-D_HAS_EXCEPTIONS=0', '/wd4324' ]
 
 glfw = dependency('glfw3', fallback : [ 'glfw', 'glfw' ])
