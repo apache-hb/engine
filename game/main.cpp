@@ -9,6 +9,10 @@ using namespace engine;
 int commonMain() {
     // we want to be dpi aware
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    
+    // shut up abort
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);
+
     glfwInit();
 
     std::unique_ptr<Io> logFile { Io::open("game.log", Io::eWrite) };

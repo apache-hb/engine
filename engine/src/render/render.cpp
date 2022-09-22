@@ -1,13 +1,31 @@
 #include "engine/render/render.h"
-#include "dx/d3d12.h"
 #include "engine/base/panic.h"
 
+#include "dx/d3d12.h"
+#include "dx/dxgiformat.h"
 #include "dx/d3d12sdklayers.h"
 #include "dx/d3dx12.h"
 
+#include <d3dcompiler.h>
+
+using namespace engine;
 using namespace engine::render;
 
 #define CHECK(expr) ASSERT(SUCCEEDED(expr))
+
+void compileText(ID3DBlob **shader, std::string_view text, const char *entry, const char *version, logging::Channel *channel) {
+    constexpr auto kCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+
+    Com<ID3DBlob> error;
+
+    HRESULT hr = (D3DCompile(text.data(), text.size(), nullptr, nullptr, nullptr, entry, version, kCompileFlags, 0, shader, &error));
+
+    if (!SUCCEEDED(hr)) {
+        channel->fatal("{}", std::string{(const char*)error->GetBufferPointer(), error->GetBufferSize()});
+    }
+
+    CHECK(hr);
+}
 
 Context::Context(engine::Window *window, logging::Channel *channel) {
     UINT factoryFlags = 0;
@@ -94,6 +112,71 @@ Context::Context(engine::Window *window, logging::Channel *channel) {
 
         fenceEvent = CreateEvent(nullptr, false, false, nullptr);
         ASSERTF(fenceEvent != nullptr, "{:x}", HRESULT_FROM_WIN32(GetLastError()));
+    }
+
+    {
+        CD3DX12_ROOT_SIGNATURE_DESC rootDesc;
+        rootDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        Com<ID3DBlob> signature;
+        Com<ID3DBlob> error;
+        CHECK(D3D12SerializeRootSignature(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+        CHECK(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
+    }
+
+    {
+        Com<ID3DBlob> vertexShader;
+        Com<ID3DBlob> pixelShader;
+
+        constexpr auto kShader = R"(
+            struct PSInput {
+                float4 pos : SV_POSITION;
+                float4 colour : COLOUR;
+            };
+
+            PSInput vsMain(float4 pos : POSITION, float4 colour : COLOUR) {
+                PSInput result;
+                result.pos = pos;
+                result.colour = colour;
+                return result;
+            }
+
+            float4 psMain(PSInput input) : SV_TARGET {
+                return input.colour;
+            }
+        )";
+
+        compileText(&vertexShader, kShader, "vsMain", "vs_5_0", channel);
+        compileText(&pixelShader, kShader, "psMain", "ps_5_0", channel);
+
+        D3D12_INPUT_ELEMENT_DESC inputDesc[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOUR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
+            .pRootSignature = rootSignature.get(),
+            .VS = CD3DX12_SHADER_BYTECODE(vertexShader.get()),
+            .PS = CD3DX12_SHADER_BYTECODE(pixelShader.get()),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = {
+                .DepthEnable = false,
+                .StencilEnable = false
+            },
+            .InputLayout = {
+                .pInputElementDescs = inputDesc,
+                .NumElements = sizeof(inputDesc) / sizeof(D3D12_INPUT_ELEMENT_DESC)
+            },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .SampleDesc = {
+                .Count = 1
+            }
+        };
+        CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState)));
     }
 }
 
