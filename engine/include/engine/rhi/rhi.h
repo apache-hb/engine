@@ -8,7 +8,6 @@ namespace engine::rhi {
     enum struct GpuHandle : std::size_t {};
 
     struct Allocator {
-        virtual void reset() = 0;
         virtual ~Allocator() = default;
     };
 
@@ -31,8 +30,7 @@ namespace engine::rhi {
         virtual void beginRecording(Allocator *allocator) = 0;
         virtual void endRecording() = 0;
 
-        virtual void setRenderTarget(CpuHandle target) = 0;
-        virtual void clearRenderTarget(CpuHandle target, const math::float4 &colour) = 0;
+        virtual void setRenderTarget(CpuHandle target, const math::float4 &colour) = 0;
 
         virtual ~CommandList() = default;
     };

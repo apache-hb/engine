@@ -30,7 +30,7 @@ struct DxAllocator final : rhi::Allocator {
         drop(allocator, "allocator");
     }
 
-    void reset() override {
+    void reset() {
         DX_CHECK(allocator->Reset());
     }
 
@@ -138,6 +138,8 @@ struct DxCommandList final : rhi::CommandList {
 
     void beginRecording(rhi::Allocator *allocator) override {
         auto *alloc = static_cast<DxAllocator*>(allocator);
+        alloc->reset();
+        
         DX_CHECK(commands->Reset(alloc->get(), nullptr));
     }
     
@@ -145,15 +147,12 @@ struct DxCommandList final : rhi::CommandList {
         DX_CHECK(commands->Close());
     }
 
-    void setRenderTarget(rhi::CpuHandle target) override {
+    void setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) override {
         D3D12_CPU_DESCRIPTOR_HANDLE rtv { size_t(target) };
-        commands->OMSetRenderTargets(1, &rtv, false, nullptr);
-    }
-
-    void clearRenderTarget(rhi::CpuHandle target, const math::float4 &colour) override {
-        D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(target) };
         const float kClear[] = { colour.x, colour.y, colour.z, colour.w };
-        commands->ClearRenderTargetView(handle, kClear, 0, nullptr);
+
+        commands->OMSetRenderTargets(1, &rtv, false, nullptr);
+        commands->ClearRenderTargetView(rtv, kClear, 0, nullptr);
     }
 
     ID3D12GraphicsCommandList *get() { return commands; }

@@ -56,11 +56,9 @@ void Context::destroy() {
 void Context::begin() {
     const rhi::CpuHandle rtvHandle = renderTargetSet->cpuHandle(frameIndex);
 
-    allocators[frameIndex]->reset();
     directCommands->beginRecording(allocators[frameIndex]);
 
-    directCommands->setRenderTarget(rtvHandle);
-    directCommands->clearRenderTarget(rtvHandle, kClearColour);
+    directCommands->setRenderTarget(rtvHandle, kClearColour);
 }
 
 void Context::end() {
