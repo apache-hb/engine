@@ -1,8 +1,10 @@
 #include "engine/base/macros.h"
 #include "engine/base/io.h"
 #include "engine/base/logging.h"
-#include "engine/render/render.h"
+#include "engine/base/window.h"
 #include "engine/base/win32.h"
+
+#include "engine/render/render.h"
 
 using namespace engine;
 
@@ -23,33 +25,25 @@ int commonMain() {
     logging::Channel *channels[] { &fileLogger, &consoleLogger };
     logging::MultiChannel logger { "general", channels };
 
-    render::enableSm6(&logger);
+    // render::enableSm6(&logger);
 
     // make a fullscreen borderless window on the primary monitor
     const auto *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
     Window window { mode->width, mode->height, "game" };
 
-    render::Context render { &window, &logger };
-
-    LARGE_INTEGER start;
-    LARGE_INTEGER frequency;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&start);    
+    render::Context render { { &window, &logger } };
 
     while (!window.shouldClose()) {
-        LARGE_INTEGER now;
-        QueryPerformanceCounter(&now);
-        auto elapsed = float(now.QuadPart - start.QuadPart) / frequency.QuadPart;
-
-        render.begin(elapsed);
+        render.begin();
 
         render.end();
         glfwPollEvents();
     }
 
-    render.close();
     glfwTerminate();
+
+    logger.info("clean exit");
 
     return 0;
 }

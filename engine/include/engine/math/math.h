@@ -142,7 +142,7 @@ namespace engine::math {
         constexpr T& at(size_t index) const { 
             return this->*components[index];
         }
-
+        
     private:
         static constexpr T Vec4::*components[] { &Vec4::x, &Vec4::y, &Vec4::z, &Vec4::w };
     };
