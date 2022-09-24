@@ -3,6 +3,7 @@
 #include "engine/base/logging.h"
 #include "engine/base/window.h"
 #include "engine/base/win32.h"
+#include "engine/base/util.h"
 
 #include "engine/render/render.h"
 
@@ -18,7 +19,7 @@ int commonMain() {
     // setup glfw
     glfwInit();
 
-    std::unique_ptr<Io> logFile { Io::open("game.log", Io::eWrite) };
+    UniquePtr<Io> logFile { Io::open("game.log", Io::eWrite) };
     logging::IoChannel fileLogger {"general", logFile.get(), logging::eFatal};
     logging::ConsoleChannel consoleLogger { "general", logging::eDebug};
 

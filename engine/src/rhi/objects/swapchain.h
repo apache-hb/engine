@@ -2,8 +2,6 @@
 
 #include "common.h"
 
-#include <dxgi1_6.h>
-
 namespace engine {
     struct DxSwapChain final : rhi::SwapChain {
         DxSwapChain(IDXGISwapChain3 *swapchain);

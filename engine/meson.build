@@ -31,6 +31,8 @@ src = [
     'src/rhi/objects/private/swapchain.cpp',
     'src/rhi/objects/private/commands.cpp',
     'src/rhi/objects/private/pipeline.cpp',
+    'src/rhi/objects/private/queue.cpp',
+    'src/rhi/objects/private/device.cpp',
 
     'src/rhi/rhi.cpp'
 ]

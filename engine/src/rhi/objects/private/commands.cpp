@@ -80,7 +80,7 @@ void DxCommandList::transition(rhi::Buffer *buffer, rhi::Buffer::State before, r
 }
 
 void DxCommandList::bindDescriptors(std::span<rhi::DescriptorSet*> sets) {
-    auto heaps = std::unique_ptr<ID3D12DescriptorHeap*[]>(new ID3D12DescriptorHeap*[sets.size()]);
+    UniquePtr<ID3D12DescriptorHeap*[]> heaps(sets.size());
     for (size_t i = 0; i < sets.size(); i++) {
         auto *set = static_cast<DxDescriptorSet*>(sets[i]);
         heaps[i] = set->get();

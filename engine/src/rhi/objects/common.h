@@ -1,12 +1,15 @@
 #pragma once
 
 #include "engine/base/panic.h"
+#include "engine/base/util.h"
 #include "engine/rhi/rhi.h"
 
-#include <memory>
 #include <type_traits>
 
 #include "dx/d3dx12.h"
+
+#include <dxgi1_6.h>
+#include <dxgidebug.h>
 
 namespace engine {
     template<typename T>
@@ -20,9 +23,13 @@ namespace engine {
     };
 
     template<IsComObject T>
-    using UniqueComPtr = std::unique_ptr<T, ComDeleter<T>>;
+    using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
 
     std::string hrErrorString(HRESULT hr);
+
+    extern IDXGIFactory4 *gFactory;
+    extern ID3D12Debug *gDxDebug;
+    extern IDXGIDebug *gDebug;
 
     constexpr D3D12_RESOURCE_STATES getResourceState(rhi::Buffer::State type) {
         switch (type) {
