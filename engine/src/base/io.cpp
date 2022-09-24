@@ -29,6 +29,12 @@ struct File : Io {
         return total;
     }
 
+    size_t size() override {
+        LARGE_INTEGER size;
+        GetFileSizeEx(handle, &size);
+        return size_t(size.QuadPart);
+    }
+
 private:
     HANDLE handle = nullptr;
 };

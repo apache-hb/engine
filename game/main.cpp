@@ -4,7 +4,7 @@
 #include "engine/base/window.h"
 #include "engine/base/win32.h"
 
-#include "engine/render/render.h"
+#include "engine/rhi/api.h"
 
 using namespace engine;
 
@@ -32,12 +32,15 @@ int commonMain() {
 
     Window window { mode->width, mode->height, "game" };
 
-    render::Context render { { &window, &logger } };
+    std::unique_ptr<rhi::Instance> instance { rhi::getInstance() };
+    std::unique_ptr<rhi::Device> device { instance->newDevice(instance->getBestAdapter()) };
+
+    //render::Context render { { &window, &logger } };
 
     while (!window.shouldClose()) {
-        render.begin();
+        //render.begin();
 
-        render.end();
+        //render.end();
         glfwPollEvents();
     }
 

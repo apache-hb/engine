@@ -19,7 +19,10 @@ namespace engine {
         void write(std::string_view text);
 
         template<typename T>
-        std::vector<T> read(size_t total) {
+        std::vector<T> read(size_t total = SIZE_MAX) {
+            if (total == SIZE_MAX) {
+                total = size() / sizeof(T);
+            }
             std::vector<T> result{total};
             read((void*)result.data(), sizeof(T) * total);
             return result;
@@ -32,6 +35,7 @@ namespace engine {
 
         size_t read(void *dst, size_t size);
         size_t write(const void *src, size_t size);
+        virtual size_t size() = 0;
 
         std::string_view name;
         const Mode mode;

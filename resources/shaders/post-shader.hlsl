@@ -1,24 +1,18 @@
-cbuffer Data : register(b0) {
-    float4 offset;
-    float4x4 mvp;
-};
+SamplerState gSampler : register(s0);
+Texture2D gTexture : register(t0);
 
 struct PSInput {
     float4 pos : SV_POSITION;
-    float4 colour : COLOUR;
+    float2 uv : TEXCOORD;
 };
 
-float4 perspective(float3 position) {
-    return mul(float4(position, 1.0f), mvp);
-}
-
-PSInput vsMain(float3 pos : POSITION, float4 colour : COLOUR) {
+PSInput vsMain(float3 pos : POSITION, float2 uv : TEXCOORD) {
     PSInput result;
-    result.pos = perspective(pos);
-    result.colour = colour;
+    result.pos = float4(pos, 1.f);
+    result.uv = uv;
     return result;
 }
 
 float4 psMain(PSInput input) : SV_TARGET {
-    return input.colour;
+    return gTexture.Sample(gSampler, input.uv);
 }
