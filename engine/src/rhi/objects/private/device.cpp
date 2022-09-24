@@ -192,10 +192,13 @@ void DxDevice::createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHan
     device->CreateRenderTargetView(dxTarget->get(), nullptr, handle);
 }
 
-void DxDevice::createShaderResourceView(rhi::Buffer *buffer, rhi::CpuHandle srvHandle) {
-    auto *it = static_cast<DxBuffer*>(buffer);
-    D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(srvHandle) };
-    device->CreateShaderResourceView(it->get(), nullptr, handle);
+void DxDevice::createUniformBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(srvHandle) };
+    const D3D12_CONSTANT_BUFFER_VIEW_DESC kDesc {
+        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer->gpuAddress()),
+        .SizeInBytes = UINT(size)
+    };
+    device->CreateConstantBufferView(&kDesc, kHandle);
 }
 
 rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::Buffer::State state) {

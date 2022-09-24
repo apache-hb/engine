@@ -157,7 +157,7 @@ namespace engine::rhi {
         virtual DescriptorSet *newDescriptorSet(size_t count, Object::Type type, bool shaderVisible) = 0;
 
         virtual void createRenderTargetView(Buffer *buffer, CpuHandle rtvHandle) = 0;
-        virtual void createShaderResourceView(Buffer *buffer, CpuHandle srvHandle) = 0;
+        virtual void createUniformBufferView(Buffer *buffer, size_t size, CpuHandle srvHandle) = 0;
 
         virtual Buffer *newBuffer(size_t size, rhi::Buffer::State state) = 0;
 
