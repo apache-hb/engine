@@ -19,45 +19,18 @@ base = declare_dependency(
 )
 
 # d3d12 rhi
-src = [ 'src/rhi-d3d12/agility.cpp', 'src/rhi-d3d12/api.cpp' ]
+src = [ 'src/rhi/d3d12/agility.cpp', 'src/rhi/d3d12/rhi.cpp', 'src/rhi/vendor.cpp' ]
 
-libd3drhi = library('d3d12-rhi', src,
+librhi = library('d3d12-rhi', src,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
     dependencies : [ base, d3d12 ],
-    include_directories : 'include'
-)
-
-d3drhi = declare_dependency(
-    link_with : libd3drhi,
-    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ base, d3d12 ],
-    include_directories : 'include'
-)
-
-# vulkan rhi
-src = [ 'src/rhi-vk/api.cpp' ]
-
-libvkrhi = library('vk-rhi', src,
-    dependencies : [ base, vulkan ],
-    include_directories : 'include'
-)
-
-vkrhi = declare_dependency(
-    link_with : libvkrhi,
-    dependencies : [ base, vulkan ],
-    include_directories : 'include'
-)
-
-src = [ 'src/rhi/common.cpp', 'src/rhi/vendor.cpp' ]
-
-librhi = library('rhi-common', src,
-    dependencies : [ d3drhi ],
     include_directories : 'include'
 )
 
 rhi = declare_dependency(
     link_with : librhi,
-    dependencies : [ d3drhi ],
+    link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
+    dependencies : [ base, d3d12 ],
     include_directories : 'include'
 )
 

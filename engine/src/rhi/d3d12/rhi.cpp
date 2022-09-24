@@ -506,6 +506,12 @@ struct DxDevice final : rhi::Device {
         device->CreateRenderTargetView(dxTarget->get(), nullptr, handle);
     }
 
+    void createShaderResourceView(rhi::Buffer *buffer, rhi::CpuHandle srvHandle) override {
+        auto *it = static_cast<DxBuffer*>(buffer);
+        D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(srvHandle) };
+        device->CreateShaderResourceView(it->get(), nullptr, handle);
+    }
+
     rhi::Buffer *newBuffer(size_t size, rhi::Buffer::State state) override {
         const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
