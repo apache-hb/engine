@@ -19,12 +19,26 @@ base = declare_dependency(
 )
 
 # d3d12 rhi
-src = [ 'src/rhi/d3d12/agility.cpp', 'src/rhi/d3d12/rhi.cpp', 'src/rhi/vendor.cpp' ]
+src = [
+    'src/rhi/vendor/agility.cpp', 
+    'src/rhi/vendor/vendor.cpp',
+
+    'src/rhi/objects/private/common.cpp',
+    'src/rhi/objects/private/allocator.cpp',
+    'src/rhi/objects/private/fence.cpp',
+    'src/rhi/objects/private/buffer.cpp',
+    'src/rhi/objects/private/descriptors.cpp',
+    'src/rhi/objects/private/swapchain.cpp',
+    'src/rhi/objects/private/commands.cpp',
+    'src/rhi/objects/private/pipeline.cpp',
+
+    'src/rhi/rhi.cpp'
+]
 
 librhi = library('d3d12-rhi', src,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
     dependencies : [ base, d3d12 ],
-    include_directories : 'include'
+    include_directories : [ 'include', 'src/rhi' ]
 )
 
 rhi = declare_dependency(
