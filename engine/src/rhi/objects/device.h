@@ -20,7 +20,7 @@ namespace engine {
         rhi::PipelineState *newPipelineState(const rhi::PipelineBinding& bindings) override;
 
     private:
-        ID3D12RootSignature *createRootSignature(std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings);
+        ID3D12RootSignature *createRootSignature(ID3DBlob *signature);
 
         ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input);
 

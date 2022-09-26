@@ -90,12 +90,12 @@ namespace {
         };
     }
 
-    UniquePtr<D3D12_STATIC_SAMPLER_DESC[]> createSamplers(std::span<rhi::Sampler> samplers) {
+    std::vector<D3D12_STATIC_SAMPLER_DESC> createSamplers(std::span<rhi::Sampler> samplers) {
         if (samplers.size() == 0) {
-            return nullptr;
+            return {};
         }
 
-        UniquePtr<D3D12_STATIC_SAMPLER_DESC[]> it(samplers.size());
+        std::vector<D3D12_STATIC_SAMPLER_DESC> it(samplers.size());
 
         for (size_t i = 0; i < samplers.size(); i++) {
             it[i] = createSampler(samplers[i]);
@@ -125,6 +125,32 @@ namespace {
         }
 
         return ranges;
+    }
+
+    UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
+        constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
+            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+        auto samplerData = createSamplers(samplers);
+
+        auto ranges = createBindingRange(bindings);
+
+        CD3DX12_ROOT_PARAMETER1 param;
+        param.InitAsDescriptorTable(UINT(ranges.size()), ranges.data());
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+        desc.Init_1_1(1, &param, UINT(samplers.size()), samplerData.data(), kFlags);
+
+        UniqueComPtr<ID3DBlob> signature;
+        UniqueComPtr<ID3DBlob> error;
+
+        HRESULT err = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
+        ASSERTF(SUCCEEDED(err), "failed to serialize root signature: {}", std::string((char*)error->GetBufferPointer(), error->GetBufferSize()));
+        return signature;
     }
 }
 
@@ -223,35 +249,18 @@ rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindi
 
     auto input = createInputLayout(bindings.input);
 
-    ID3D12RootSignature *root = createRootSignature(bindings.samplers, bindings.bindings);
+    auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
+
+    fmt::print("ptr: {} {} {}", (void*)signature.get(), signature->GetBufferPointer(), signature->GetBufferSize());
+
+    ID3D12RootSignature *root = createRootSignature(signature.get());
     ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input);
     return new DxPipelineState(root, pipeline);
 }
 
-ID3D12RootSignature *DxDevice::createRootSignature(std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
-    constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-        D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
-
-    auto samplerData = createSamplers(samplers);
-
-    auto ranges = createBindingRange(bindings);
-
-    CD3DX12_ROOT_PARAMETER1 param;
-    param.InitAsDescriptorTable(UINT(ranges.size()), ranges.data());
-
-    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-    desc.Init_1_1(1, &param, UINT(samplers.size()), samplerData.get(), kFlags);
-
-    ID3DBlob *signature;
-    ID3DBlob *error;
-
+ID3D12RootSignature *DxDevice::createRootSignature(ID3DBlob *signature) {
     ID3D12RootSignature *root;
 
-    DX_CHECK(D3DX12SerializeVersionedRootSignature(&desc, kHighestVersion, &signature, &error));
     DX_CHECK(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)));
 
     return root;

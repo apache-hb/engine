@@ -55,10 +55,7 @@ namespace engine {
             other.data = nullptr;
         }
 
-        UniquePtr(UniquePtr&) = delete;
         UniquePtr(const UniquePtr&) = delete;
-
-        UniquePtr &operator=(UniquePtr&) = delete;
         UniquePtr &operator=(const UniquePtr&) = delete;
 
         Type &operator[](size_t index) requires(std::is_array_v<T>) {
