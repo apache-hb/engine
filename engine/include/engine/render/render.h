@@ -15,6 +15,10 @@ namespace engine::render {
         math::float4 colour;
     };
 
+    struct alignas(256) ConstBuffer {
+        math::float3 offset = { 0.25f, 0.25f, 0.f };
+    };
+
     struct Context {
         struct Create {
             Window *window;
@@ -36,6 +40,16 @@ namespace engine::render {
         void waitForFrame();
         void waitOnQueue(rhi::CommandQueue *queue, size_t value);
 
+        void beginCopy();
+        size_t endCopy(); // return the value to wait for to signal that all copies are complete
+
+        template<typename F>
+        size_t recordCopy(F &&func) {
+            beginCopy();
+            func();
+            return endCopy();
+        }
+
         rhi::Buffer *uploadData(const void *ptr, size_t size);
 
         rhi::Viewport viewport;
@@ -55,6 +69,7 @@ namespace engine::render {
         rhi::CommandList *copyCommands;
         rhi::Allocator *copyAllocator;
         std::vector<rhi::Buffer*> pendingCopies;
+        size_t currentCopy = 0;
 
         // per frame data
         rhi::Buffer *renderTargets[kFrameCount];
@@ -64,6 +79,11 @@ namespace engine::render {
         rhi::PipelineState *pipeline;
         rhi::Buffer *vertexBuffer;
         rhi::Buffer *indexBuffer;
+
+        rhi::DescriptorSet *constBufferSet;
+        rhi::Buffer *constBuffer;
+        void *constBufferPtr;
+        ConstBuffer constBufferData;
 
         rhi::VertexBufferView vertexBufferView;
         rhi::IndexBufferView indexBufferView;

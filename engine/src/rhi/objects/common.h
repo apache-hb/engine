@@ -33,9 +33,12 @@ namespace engine {
 
     constexpr D3D12_RESOURCE_STATES getResourceState(rhi::Buffer::State type) {
         switch (type) {
-        case rhi::Buffer::State::eUpload: return D3D12_RESOURCE_STATE_GENERIC_READ;
+        case rhi::Buffer::State::eUpload: 
+            return D3D12_RESOURCE_STATE_GENERIC_READ;
         case rhi::Buffer::State::eIndex: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
-        case rhi::Buffer::State::eVertex: return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+        case rhi::Buffer::State::eConstBuffer:
+        case rhi::Buffer::State::eVertex: 
+            return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
         case rhi::Buffer::State::eCopyDst: return D3D12_RESOURCE_STATE_COPY_DEST;
         case rhi::Buffer::State::eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
         case rhi::Buffer::State::ePresent: return D3D12_RESOURCE_STATE_PRESENT;

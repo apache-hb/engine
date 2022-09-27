@@ -10,6 +10,9 @@ namespace engine {
         
         rhi::GpuHandle gpuAddress() override;
 
+        void *map() override;
+        void unmap() override;
+
         ID3D12Resource *get();
     private:
         UniqueComPtr<ID3D12Resource> resource;

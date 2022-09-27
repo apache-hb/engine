@@ -22,15 +22,16 @@ namespace {
         }
     }
 
-    constexpr const D3D12_HEAP_PROPERTIES *getHeapProps(rhi::Buffer::State type) {
-        switch (type) {
-        case rhi::Buffer::State::eUpload: return &kUploadProps;
-        default: return &kDefaultProps;
+    constexpr const D3D12_HEAP_PROPERTIES *getHeapProps(rhi::DescriptorSet::Visibility visibility) {
+        switch (visibility) {
+        case rhi::DescriptorSet::Visibility::eDeviceOnly: return &kDefaultProps;
+        case rhi::DescriptorSet::Visibility::eHostVisible: return &kUploadProps;
+        default: return nullptr;
         }
     }
 
     constexpr D3D12_DESCRIPTOR_HEAP_TYPE getDescriptorHeapType(rhi::Object::Type type) {
-        if (type & (rhi::Object::eTexture)) {
+        if (type & (rhi::Object::eTexture | rhi::Object::eConstBuffer)) {
             return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
         }
 
@@ -55,6 +56,15 @@ namespace {
         case rhi::Object::eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 
         default: return D3D12_DESCRIPTOR_RANGE_TYPE();
+        }
+    }
+
+    constexpr D3D12_DESCRIPTOR_RANGE_FLAGS getDescriptorFlags(rhi::BindingMutability mut) {
+        switch (mut) {
+        case rhi::BindingMutability::eAlwaysStatic: return D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
+        case rhi::BindingMutability::eStaticAtExecute: return D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE;
+        
+        default: return D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
         }
     }
 
@@ -110,7 +120,8 @@ namespace {
             .NumDescriptors = 1,
             .BaseShaderRegister = UINT(binding.base),
             .RegisterSpace = 0,
-            .Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC
+            .Flags = getDescriptorFlags(binding.mutability),
+            .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
         };
     }
 
@@ -119,9 +130,9 @@ namespace {
             return {};
         }
 
-        std::vector<D3D12_DESCRIPTOR_RANGE1> ranges{bindings.size()};
+        std::vector<D3D12_DESCRIPTOR_RANGE1> ranges;
         for (size_t i = 0; i < bindings.size(); i++) {
-            ranges[i] = createRange(bindings[i]);
+            ranges.push_back(createRange(bindings[i]));
         }
 
         return ranges;
@@ -143,7 +154,7 @@ namespace {
         param.InitAsDescriptorTable(UINT(ranges.size()), ranges.data());
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(1, &param, UINT(samplers.size()), samplerData.data(), kFlags);
+        desc.Init_1_1(1, &param, UINT(samplerData.size()), samplerData.data(), kFlags);
 
         UniqueComPtr<ID3DBlob> signature;
         UniqueComPtr<ID3DBlob> error;
@@ -218,7 +229,7 @@ void DxDevice::createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHan
     device->CreateRenderTargetView(dxTarget->get(), nullptr, handle);
 }
 
-void DxDevice::createUniformBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) {
+void DxDevice::createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(srvHandle) };
     const D3D12_CONSTANT_BUFFER_VIEW_DESC kDesc {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer->gpuAddress()),
@@ -227,13 +238,13 @@ void DxDevice::createUniformBufferView(rhi::Buffer *buffer, size_t size, rhi::Cp
     device->CreateConstantBufferView(&kDesc, kHandle);
 }
 
-rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::Buffer::State state) {
+rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     ID3D12Resource *resource;
     DX_CHECK(device->CreateCommittedResource(
-        getHeapProps(state), 
-        D3D12_HEAP_FLAG_NONE, 
+        getHeapProps(visibility), 
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &kBufferSize, 
         getResourceState(state), 
         nullptr, 

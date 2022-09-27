@@ -23,7 +23,8 @@ namespace engine::rhi {
     namespace Object {
         enum Type : unsigned {
             eRenderTarget = (1 << 0),
-            eTexture = (1 << 1)
+            eTexture = (1 << 1),
+            eConstBuffer = (1 << 2)
         };
     }
 
@@ -40,14 +41,20 @@ namespace engine::rhi {
         ePixel,
         eVertex
     };
+
+    enum struct BindingMutability {
+        eAlwaysStatic,
+        eStaticAtExecute,
+    };
     
     struct Sampler {
         ShaderVisibility visibility;
     };
 
     struct Binding {
-        Object::Type type;
         size_t base;
+        Object::Type type;
+        BindingMutability mutability;
     };
 
     struct PipelineBinding {
@@ -67,12 +74,17 @@ namespace engine::rhi {
 
             eVertex,
             eIndex,
+            eConstBuffer,
 
             eRenderTarget,
             ePresent
         };
 
         virtual void write(const void *src, size_t size) = 0;
+        
+        virtual void *map() = 0;
+        virtual void unmap() = 0;
+
         virtual GpuHandle gpuAddress() = 0;
 
         virtual ~Buffer() = default;
@@ -97,6 +109,11 @@ namespace engine::rhi {
     };
     
     struct DescriptorSet {
+        enum struct Visibility {
+            eHostVisible,
+            eDeviceOnly
+        };
+
         virtual CpuHandle cpuHandle(size_t offset) = 0;
         virtual GpuHandle gpuHandle(size_t offset) = 0;
 
@@ -157,9 +174,9 @@ namespace engine::rhi {
         virtual DescriptorSet *newDescriptorSet(size_t count, Object::Type type, bool shaderVisible) = 0;
 
         virtual void createRenderTargetView(Buffer *buffer, CpuHandle rtvHandle) = 0;
-        virtual void createUniformBufferView(Buffer *buffer, size_t size, CpuHandle srvHandle) = 0;
+        virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle srvHandle) = 0;
 
-        virtual Buffer *newBuffer(size_t size, rhi::Buffer::State state) = 0;
+        virtual Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) = 0;
 
         virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
 

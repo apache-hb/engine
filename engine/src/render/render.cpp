@@ -12,6 +12,20 @@ namespace {
         Io *io = Io::open(path, Io::eRead);
         return io->read<std::byte>();
     }
+
+#if 0
+    constexpr auto kScreenQuad = std::to_array<Vertex>({
+        Vertex { { -1.f, 1.f, 0.f }, { 0.f, 1.f, 0.f, 0.f } }, // top left
+        Vertex { { -1.f, -1.f, 0.f }, { 0.f, 0.f, 0.f, 0.f } }, // bottom left
+        Vertex { { 1.f, -1.f, 0.f }, { 1.f, 0.f, 0.f, 0.f } }, // bottom right
+        Vertex { { 1.f, 1.f, 0.f }, { 1.f, 1.f, 0.f, 0.f } } // top right
+    });
+
+    constexpr auto kScreenQuadIndices = std::to_array<uint32_t>({
+        0, 1, 2,
+        2, 1, 3
+    });
+#endif
 }
 
 Context::Context(Create &&info): info(info) {
@@ -63,8 +77,15 @@ void Context::create() {
         { rhi::ShaderVisibility::ePixel }
     });
 
+    // const buffer binding data
+
+    constBufferSet = device->newDescriptorSet(1, rhi::Object::eConstBuffer, true);
+    constBuffer = device->newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
+    device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet->cpuHandle(0));
+    constBufferPtr = constBuffer->map();
+
     auto bindings = std::to_array<rhi::Binding>({
-        rhi::Binding { rhi::Object::eTexture, 0 }
+        rhi::Binding { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute } // register(b0, space0)
     });
 
     pipeline = device->newPipelineState({
@@ -91,20 +112,18 @@ void Context::create() {
         2, 1, 3
     };
 
-    copyCommands->beginRecording(copyAllocator);
+    size_t signal = recordCopy([&] {
+        vertexBuffer = uploadData(kVerts, sizeof(kVerts));
+        indexBuffer = uploadData(kIndices, sizeof(kIndices));
 
-    vertexBuffer = uploadData(kVerts, sizeof(kVerts));
-    indexBuffer = uploadData(kIndices, sizeof(kIndices));
-
-    vertexBufferView = rhi::VertexBufferView{vertexBuffer, std::size(kVerts), sizeof(Vertex)};
-    indexBufferView = rhi::IndexBufferView{indexBuffer, std::size(kIndices), rhi::Format::uint32};
-
-    copyCommands->endRecording();
+        vertexBufferView = rhi::VertexBufferView{vertexBuffer, std::size(kVerts), sizeof(Vertex)};
+        indexBufferView = rhi::IndexBufferView{indexBuffer, std::size(kIndices), rhi::Format::uint32};
+    });
 
     auto commands = std::to_array({ copyCommands });
     copyQueue->execute(commands);
 
-    waitOnQueue(copyQueue, 1);
+    waitOnQueue(copyQueue, signal);
     for (rhi::Buffer *buffer : pendingCopies) {
         delete buffer;
     }
@@ -116,6 +135,9 @@ void Context::create() {
 
 void Context::destroy() {
     delete fence;
+
+    delete constBufferSet;
+    delete constBuffer;
 
     delete pipeline;
 
@@ -142,6 +164,8 @@ void Context::destroy() {
 }
 
 void Context::begin() {
+    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
+
     const rhi::CpuHandle rtvHandle = renderTargetSet->cpuHandle(frameIndex);
 
     directCommands->beginRecording(allocators[frameIndex]);
@@ -150,6 +174,9 @@ void Context::begin() {
 
     directCommands->setViewport(viewport);
     directCommands->setRenderTarget(rtvHandle, kClearColour);
+
+    auto kDescriptors = std::to_array({ constBufferSet });
+    directCommands->bindDescriptors(kDescriptors);
 
     directCommands->setPipeline(pipeline);
     directCommands->drawMesh(indexBufferView, vertexBufferView);
@@ -181,8 +208,8 @@ void Context::waitOnQueue(rhi::CommandQueue *queue, size_t value) {
 }
 
 rhi::Buffer *Context::uploadData(const void *ptr, size_t size) {
-    rhi::Buffer *upload = device->newBuffer(size, BufferState::eUpload);
-    rhi::Buffer *result = device->newBuffer(size, BufferState::eCopyDst);
+    rhi::Buffer *upload = device->newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
+    rhi::Buffer *result = device->newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
 
     upload->write(ptr, size);
     copyCommands->copyBuffer(result, upload, size);
@@ -190,4 +217,14 @@ rhi::Buffer *Context::uploadData(const void *ptr, size_t size) {
     pendingCopies.push_back(upload);
 
     return result;
+}
+
+
+void Context::beginCopy() {
+    copyCommands->beginRecording(copyAllocator);
+}
+
+size_t Context::endCopy() {
+    copyCommands->endRecording();
+    return currentCopy++;
 }
