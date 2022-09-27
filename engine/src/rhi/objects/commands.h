@@ -14,7 +14,10 @@ namespace engine {
 
         void copyBuffer(rhi::Buffer *dst, rhi::Buffer *src, size_t size) override;
         void transition(rhi::Buffer *buffer, rhi::Buffer::State before, rhi::Buffer::State after) override;
+        
         void bindDescriptors(std::span<rhi::DescriptorSet*> sets) override;
+        void bindTable(size_t index, rhi::GpuHandle handle) override;
+
         void setPipeline(rhi::PipelineState *pipeline) override;
 
         void drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) override;

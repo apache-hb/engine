@@ -13,8 +13,10 @@ namespace engine {
         
         rhi::Allocator *newAllocator(rhi::CommandList::Type type) override;
         rhi::DescriptorSet *newDescriptorSet(size_t count, rhi::Object::Type type, bool shaderVisible) override;
+        
         void createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) override;
         void createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) override;
+
         rhi::Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
 
         rhi::PipelineState *newPipelineState(const rhi::PipelineBinding& bindings) override;

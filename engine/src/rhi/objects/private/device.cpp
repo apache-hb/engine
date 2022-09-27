@@ -54,6 +54,7 @@ namespace {
     constexpr D3D12_DESCRIPTOR_RANGE_TYPE getRangeType(rhi::Object::Type type) {
         switch (type) {
         case rhi::Object::eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+        case rhi::Object::eConstBuffer: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 
         default: return D3D12_DESCRIPTOR_RANGE_TYPE();
         }

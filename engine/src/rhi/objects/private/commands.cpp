@@ -89,6 +89,11 @@ void DxCommandList::bindDescriptors(std::span<rhi::DescriptorSet*> sets) {
     commands->SetDescriptorHeaps(UINT(sets.size()), heaps.get());
 }
 
+void DxCommandList::bindTable(size_t index, rhi::GpuHandle handle) {
+    const D3D12_GPU_DESCRIPTOR_HANDLE kOffset { size_t(handle) };
+    commands->SetGraphicsRootDescriptorTable(UINT(index), kOffset);
+}
+
 void DxCommandList::setPipeline(rhi::PipelineState *pipeline) {
     auto *pso = static_cast<DxPipelineState*>(pipeline);
     commands->SetGraphicsRootSignature(pso->getSignature());

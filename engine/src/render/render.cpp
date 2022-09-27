@@ -83,6 +83,7 @@ void Context::create() {
     constBuffer = device->newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
     device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet->cpuHandle(0));
     constBufferPtr = constBuffer->map();
+    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
     auto bindings = std::to_array<rhi::Binding>({
         rhi::Binding { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute } // register(b0, space0)
@@ -175,10 +176,12 @@ void Context::begin() {
     directCommands->setViewport(viewport);
     directCommands->setRenderTarget(rtvHandle, kClearColour);
 
+    directCommands->setPipeline(pipeline);
+    
     auto kDescriptors = std::to_array({ constBufferSet });
     directCommands->bindDescriptors(kDescriptors);
+    directCommands->bindTable(0, constBufferSet->gpuHandle(0));
 
-    directCommands->setPipeline(pipeline);
     directCommands->drawMesh(indexBufferView, vertexBufferView);
 }
 

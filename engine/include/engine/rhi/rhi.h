@@ -138,6 +138,7 @@ namespace engine::rhi {
         virtual void setPipeline(PipelineState *pipeline) = 0;
 
         virtual void bindDescriptors(std::span<DescriptorSet*> sets) = 0;
+        virtual void bindTable(size_t index, GpuHandle handle) = 0;
 
         virtual void copyBuffer(Buffer *dst, Buffer *src, size_t size) = 0;
 

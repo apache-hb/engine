@@ -16,7 +16,7 @@ namespace engine::render {
     };
 
     struct alignas(256) ConstBuffer {
-        math::float3 offset = { 0.25f, 0.25f, 0.f };
+        math::float3 offset = { 0.25f, 0.0f, 0.f };
     };
 
     struct Context {
