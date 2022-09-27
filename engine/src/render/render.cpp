@@ -29,8 +29,9 @@ namespace {
 }
 
 Context::Context(Create &&info): info(info) {
-    auto [width, height] = info.window->size();
-    viewport = { float(width), float(height) };
+    auto size = info.window->size();
+    viewport = { float(size.width), float(size.height) };
+    aspectRatio = size.aspectRatio<float>();
 
     create();
 }
@@ -99,13 +100,11 @@ void Context::create() {
 
     // upload our data to the gpu
 
-    auto aspect = info.window->size().aspectRatio<float>();
-
     const Vertex kVerts[] = {
-        { { -0.25f, -0.25f * aspect, 0.25f }, { 1.f, 0.f, 0.f, 1.f } },
-        { { -0.25f, 0.25f * aspect, 0.25f }, { 0.f, 1.f, 0.f, 1.f } },
-        { { 0.25f, -0.25f * aspect, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-        { { 0.25f, 0.25f * aspect, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
+        { { -0.25f, -0.25f * aspectRatio, 0.25f }, { 1.f, 0.f, 0.f, 1.f } },
+        { { -0.25f, 0.25f * aspectRatio, 0.25f }, { 0.f, 1.f, 0.f, 1.f } },
+        { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
+        { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
     };
 
     const uint32_t kIndices[] = {
@@ -164,7 +163,8 @@ void Context::destroy() {
     delete device;
 }
 
-void Context::begin() {
+void Context::begin(Camera *camera) {
+    constBufferData.mvp = camera->mvp(float4x4::identity(), aspectRatio);
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
     const rhi::CpuHandle rtvHandle = renderTargetSet->cpuHandle(frameIndex);
@@ -177,7 +177,7 @@ void Context::begin() {
     directCommands->setRenderTarget(rtvHandle, kClearColour);
 
     directCommands->setPipeline(pipeline);
-    
+
     auto kDescriptors = std::to_array({ constBufferSet });
     directCommands->bindDescriptors(kDescriptors);
     directCommands->bindTable(0, constBufferSet->gpuHandle(0));

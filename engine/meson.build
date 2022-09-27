@@ -18,6 +18,22 @@ base = declare_dependency(
     include_directories : 'include'
 )
 
+src = [ 'src/input/input.cpp' ]
+
+libinput = library('input', src,
+    cpp_args : args,
+    link_args : [ 'xinput.lib' ],
+    dependencies : base,
+    include_directories : 'include'
+)
+
+input = declare_dependency(
+    link_with : libinput,
+    link_args : [ 'xinput.lib' ],
+    dependencies : base,
+    include_directories : 'include'
+)
+
 # d3d12 rhi
 src = [
     'src/rhi/vendor/agility.cpp', 
@@ -50,7 +66,7 @@ rhi = declare_dependency(
     include_directories : 'include'
 )
 
-src = [ 'src/render/render.cpp' ]
+src = [ 'src/render/render.cpp', 'src/render/camera.cpp' ]
 
 librender = library('render', src,
     cpp_args : args,

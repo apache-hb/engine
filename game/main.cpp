@@ -5,9 +5,12 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
+#include "engine/input/input.h"
+
 #include "engine/render/render.h"
 
 using namespace engine;
+using namespace math;
 
 int commonMain() {
     // we want to be dpi aware
@@ -26,17 +29,22 @@ int commonMain() {
     logging::Channel *channels[] { &fileLogger, &consoleLogger };
     logging::MultiChannel logger { "general", channels };
 
-    // render::enableSm6(&logger);
-
     // make a fullscreen borderless window on the primary monitor
     const auto *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
     Window window { mode->width, mode->height, "game" };
-
     render::Context render { { &window, &logger } };
+    render::Camera camera { float3::of(0.f), { 0.5f, 0.f, 0.f }, 110.f };
+
+    Timer timer;
 
     while (!window.shouldClose()) {
-        render.begin();
+        auto input = input::poll();
+        float delta = float(timer.tick());
+        camera.move(input.movement * delta);
+        camera.rotate(input.rotation * delta);
+
+        render.begin(&camera);
 
         render.end();
         glfwPollEvents();

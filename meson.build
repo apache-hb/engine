@@ -23,7 +23,7 @@ fmt = subproject('fmt').get_variable('fmt')
 subdir('engine')
 
 executable('game', 'game/main.cpp',
-    dependencies : [ render ],
+    dependencies : [ input, render ],
     cpp_args : args,
     win_subsystem : 'console'
 )

@@ -7,6 +7,15 @@ namespace engine {
     std::string narrow(std::wstring_view str);
     std::wstring widen(std::string_view str);
 
+    struct Timer {
+        Timer();
+        double tick();
+
+    private:
+        size_t last;
+        size_t frequency;
+    };
+
     template<typename T>
     struct DefaultDelete {
         void operator()(T *ptr) {

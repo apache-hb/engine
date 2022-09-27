@@ -5,6 +5,8 @@
 
 #include "engine/rhi/rhi.h"
 
+#include "engine/render/camera.h"
+
 #include <vector>
 
 namespace engine::render {
@@ -16,7 +18,11 @@ namespace engine::render {
     };
 
     struct alignas(256) ConstBuffer {
-        math::float3 offset = { 0.25f, 0.0f, 0.f };
+        math::float4x4 mvp = math::float4x4::identity();
+    };
+
+    struct RenderNode {
+        std::vector<size_t> depends;
     };
 
     struct Context {
@@ -28,7 +34,7 @@ namespace engine::render {
         Context(Create &&info);
         ~Context();
 
-        void begin();
+        void begin(Camera *camera);
         void end();
 
     private:
@@ -53,6 +59,7 @@ namespace engine::render {
         rhi::Buffer *uploadData(const void *ptr, size_t size);
 
         rhi::Viewport viewport;
+        float aspectRatio;
 
         rhi::Device *device;
 

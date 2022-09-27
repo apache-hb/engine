@@ -37,12 +37,20 @@ namespace engine::math {
             return { x + other.x, y + other.y };
         }
 
+        constexpr Vec2 operator*(T it) const {
+            return from(x * it, y * it);
+        }
+
         static constexpr Vec2 from(T x, T y) {
             return { x, y };
         }
 
         static constexpr Vec2 of(T it) {
             return from(it, it);
+        }
+
+        constexpr Vec3<T> vec3(T z) const {
+            return Vec3<T>::from(x, y, z);
         }
     };
 
@@ -83,6 +91,10 @@ namespace engine::math {
 
         constexpr Vec4<T> vec4(T w) const {
             return Vec4<T>::from(x, y, z, w);
+        }
+
+        constexpr Vec3 operator*(T it) const {
+            return from(x * it, y * it, z * it);
         }
     };
 
@@ -170,6 +182,7 @@ namespace engine::math {
     template<typename T>
     struct Mat4x4 {
         using Row = Vec4<T>;
+        using RowSelect = typename Row::Select;
         Row rows[4];
 
         constexpr Row at(size_t row) const {
@@ -342,7 +355,7 @@ namespace engine::math {
             auto d1 = Row::dot(r1, negEye);
             auto d2 = Row::dot(r2, negEye);
 
-            auto control = Row::X | Row::Y | Row::Z;
+            auto control = RowSelect(Row::X | Row::Y | Row::Z);
             auto s0 = Row::select(d0, r0, control);
             auto s1 = Row::select(d1, r1, control);
             auto s2 = Row::select(d2, r2, control);
