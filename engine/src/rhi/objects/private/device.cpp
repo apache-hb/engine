@@ -127,7 +127,7 @@ namespace {
         return ranges;
     }
 
-    UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
+    ID3DBlob *serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
@@ -145,7 +145,7 @@ namespace {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(1, &param, UINT(samplers.size()), samplerData.data(), kFlags);
 
-        UniqueComPtr<ID3DBlob> signature;
+        ID3DBlob *signature;
         UniqueComPtr<ID3DBlob> error;
 
         HRESULT err = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
@@ -249,9 +249,7 @@ rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindi
 
     auto input = createInputLayout(bindings.input);
 
-    auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
-
-    fmt::print("ptr: {} {} {}", (void*)signature.get(), signature->GetBufferPointer(), signature->GetBufferSize());
+    UniqueComPtr<ID3DBlob> signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
     ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input);
