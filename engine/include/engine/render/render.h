@@ -21,10 +21,6 @@ namespace engine::render {
         math::float4x4 mvp = math::float4x4::identity();
     };
 
-    struct RenderNode {
-        std::vector<size_t> depends;
-    };
-
     struct Context {
         struct Create {
             Window *window;
@@ -87,11 +83,13 @@ namespace engine::render {
         rhi::Buffer *vertexBuffer;
         rhi::Buffer *indexBuffer;
 
+        // const buffer data
         rhi::DescriptorSet *constBufferSet;
         rhi::Buffer *constBuffer;
         void *constBufferPtr;
         ConstBuffer constBufferData;
 
+        // out object
         rhi::VertexBufferView vertexBufferView;
         rhi::IndexBufferView indexBufferView;
 

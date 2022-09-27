@@ -14,6 +14,13 @@ namespace {
     constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
+    constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
+
+    constexpr D3D12_DEPTH_STENCIL_VIEW_DESC kDsvDesc {
+        .Format = kDepthFormat,
+        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D
+    };
+
     constexpr D3D12_COMMAND_LIST_TYPE getCommandListType(rhi::CommandList::Type type) {
         switch (type) {
         case rhi::CommandList::eCopy: return D3D12_COMMAND_LIST_TYPE_COPY;
@@ -239,6 +246,12 @@ void DxDevice::createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuH
     device->CreateConstantBufferView(&kDesc, kHandle);
 }
 
+void DxDevice::createDepthStencilView(rhi::Buffer *buffer, rhi::CpuHandle handle) {
+    auto *stencil = static_cast<DxBuffer*>(buffer);
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
+    device->CreateDepthStencilView(stencil->get(), &kDsvDesc, kHandle);
+}
+
 rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
@@ -254,6 +267,33 @@ rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility vis
     
     return new DxBuffer(resource);
 }
+
+#if 0
+rhi::Buffer *DxDevice::newDepthStencil(math::Resolution<size_t> size) {
+    const auto kTex = CD3DX12_RESOURCE_DESC::Tex2D(
+        /* format = */ kDepthFormat,
+        /* width = */ size.width,
+        /* height = */ size.height,
+        /* arraySize = */ 1,
+        /* mipLevels = */ 0,
+        /* sampleCount = */ 1,
+        /* sampleQuality = */ 0,
+        /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+    );
+
+    ID3D12Resource *resource;
+    DX_CHECK(device->CreateCommittedResource(
+        &kDefaultProps, 
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+        &kTex,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE, 
+        nullptr, 
+        IID_PPV_ARGS(&resource)
+    ));
+
+    return new DxBuffer(resource);
+}
+#endif
 
 rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindings) {
     const auto vs = createShader(bindings.vs);

@@ -38,11 +38,11 @@ void DxCommandList::endRecording() {
 }
 
 void DxCommandList::setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) {
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv { size_t(target) };
+    const D3D12_CPU_DESCRIPTOR_HANDLE kRtv { size_t(target) };
     const float kClear[] = { colour.x, colour.y, colour.z, colour.w };
 
-    commands->OMSetRenderTargets(1, &rtv, false, nullptr);
-    commands->ClearRenderTargetView(rtv, kClear, 0, nullptr);
+    commands->OMSetRenderTargets(1, &kRtv, false, nullptr);
+    commands->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
 }
 
 void DxCommandList::setViewport(const rhi::Viewport &view) {

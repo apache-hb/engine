@@ -16,6 +16,7 @@ namespace engine {
         
         void createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) override;
         void createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) override;
+        void createDepthStencilView(rhi::Buffer *buffer, rhi::CpuHandle handle) override;
 
         rhi::Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
 

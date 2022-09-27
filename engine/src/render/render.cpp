@@ -101,10 +101,10 @@ void Context::create() {
     // upload our data to the gpu
 
     const Vertex kVerts[] = {
-        { { -0.25f, -0.25f * aspectRatio, 0.25f }, { 1.f, 0.f, 0.f, 1.f } },
-        { { -0.25f, 0.25f * aspectRatio, 0.25f }, { 0.f, 1.f, 0.f, 1.f } },
-        { { 0.25f, -0.25f * aspectRatio, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-        { { 0.25f, 0.25f * aspectRatio, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
+        { { -0.25f, -0.25f, 0.25f }, { 1.f, 0.f, 0.f, 1.f } },
+        { { -0.25f, 0.25f, 0.25f }, { 0.f, 1.f, 0.f, 1.f } },
+        { { 0.25f, -0.25f, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
+        { { 0.25f, 0.25f, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
     };
 
     const uint32_t kIndices[] = {

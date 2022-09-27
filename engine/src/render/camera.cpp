@@ -22,13 +22,16 @@ Camera::Camera(float3 position, float3 direction, float fov)
     , fov(fov)
 { }
 
-void Camera::move(UNUSED float3 offset) {
+void Camera::move(float3 offset) {
+    float x = position.x - (std::cos(yaw) * offset.x) + (std::sin(yaw) * offset.y);
+    float y = position.y - (std::sin(yaw) * offset.x) - (std::cos(yaw) * offset.y);
 
+    position = float3::from(x, y, offset.z + position.z);
 }
 
-void Camera::rotate(float2 update) {
-    float newPitch = std::clamp(pitch + update.y, -kPitchLimit, kPitchLimit);
-    float newYaw = yaw - update.x;
+void Camera::rotate(float yawUpdate, float pitchUpdate) {
+    float newPitch = std::clamp(pitch + pitchUpdate, -kPitchLimit, kPitchLimit);
+    float newYaw = yaw - yawUpdate;
 
     float newRotation = std::cos(newPitch);
 

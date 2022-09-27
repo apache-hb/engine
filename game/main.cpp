@@ -41,8 +41,9 @@ int commonMain() {
     while (!window.shouldClose()) {
         auto input = input::poll();
         float delta = float(timer.tick());
+        auto [yaw, pitch] = input.rotation;
         camera.move(input.movement * delta);
-        camera.rotate(input.rotation * delta);
+        camera.rotate(yaw * delta, pitch * delta);
 
         render.begin(&camera);
 

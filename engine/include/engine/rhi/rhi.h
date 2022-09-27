@@ -24,7 +24,8 @@ namespace engine::rhi {
         enum Type : unsigned {
             eRenderTarget = (1 << 0),
             eTexture = (1 << 1),
-            eConstBuffer = (1 << 2)
+            eConstBuffer = (1 << 2),
+            eDepthStencil = (1 << 3)
         };
     }
 
@@ -174,8 +175,9 @@ namespace engine::rhi {
 
         virtual DescriptorSet *newDescriptorSet(size_t count, Object::Type type, bool shaderVisible) = 0;
 
-        virtual void createRenderTargetView(Buffer *buffer, CpuHandle rtvHandle) = 0;
-        virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle srvHandle) = 0;
+        virtual void createRenderTargetView(Buffer *buffer, CpuHandle handle) = 0;
+        virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle handle) = 0;
+        virtual void createDepthStencilView(Buffer *buffer, CpuHandle handle) = 0;
 
         virtual Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) = 0;
 

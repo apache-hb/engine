@@ -8,6 +8,7 @@ using namespace engine;
 namespace {
     constexpr UINT kLeftDeadzone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
     constexpr UINT kRightDeadzone = XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE;
+    constexpr float kTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
     math::float2 stickRatio(float x, float y, float deadzone) {
         float magnitude = sqrt((x * x) + (y * y));
@@ -18,6 +19,14 @@ namespace {
             return math::float2::of(0.f);
         }
     }
+
+    float triggerRatio(float it, float deadzone) {
+        if (it > deadzone) {
+            return it / 255.f;
+        }
+
+        return 0.f;
+    }
 }
 
 input::Input input::poll() {
@@ -26,8 +35,10 @@ input::Input input::poll() {
         return { };
     }
 
+    float vertical = triggerRatio(state.Gamepad.bLeftTrigger, kTriggerDeadzone) - triggerRatio(state.Gamepad.bRightTrigger, kTriggerDeadzone);
+
     return input::Input {
-        .movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone).vec3(0.f),
+        .movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone).vec3(vertical),
         .rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone)
     };
 }
