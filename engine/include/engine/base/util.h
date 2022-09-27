@@ -39,20 +39,21 @@ namespace engine {
             : data(new Type[size]) 
         {}
 
-        UniquePtr(Type *data = nullptr) : data(data) { }
+        UniquePtr(Type *data = nullptr) 
+            : data(data) 
+        { }
+        
         ~UniquePtr() {
             destroy();
         }
 
-        UniquePtr(UniquePtr &&other) : data(other.data) {
-            destroy();
-            other.data = nullptr;
-        }
+        UniquePtr(UniquePtr &&other) 
+            : data(other.claim()) 
+        { }
 
         UniquePtr &operator=(UniquePtr &&other) {
             destroy();
-            data = other.data;
-            other.data = nullptr;
+            data = other.claim();
         }
 
         UniquePtr(const UniquePtr&) = delete;
@@ -83,6 +84,12 @@ namespace engine {
             if (data != nullptr) {
                 Delete{}(data);
             }
+        }
+
+        Type *claim() {
+            Type *it = data;
+            data = nullptr;
+            return it;
         }
 
         Type *data;
