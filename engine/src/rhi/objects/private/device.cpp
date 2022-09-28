@@ -39,18 +39,6 @@ namespace {
         }
     }
 
-    constexpr D3D12_DESCRIPTOR_HEAP_TYPE getDescriptorHeapType(rhi::Object::Type type) {
-        if (type & (rhi::Object::eTexture | rhi::Object::eConstBuffer)) {
-            return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-        }
-
-        if (type & rhi::Object::eRenderTarget) {
-            return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        }
-
-        return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-    }
-
     constexpr D3D12_SHADER_VISIBILITY getShaderVisibility(rhi::ShaderVisibility visibility) {
         switch (visibility) {
         case rhi::ShaderVisibility::ePixel: return D3D12_SHADER_VISIBILITY_PIXEL;

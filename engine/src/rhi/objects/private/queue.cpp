@@ -14,6 +14,11 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
     auto [width, height] = window->size();
     HWND handle = window->handle();
 
+    BOOL tearing = false;
+    if (!SUCCEEDED(gFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(BOOL)))) {
+        tearing = false;
+    }
+
     const DXGI_SWAP_CHAIN_DESC1 kDesc {
         .Width = static_cast<UINT>(width),
         .Height = static_cast<UINT>(height),
@@ -24,7 +29,7 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = static_cast<UINT>(buffers),
         .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
-        .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING
+        .Flags = tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u
     };
 
     IDXGISwapChain1 *swapchain;
@@ -43,7 +48,7 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
     DX_CHECK(swapchain->QueryInterface(IID_PPV_ARGS(&swapchain3)));
     ASSERT(swapchain->Release() == 1);
 
-    return new DxSwapChain(swapchain3);
+    return new DxSwapChain(swapchain3, tearing);
 }
 
 void DxCommandQueue::signal(rhi::Fence *fence, size_t value) {

@@ -2,7 +2,7 @@
 
 #include <comdef.h>
 
-IDXGIFactory4 *engine::gFactory = nullptr;
+IDXGIFactory5 *engine::gFactory = nullptr;
 ID3D12Debug *engine::gDxDebug = nullptr;
 IDXGIDebug *engine::gDebug = nullptr;
 

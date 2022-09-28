@@ -7,7 +7,6 @@ namespace engine {
         DxDevice(ID3D12Device *device, D3D_ROOT_SIGNATURE_VERSION version);
         ~DxDevice() override;
 
-
         rhi::Fence *newFence() override;
         rhi::CommandQueue *newQueue(rhi::CommandList::Type type) override;
 

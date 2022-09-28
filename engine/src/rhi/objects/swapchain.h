@@ -4,7 +4,7 @@
 
 namespace engine {
     struct DxSwapChain final : rhi::SwapChain {
-        DxSwapChain(IDXGISwapChain3 *swapchain);
+        DxSwapChain(IDXGISwapChain3 *swapchain, bool tearing);
 
         void present() override;
 
@@ -14,5 +14,6 @@ namespace engine {
 
     private:
         UniqueComPtr<IDXGISwapChain3> swapchain;
+        UINT flags;
     };
 }

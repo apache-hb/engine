@@ -4,12 +4,13 @@
 
 using namespace engine;
 
-DxSwapChain::DxSwapChain(IDXGISwapChain3 *swapchain)
+DxSwapChain::DxSwapChain(IDXGISwapChain3 *swapchain, bool tearing)
     : swapchain(swapchain)
+    , flags(tearing ? DXGI_PRESENT_ALLOW_TEARING : 0)
 { }
 
 void DxSwapChain::present() {
-    DX_CHECK(swapchain->Present(0, 0));
+    DX_CHECK(swapchain->Present(0, flags));
 }
 
 rhi::Buffer *DxSwapChain::getBuffer(size_t index) {

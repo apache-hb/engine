@@ -27,7 +27,7 @@ namespace engine {
 
     std::string hrErrorString(HRESULT hr);
 
-    extern IDXGIFactory4 *gFactory;
+    extern IDXGIFactory5 *gFactory;
     extern ID3D12Debug *gDxDebug;
     extern IDXGIDebug *gDebug;
 
