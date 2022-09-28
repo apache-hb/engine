@@ -1,7 +1,9 @@
 #include "engine/base/window.h"
-#include "GLFW/glfw3.h"
 
-#include <fmt/printf.h>
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 using namespace engine;
 
@@ -10,6 +12,10 @@ namespace {
     auto instance = GetModuleHandleA(nullptr);
 
     LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+            return true;
+        }
+
         switch (msg) {
         case WM_CLOSE:
             DestroyWindow(hwnd);
@@ -48,9 +54,13 @@ Window::Window(int width, int height, const char *title) {
     );
 
     ShowWindow(hwnd, SW_SHOW);
+    UpdateWindow(hwnd);
+
+    ImGui_ImplWin32_Init(hwnd);
 }
 
 Window::~Window() {
+    ImGui_ImplWin32_Shutdown();
     DestroyWindow(hwnd);
     UnregisterClassA(kClassName, instance);
 }
@@ -67,10 +77,14 @@ HWND Window::handle() {
 
 bool Window::poll() {
     MSG msg { };
-    if (GetMessageA(&msg, nullptr, 0, 0) != 0) {
+    if (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
+        if (msg.message == WM_PAINT) { 
+            return running; 
+        } else if (msg.message == WM_QUIT) {
+            running = false;
+        }
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
-        return true;
     }
-    return false;
+    return running;
 }

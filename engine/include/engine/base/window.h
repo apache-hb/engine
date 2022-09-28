@@ -18,5 +18,6 @@ namespace engine {
 
     private:
         HWND hwnd;
+        bool running = true;
     };
 }

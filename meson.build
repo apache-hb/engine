@@ -24,7 +24,7 @@ imgui = subproject('imgui').get_variable('imgui')
 subdir('engine')
 
 executable('game', 'game/main.cpp',
-    dependencies : [ input, render ],
+    dependencies : [ input, render, glfw ],
     cpp_args : args,
     win_subsystem : 'console'
 )

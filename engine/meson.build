@@ -8,13 +8,13 @@ src = [
 
 libbase = library('base', src,
     cpp_args : args,
-    dependencies : [ fmt, glfw ],
+    dependencies : [ fmt, imgui ],
     include_directories : 'include'
 )
 
 base = declare_dependency(
     link_with : libbase,
-    dependencies : [ fmt, glfw ],
+    dependencies : [ fmt ],
     include_directories : 'include'
 )
 
@@ -55,14 +55,14 @@ src = [
 
 librhi = library('d3d12-rhi', src,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ base, d3d12 ],
+    dependencies : [ base, d3d12, imgui ],
     include_directories : [ 'include', 'src/rhi' ]
 )
 
 rhi = declare_dependency(
     link_with : librhi,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ base, d3d12 ],
+    dependencies : [ base, d3d12, imgui ],
     include_directories : 'include'
 )
 

@@ -6,9 +6,14 @@ namespace engine::render {
     using namespace math;
 
     struct Camera {
-        Camera(float3 position, float3 direction, float fov = 90.f);
+        virtual ~Camera() = default;
+        virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const = 0;
+    };
 
-        float4x4 mvp(const float4x4 &model, float aspectRatio) const;
+    struct Perspective : Camera {
+        Perspective(float3 position, float3 direction, float fov = 90.f);
+
+        virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
 
         void move(float3 offset);
         void rotate(float yawUpdate, float pitchUpdate);
@@ -19,6 +24,21 @@ namespace engine::render {
 
         float pitch;
         float yaw;
+
+        float fov;
+    };
+
+    struct LookAt : Camera {
+        LookAt(float3 position, float3 focus, float fov = 90.f);
+
+        virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
+
+        void setPosition(float3 update);
+        void setFocus(float3 update);
+
+    private:
+        float3 position;
+        float3 focus;
 
         float fov;
     };

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/base/panic.h"
+
 #include <cmath>
 
 namespace engine::math {
@@ -68,12 +70,28 @@ namespace engine::math {
             return from(it, it, it);
         }
 
-        static constexpr Vec3 cross(const Vec3& lhs, const Vec3& rhs) {
-            return from(lhs.y * rhs.z - lhs.z * rhs.y, lhs.z * rhs.x - lhs.x * rhs.z, lhs.x * rhs.y - lhs.y * rhs.x);
+        constexpr Vec3 operator-(const Vec3& it) const {
+            return from(x - it.x, y - it.y, z - it.z);
         }
 
-        static constexpr Vec3 dot(const Vec3& lhs, const Vec3& rhs) {
-            return from(lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z);
+        constexpr bool operator!=(const Vec3& it) const {
+            return x != it.x || y != it.y || z != it.z;
+        }
+
+        bool isinf() const {
+            return std::isinf(x) || std::isinf(y) || std::isinf(z);
+        }
+
+        static constexpr Vec3 cross(const Vec3& lhs, const Vec3& rhs) {
+            return from(
+                lhs.y * rhs.z - lhs.z * rhs.y, 
+                lhs.z * rhs.x - lhs.x * rhs.z, 
+                lhs.x * rhs.y - lhs.y * rhs.x
+            );
+        }
+
+        static constexpr T dot(const Vec3& lhs, const Vec3& rhs) {
+            return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
         }
 
         constexpr T length() const {
@@ -124,16 +142,6 @@ namespace engine::math {
             return from(x, y, z, w);
         }
 
-        static constexpr Vec4 dot(const Vec4& lhs, const Vec4& rhs) {
-            auto value = lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
-            return of(value);
-        }
-
-        static constexpr Vec4 cross(const Vec4& lhs, const Vec4& rhs) {
-            auto [x, y, z] = Vec3<T>::cross(lhs.vec3(), rhs.vec3());
-            return from(x, y, z, 0);
-        }
-
         constexpr T length() const {
             return std::sqrt(x * x + y * y + z * z + w * w);
         }
@@ -151,7 +159,7 @@ namespace engine::math {
             return Vec3<T>::from(x, y, z);
         }
 
-        constexpr T& at(size_t index) const { 
+        constexpr const T& at(size_t index) const { 
             return this->*components[index];
         }
 
@@ -182,10 +190,15 @@ namespace engine::math {
     template<typename T>
     struct Mat4x4 {
         using Row = Vec4<T>;
+        using Row3 = Vec3<T>;
         using RowSelect = typename Row::Select;
         Row rows[4];
 
-        constexpr Row at(size_t row) const {
+        constexpr const Row &at(size_t row) const {
+            return rows[row];
+        }
+
+        constexpr Row& operator[](size_t row) const {
             return rows[row];
         }
 
@@ -345,27 +358,37 @@ namespace engine::math {
             return from(row0, row1, row2, row3);
         }
 
-        static constexpr Mat4x4 lookToLH(const Row& eye, const Row& dir, const Row& up) {
+        static constexpr Mat4x4 lookToLH(const Row3& eye, const Row3& dir, const Row3& up) {
+            ASSERT(eye != Row3::of(0));
+            ASSERT(up != Row3::of(0));
+
+            ASSERT(!eye.isinf());
+            ASSERT(!up.isinf());
+
             auto r2 = dir.normal();
-            auto r0 = Row::cross(up, r2).normal();
-            auto r1 = Row::cross(r2, r0);
+            auto r0 = Row3::cross(up, r2).normal();
+            auto r1 = Row3::cross(r2, r0);
+
             auto negEye = eye.negate();
 
-            auto d0 = Row::dot(r0, negEye);
-            auto d1 = Row::dot(r1, negEye);
-            auto d2 = Row::dot(r2, negEye);
+            auto d0 = Row3::dot(r0, negEye);
+            auto d1 = Row3::dot(r1, negEye);
+            auto d2 = Row3::dot(r2, negEye);
 
-            auto control = RowSelect(Row::X | Row::Y | Row::Z);
-            auto s0 = Row::select(d0, r0, control);
-            auto s1 = Row::select(d1, r1, control);
-            auto s2 = Row::select(d2, r2, control);
+            auto s0 = r0.vec4(d0);
+            auto s1 = r1.vec4(d1);
+            auto s2 = r2.vec4(d2);
             auto s3 = Row::from(0, 0, 0, 1);
 
             return from(s0, s1, s2, s3).transpose();
         }
 
-        static constexpr Mat4x4 lookToRH(const Row& eye, const Row& dir, const Row& up) {
+        static constexpr Mat4x4 lookToRH(const Row3& eye, const Row3& dir, const Row3& up) {
             return lookToLH(eye, dir.negate(), up);
+        }
+
+        static constexpr Mat4x4 lookAtRH(const Row3& eye, const Row3& focus, const Row3& up) {
+            return lookToLH(eye, eye - focus, up);
         }
 
         static constexpr Mat4x4 perspectiveRH(T fov, T aspect, T nearLimit, T farLimit) {

@@ -7,20 +7,16 @@ src = [
     'imgui/imgui_widgets.cpp',
     'imgui/imgui.cpp',
     'imgui/backends/imgui_impl_dx12.cpp',
-    'imgui/backends/imgui_impl_glfw.cpp'
+    'imgui/backends/imgui_impl_win32.cpp'
 ]
 
 inc = [ '.', 'imgui', 'imgui/backends' ]
 
-glfw = dependency('glfw3', fallback : [ 'glfw', 'glfw' ])
-
 libimgui = library('imgui', src,
-    include_directories : inc,
-    dependencies : [ glfw ]
+    include_directories : inc
 )
 
 imgui = declare_dependency(
     link_with : libimgui,
-    include_directories : inc,
-    dependencies : [ glfw ]
+    include_directories : inc
 )

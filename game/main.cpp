@@ -11,6 +11,8 @@
 
 #include <glfw/glfw3.h>
 
+#include "imgui.h"
+
 using namespace engine;
 using namespace math;
 
@@ -24,6 +26,11 @@ int commonMain() {
     // setup glfw
     glfwInit();
 
+    // setup imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
     UniquePtr<Io> logFile { Io::open("game.log", Io::eWrite) };
     logging::IoChannel fileLogger {"general", logFile.get(), logging::eFatal};
     logging::ConsoleChannel consoleLogger { "general", logging::eDebug};
@@ -36,16 +43,16 @@ int commonMain() {
 
     Window window { mode->width, mode->height, "game" };
     render::Context render { { &window, &logger } };
-    render::Camera camera { float3::of(0.f), { 0.5f, 0.f, 0.f }, 110.f };
+    render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
 
     Timer timer;
+    float total = 0.f;
 
     while (window.poll()) {
-        auto input = input::poll();
-        float delta = float(timer.tick());
-        auto [yaw, pitch] = input.rotation;
-        camera.move(input.movement * delta);
-        camera.rotate(yaw * delta, pitch * delta);
+        UNUSED auto input = input::poll();
+        total += float(timer.tick());
+
+        camera.setPosition({ std::sin(total), std::cos(total), 1.f });
 
         render.begin(&camera);
 
