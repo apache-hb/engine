@@ -31,21 +31,6 @@ namespace engine {
     extern ID3D12Debug *gDxDebug;
     extern IDXGIDebug *gDebug;
 
-    constexpr D3D12_RESOURCE_STATES getResourceState(rhi::Buffer::State type) {
-        switch (type) {
-        case rhi::Buffer::State::eUpload: 
-            return D3D12_RESOURCE_STATE_GENERIC_READ;
-        case rhi::Buffer::State::eIndex: return D3D12_RESOURCE_STATE_INDEX_BUFFER;
-        case rhi::Buffer::State::eConstBuffer:
-        case rhi::Buffer::State::eVertex: 
-            return D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-        case rhi::Buffer::State::eCopyDst: return D3D12_RESOURCE_STATE_COPY_DEST;
-        case rhi::Buffer::State::eRenderTarget: return D3D12_RESOURCE_STATE_RENDER_TARGET;
-        case rhi::Buffer::State::ePresent: return D3D12_RESOURCE_STATE_PRESENT;
-        default: return D3D12_RESOURCE_STATES();
-        }
-    }
-
     constexpr DXGI_FORMAT getElementFormat(rhi::Format format) {
         switch (format) {
         case rhi::Format::uint32: return DXGI_FORMAT_R32_UINT;

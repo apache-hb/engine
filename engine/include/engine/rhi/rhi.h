@@ -71,16 +71,18 @@ namespace engine::rhi {
     };
 
     struct Buffer {
-        enum struct State {
-            eUpload,
-            eCopyDst,
+        enum State {
+            eUpload = D3D12_RESOURCE_STATE_GENERIC_READ,
+            eCopyDst = D3D12_RESOURCE_STATE_COPY_DEST,
 
-            eVertex,
-            eIndex,
-            eConstBuffer,
+            eVertex = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+            eConstBuffer = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+            ePixelShaderResource = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 
-            eRenderTarget,
-            ePresent
+            eIndex = D3D12_RESOURCE_STATE_INDEX_BUFFER,
+
+            eRenderTarget = D3D12_RESOURCE_STATE_RENDER_TARGET,
+            ePresent = D3D12_RESOURCE_STATE_PRESENT
         };
 
         virtual void write(const void *src, size_t size) = 0;
@@ -180,8 +182,8 @@ namespace engine::rhi {
     struct Device {
         virtual Fence *newFence() = 0;
         virtual CommandQueue *newQueue(CommandList::Type type) = 0;
-        virtual CommandList *newCommandList(rhi::Allocator *allocator, CommandList::Type type) = 0;
-        virtual Allocator *newAllocator(rhi::CommandList::Type type) = 0;
+        virtual CommandList *newCommandList(Allocator *allocator, CommandList::Type type) = 0;
+        virtual Allocator *newAllocator(CommandList::Type type) = 0;
 
         virtual DescriptorSet *newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 
@@ -189,7 +191,8 @@ namespace engine::rhi {
         virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle handle) = 0;
         virtual void createDepthStencilView(Buffer *buffer, CpuHandle handle) = 0;
 
-        virtual Buffer *newBuffer(size_t size, DescriptorSet::Visibility visibility, rhi::Buffer::State state) = 0;
+        virtual Buffer *newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
+        virtual Buffer *newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
 
         virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
 

@@ -79,7 +79,7 @@ void DxCommandList::copyBuffer(rhi::Buffer *dst, rhi::Buffer *src, size_t size) 
 void DxCommandList::transition(rhi::Buffer *buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
     auto *resource = static_cast<DxBuffer*>(buffer);
     
-    transitionBarrier(resource->get(), getResourceState(before), getResourceState(after));
+    transitionBarrier(resource->get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
 }
 
 void DxCommandList::bindDescriptors(std::span<rhi::DescriptorSet*> sets) {

@@ -9,6 +9,7 @@ namespace {
         enum Slot : unsigned {
             eCamera,
             eImgui,
+            eTexture,
             eTotal
         };
     }
@@ -76,7 +77,7 @@ void Context::create() {
 
     auto input = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3 },
-        { "COLOUR", rhi::Format::float32x4 }
+        { "TEXCOORD", rhi::Format::float32x2 }
     });
 
     auto ps = loadShader("resources/shaders/post-shader.ps.pso");
@@ -98,7 +99,8 @@ void Context::create() {
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
     auto bindings = std::to_array<rhi::Binding>({
-        rhi::Binding { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute } // register(b0, space0)
+        rhi::Binding { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }, // register(b0, space0)
+        rhi::Binding { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic } // register(t0, space0)
     });
 
     pipeline = device->newPipelineState({
@@ -112,10 +114,10 @@ void Context::create() {
     // upload our data to the gpu
 
     const Vertex kVerts[] = {
-        { { -1.f, -1.f, 0.0f }, { 1.f, 0.f, 0.f, 1.f } },
-        { { -1.f, 1.f, 0.0f }, { 0.f, 1.f, 0.f, 1.f } },
-        { { 1.f, -1.f, 0.f }, { 0.f, 0.f, 1.f, 1.f } },
-        { { 1.f, 1.f, 0.f }, { 1.f, 1.f, 0.f, 1.f } }
+        { { -1.f, -1.f, 0.0f }, { 0.f, 1.f } }, // bottom left
+        { { -1.f, 1.f, 0.0f }, { 0.f, 0.f } }, // top left
+        { { 1.f, -1.f, 0.f }, { 1.f, 1.f } }, // bottom right
+        { { 1.f, 1.f, 0.f }, { 1.f, 0.f } } // top right
     };
 
     const uint32_t kIndices[] = {

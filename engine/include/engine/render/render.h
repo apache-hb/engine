@@ -14,7 +14,7 @@ namespace engine::render {
 
     struct Vertex {
         math::float3 pos;
-        math::float4 colour;
+        math::float2 uv;
     };
 
     struct alignas(256) ConstBuffer {

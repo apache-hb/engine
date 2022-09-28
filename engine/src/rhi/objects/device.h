@@ -20,6 +20,7 @@ namespace engine {
         void createDepthStencilView(rhi::Buffer *buffer, rhi::CpuHandle handle) override;
 
         rhi::Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
+        rhi::Buffer *newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
 
         rhi::PipelineState *newPipelineState(const rhi::PipelineBinding& bindings) override;
 

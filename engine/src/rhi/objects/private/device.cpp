@@ -82,7 +82,7 @@ namespace {
         return D3D12_SHADER_BYTECODE {bytecode.data(), bytecode.size()};
     }
 
-    constexpr D3D12_STATIC_SAMPLER_DESC createSampler(rhi::Sampler sampler) {
+    constexpr D3D12_STATIC_SAMPLER_DESC createSampler(rhi::Sampler sampler, size_t index) {
         return D3D12_STATIC_SAMPLER_DESC {
             .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
             .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
@@ -92,7 +92,7 @@ namespace {
             .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
             .MinLOD = 0.0f,
             .MaxLOD = D3D12_FLOAT32_MAX,
-            .ShaderRegister = 0,
+            .ShaderRegister = UINT(index),
             .RegisterSpace = 0,
             .ShaderVisibility = getShaderVisibility(sampler.visibility)
         };
@@ -106,7 +106,7 @@ namespace {
         std::vector<D3D12_STATIC_SAMPLER_DESC> it(samplers.size());
 
         for (size_t i = 0; i < samplers.size(); i++) {
-            it[i] = createSampler(samplers[i]);
+            it[i] = createSampler(samplers[i], i);
         }
 
         return it;
@@ -137,12 +137,12 @@ namespace {
     }
 
     UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
+        // TODO: make this configurable
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
             D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
-            D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+            D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 
         auto samplerData = createSamplers(samplers);
 
@@ -253,8 +253,8 @@ rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility vis
     DX_CHECK(device->CreateCommittedResource(
         getHeapProps(visibility), 
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
-        &kBufferSize, 
-        getResourceState(state), 
+        &kBufferSize,
+        D3D12_RESOURCE_STATES(state), 
         nullptr, 
         IID_PPV_ARGS(&resource)
     ));
@@ -262,32 +262,35 @@ rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility vis
     return new DxBuffer(resource);
 }
 
-#if 0
-rhi::Buffer *DxDevice::newDepthStencil(math::Resolution<size_t> size) {
-    const auto kTex = CD3DX12_RESOURCE_DESC::Tex2D(
-        /* format = */ kDepthFormat,
-        /* width = */ size.width,
-        /* height = */ size.height,
-        /* arraySize = */ 1,
-        /* mipLevels = */ 0,
-        /* sampleCount = */ 1,
-        /* sampleQuality = */ 0,
-        /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
-    );
+rhi::Buffer *DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+    const D3D12_RESOURCE_DESC kTextureDesc {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D,
+        .Alignment = 0,
+        .Width = UINT(size.width),
+        .Height = UINT(size.height),
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc = {
+            .Count = 1,
+            .Quality = 0
+        },
+        .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        .Flags = D3D12_RESOURCE_FLAG_NONE
+    };
 
     ID3D12Resource *resource;
     DX_CHECK(device->CreateCommittedResource(
-        &kDefaultProps, 
+        getHeapProps(visibility), 
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
-        &kTex,
-        D3D12_RESOURCE_STATE_DEPTH_WRITE, 
+        &kTextureDesc, 
+        D3D12_RESOURCE_STATES(state), 
         nullptr, 
         IID_PPV_ARGS(&resource)
     ));
 
     return new DxBuffer(resource);
 }
-#endif
 
 rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindings) {
     const auto vs = createShader(bindings.vs);
