@@ -1,6 +1,5 @@
 #include "objects/commands.h"
 
-#include "objects/allocator.h"
 #include "objects/buffer.h"
 #include "objects/pipeline.h"
 #include "objects/descriptors.h"
@@ -29,11 +28,10 @@ DxCommandList::DxCommandList(ID3D12GraphicsCommandList *commands)
     : commands(commands)
 { }
 
-void DxCommandList::beginRecording(rhi::Allocator *allocator) {
-    auto *alloc = static_cast<DxAllocator*>(allocator);
-    alloc->reset();
+void DxCommandList::beginRecording(rhi::Allocator &allocator) {
+    allocator.reset();
 
-    DX_CHECK(commands->Reset(alloc->get(), nullptr));
+    DX_CHECK(commands->Reset(allocator.get(), nullptr));
 }
 
 void DxCommandList::endRecording() {

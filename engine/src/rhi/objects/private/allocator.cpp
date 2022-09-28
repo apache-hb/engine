@@ -1,15 +1,9 @@
-#include "objects/allocator.h"
+#include "engine/rhi/rhi.h"
+
+#include "objects/common.h"
 
 using namespace engine;
 
-DxAllocator::DxAllocator(ID3D12CommandAllocator *allocator)
-    : allocator(allocator)
-{ }
-
-void DxAllocator::reset() {
-    DX_CHECK(allocator->Reset());
-}
-
-ID3D12CommandAllocator *DxAllocator::get() { 
-    return allocator.get(); 
+void rhi::Allocator::reset() {
+    DX_CHECK(Super::get()->Reset());
 }

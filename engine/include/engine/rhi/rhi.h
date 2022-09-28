@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/base/window.h"
+#include "engine/base/util.h"
 
 #include <span>
 #include <string_view>
@@ -8,6 +9,24 @@
 #include "dx/d3dx12.h"
 
 namespace engine::rhi {
+template<typename T>
+    concept IsComObject = std::is_base_of_v<IUnknown, T>;
+    
+    template<IsComObject T>
+    struct ComDeleter {
+        void operator()(T *ptr) {
+            ptr->Release();
+        }
+    };
+
+    template<IsComObject T>
+    using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
+
+    template<IsComObject T>
+    struct RawCom {
+        T *self;
+    };
+
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
 
@@ -29,8 +48,11 @@ namespace engine::rhi {
         };
     }
 
-    struct Allocator {
-        virtual ~Allocator() = default;
+    struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
+        using Super = UniqueComPtr<ID3D12CommandAllocator>;
+        using Super::Super;
+
+        void reset();
     };
     
     struct InputElement {
@@ -139,7 +161,7 @@ namespace engine::rhi {
             eCopy = D3D12_COMMAND_LIST_TYPE_COPY
         };
 
-        virtual void beginRecording(Allocator *allocator) = 0;
+        virtual void beginRecording(Allocator &allocator) = 0;
         virtual void endRecording() = 0;
 
         virtual void setRenderTarget(CpuHandle target, const math::float4 &colour) = 0;
@@ -180,8 +202,8 @@ namespace engine::rhi {
     struct Device {
         virtual Fence *newFence() = 0;
         virtual CommandQueue *newQueue(CommandList::Type type) = 0;
-        virtual CommandList *newCommandList(Allocator *allocator, CommandList::Type type) = 0;
-        virtual Allocator *newAllocator(CommandList::Type type) = 0;
+        virtual CommandList *newCommandList(Allocator &allocator, CommandList::Type type) = 0;
+        virtual Allocator newAllocator(CommandList::Type type) = 0;
 
         virtual DescriptorSet *newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 
