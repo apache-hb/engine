@@ -29,6 +29,9 @@ int commonMain() {
     // setup imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
     ImGui::StyleColorsDark();
 
     UniquePtr<Io> logFile { Io::open("game.log", Io::eWrite) };
@@ -55,6 +58,12 @@ int commonMain() {
         camera.setPosition({ std::sin(total), std::cos(total), 1.f });
 
         render.begin(&camera);
+        window.imguiNewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
 
         render.end();
     }

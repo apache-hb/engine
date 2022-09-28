@@ -16,6 +16,8 @@ namespace engine {
 
         bool poll();
 
+        void imguiNewFrame();
+
     private:
         HWND hwnd;
         bool running = true;

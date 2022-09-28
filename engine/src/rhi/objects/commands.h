@@ -21,6 +21,8 @@ namespace engine {
         void setPipeline(rhi::PipelineState *pipeline) override;
 
         void drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) override;
+
+        void imguiRender() override;
         ID3D12GraphicsCommandList *get();
 
     private:

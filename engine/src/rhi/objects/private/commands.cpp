@@ -5,6 +5,9 @@
 #include "objects/pipeline.h"
 #include "objects/descriptors.h"
 
+#include "imgui.h"
+#include "imgui_impl_dx12.h"
+
 using namespace engine;
 
 namespace {
@@ -127,4 +130,8 @@ void DxCommandList::transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_S
     const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
 
     commands->ResourceBarrier(1, &kBarrier);
+}
+
+void DxCommandList::imguiRender() {
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), get());
 }

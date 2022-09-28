@@ -8,6 +8,8 @@
 #include "objects/descriptors.h"
 #include "objects/pipeline.h"
 
+#include "imgui_impl_dx12.h"
+
 using namespace engine;
 
 namespace {
@@ -46,7 +48,7 @@ namespace {
             return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
         }
 
-        return D3D12_DESCRIPTOR_HEAP_TYPE();
+        return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
     }
 
     constexpr D3D12_SHADER_VISIBILITY getShaderVisibility(rhi::ShaderVisibility visibility) {
@@ -178,6 +180,10 @@ DxDevice::DxDevice(ID3D12Device *device, D3D_ROOT_SIGNATURE_VERSION version)
     , kHighestVersion(version)
 { }
 
+DxDevice::~DxDevice() {
+    ImGui_ImplDX12_Shutdown();
+}
+
 rhi::Fence *DxDevice::newFence() {
     HANDLE event = CreateEvent(nullptr, false, false, nullptr);
     ASSERT(event != nullptr);
@@ -216,8 +222,8 @@ rhi::Allocator *DxDevice::newAllocator(rhi::CommandList::Type type) {
     return new DxAllocator(allocator);
 }
 
-rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::Object::Type type, bool shaderVisible) {
-    const auto kHeapType = getDescriptorHeapType(type);
+rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {
+    const auto kHeapType = D3D12_DESCRIPTOR_HEAP_TYPE(type);
     const D3D12_DESCRIPTOR_HEAP_DESC kRtvHeapDesc {
         .Type = kHeapType,
         .NumDescriptors = UINT(count),
@@ -343,4 +349,17 @@ ID3D12PipelineState *DxDevice::createPipelineState(ID3D12RootSignature *root, D3
     ID3D12PipelineState *pipeline;
     DX_CHECK(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline)));
     return pipeline;
+}
+
+
+void DxDevice::imguiInit(size_t frames, rhi::DescriptorSet *heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
+    auto *it = static_cast<DxDescriptorSet*>(heap);
+    const D3D12_CPU_DESCRIPTOR_HANDLE kCpuHandle { size_t(cpuHandle) };
+    const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(gpuHandle) };
+
+    ImGui_ImplDX12_Init(device.get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, it->get(), kCpuHandle, kGpuHandle);
+}
+
+void DxDevice::imguiNewFrame() {
+    ImGui_ImplDX12_NewFrame();
 }

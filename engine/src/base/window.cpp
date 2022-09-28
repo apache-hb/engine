@@ -75,6 +75,10 @@ HWND Window::handle() {
     return hwnd;
 }
 
+void Window::imguiNewFrame() {
+    ImGui_ImplWin32_NewFrame();
+}
+
 bool Window::poll() {
     MSG msg { };
     if (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {

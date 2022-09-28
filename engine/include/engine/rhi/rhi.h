@@ -5,6 +5,8 @@
 #include <span>
 #include <string_view>
 
+#include "dx/d3d12.h"
+
 namespace engine::rhi {
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
@@ -110,6 +112,12 @@ namespace engine::rhi {
     };
     
     struct DescriptorSet {
+        enum struct Type {
+            eConstBuffer = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            eRenderTarget = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+            eDepthStencil = D3D12_DESCRIPTOR_HEAP_TYPE_DSV
+        };
+
         enum struct Visibility {
             eHostVisible,
             eDeviceOnly
@@ -147,6 +155,8 @@ namespace engine::rhi {
 
         virtual void transition(Buffer *buffer, Buffer::State before, Buffer::State after) = 0;
 
+        virtual void imguiRender() = 0;
+
         virtual ~CommandList() = default;
     };
     
@@ -173,15 +183,18 @@ namespace engine::rhi {
         virtual CommandList *newCommandList(rhi::Allocator *allocator, CommandList::Type type) = 0;
         virtual Allocator *newAllocator(rhi::CommandList::Type type) = 0;
 
-        virtual DescriptorSet *newDescriptorSet(size_t count, Object::Type type, bool shaderVisible) = 0;
+        virtual DescriptorSet *newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 
         virtual void createRenderTargetView(Buffer *buffer, CpuHandle handle) = 0;
         virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle handle) = 0;
         virtual void createDepthStencilView(Buffer *buffer, CpuHandle handle) = 0;
 
-        virtual Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) = 0;
+        virtual Buffer *newBuffer(size_t size, DescriptorSet::Visibility visibility, rhi::Buffer::State state) = 0;
 
         virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
+
+        virtual void imguiInit(size_t frames, DescriptorSet *heap, CpuHandle cpuHandle, GpuHandle gpuHandle) = 0;
+        virtual void imguiNewFrame() = 0;
 
         virtual ~Device() = default;
     };

@@ -5,6 +5,14 @@ using namespace engine;
 using namespace engine::render;
 
 namespace {
+    namespace Slots {
+        enum Slot : unsigned {
+            eCamera,
+            eImgui,
+            eTotal
+        };
+    }
+
     using BufferState = rhi::Buffer::State;
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
 
@@ -48,7 +56,7 @@ void Context::create() {
     swapchain = directQueue->newSwapChain(info.window, kFrameCount);
     frameIndex = swapchain->currentBackBuffer();
 
-    renderTargetSet = device->newDescriptorSet(kFrameCount, rhi::Object::eRenderTarget, false);
+    renderTargetSet = device->newDescriptorSet(kFrameCount, rhi::DescriptorSet::Type::eRenderTarget, false);
     for (size_t i = 0; i < kFrameCount; i++) {
         rhi::Buffer *target = swapchain->getBuffer(i);
         device->createRenderTargetView(target, renderTargetSet->cpuHandle(i));
@@ -78,11 +86,14 @@ void Context::create() {
         { rhi::ShaderVisibility::ePixel }
     });
 
+    constBufferSet = device->newDescriptorSet(Slots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
+
+    device->imguiInit(kFrameCount, constBufferSet, constBufferSet->cpuHandle(Slots::eImgui), constBufferSet->gpuHandle(Slots::eImgui));
+
     // const buffer binding data
 
-    constBufferSet = device->newDescriptorSet(1, rhi::Object::eConstBuffer, true);
     constBuffer = device->newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet->cpuHandle(0));
+    device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet->cpuHandle(Slots::eCamera));
     constBufferPtr = constBuffer->map();
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
@@ -169,6 +180,8 @@ void Context::begin(Camera *camera) {
 
     const rhi::CpuHandle rtvHandle = renderTargetSet->cpuHandle(frameIndex);
 
+    device->imguiNewFrame();
+
     directCommands->beginRecording(allocators[frameIndex]);
 
     directCommands->transition(renderTargets[frameIndex], rhi::Buffer::State::ePresent, rhi::Buffer::State::eRenderTarget);
@@ -186,6 +199,7 @@ void Context::begin(Camera *camera) {
 }
 
 void Context::end() {
+    directCommands->imguiRender();
     directCommands->transition(renderTargets[frameIndex], BufferState::eRenderTarget, BufferState::ePresent);
 
     directCommands->endRecording();
