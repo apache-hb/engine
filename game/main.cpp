@@ -9,6 +9,8 @@
 
 #include "engine/render/render.h"
 
+#include <glfw/glfw3.h>
+
 using namespace engine;
 using namespace math;
 
@@ -38,7 +40,7 @@ int commonMain() {
 
     Timer timer;
 
-    while (!window.shouldClose()) {
+    while (window.poll()) {
         auto input = input::poll();
         float delta = float(timer.tick());
         auto [yaw, pitch] = input.rotation;
@@ -48,7 +50,6 @@ int commonMain() {
         render.begin(&camera);
 
         render.end();
-        glfwPollEvents();
     }
 
     glfwTerminate();

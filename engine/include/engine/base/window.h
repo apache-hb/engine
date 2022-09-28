@@ -1,20 +1,22 @@
 #pragma once
 
 #include "engine/math/math.h"
-
-#define GLFW_EXPOSE_NATIVE_WIN32 1
-#include <glfw/glfw3.h>
-#include <GLFW/glfw3native.h>
+#include "engine/base/win32.h"
 
 namespace engine {
     struct Window {
         Window(int width, int height, const char *title);
+        ~Window();
 
-        math::Resolution<int> size();
+        Window(const Window&) = delete;
+        Window(Window&&) = delete;
+
+        math::Resolution<int> size() const;
         HWND handle();
 
-        bool shouldClose();
+        bool poll();
 
-        GLFWwindow *window;
+    private:
+        HWND hwnd;
     };
 }

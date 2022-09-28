@@ -7,3 +7,9 @@
 [submodule "subprojects/imgui/imgui"]
 	path = subprojects/imgui/imgui
 	url = https://github.com/ocornut/imgui
+[submodule "subprojects/fastgltf/fastgltf"]
+	path = subprojects/fastgltf/fastgltf
+	url = https://github.com/spnda/fastgltf
+[submodule "subprojects/simdjson/simdjson"]
+	path = subprojects/simdjson/simdjson
+	url = https://github.com/simdjson/simdjson
