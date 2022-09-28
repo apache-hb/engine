@@ -5,7 +5,7 @@
 #include <span>
 #include <string_view>
 
-#include "dx/d3d12.h"
+#include "dx/d3dx12.h"
 
 namespace engine::rhi {
     enum struct CpuHandle : std::size_t {};
@@ -24,10 +24,8 @@ namespace engine::rhi {
 
     namespace Object {
         enum Type : unsigned {
-            eRenderTarget = (1 << 0),
-            eTexture = (1 << 1),
-            eConstBuffer = (1 << 2),
-            eDepthStencil = (1 << 3)
+            eTexture = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+            eConstBuffer = D3D12_DESCRIPTOR_RANGE_TYPE_CBV
         };
     }
 
@@ -41,13 +39,13 @@ namespace engine::rhi {
     };
 
     enum struct ShaderVisibility {
-        ePixel,
-        eVertex
+        ePixel = D3D12_SHADER_VISIBILITY_PIXEL,
+        eVertex = D3D12_SHADER_VISIBILITY_VERTEX
     };
 
     enum struct BindingMutability {
-        eAlwaysStatic,
-        eStaticAtExecute,
+        eAlwaysStatic = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC,
+        eStaticAtExecute = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
     };
     
     struct Sampler {
@@ -136,9 +134,9 @@ namespace engine::rhi {
     };
 
     struct CommandList {
-        enum Type {
-            eDirect,
-            eCopy
+        enum struct Type {
+            eDirect = D3D12_COMMAND_LIST_TYPE_DIRECT,
+            eCopy = D3D12_COMMAND_LIST_TYPE_COPY
         };
 
         virtual void beginRecording(Allocator *allocator) = 0;

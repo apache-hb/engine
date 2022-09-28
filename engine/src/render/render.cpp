@@ -53,7 +53,7 @@ void Context::create() {
     device = rhi::getDevice();
 
     // create our swapchain and backbuffer resources
-    directQueue = device->newQueue(rhi::CommandList::eDirect);
+    directQueue = device->newQueue(rhi::CommandList::Type::eDirect);
     swapchain = directQueue->newSwapChain(info.window, kFrameCount);
     frameIndex = swapchain->currentBackBuffer();
 
@@ -63,15 +63,15 @@ void Context::create() {
         device->createRenderTargetView(target, renderTargetSet->cpuHandle(i));
 
         renderTargets[i] = target;
-        allocators[i] = device->newAllocator(rhi::CommandList::eDirect);
+        allocators[i] = device->newAllocator(rhi::CommandList::Type::eDirect);
     }
 
-    directCommands = device->newCommandList(allocators[frameIndex], rhi::CommandList::eDirect);
+    directCommands = device->newCommandList(allocators[frameIndex], rhi::CommandList::Type::eDirect);
 
     // create copy queue resources
-    copyAllocator = device->newAllocator(rhi::CommandList::eCopy);
-    copyQueue = device->newQueue(rhi::CommandList::eCopy);
-    copyCommands = device->newCommandList(copyAllocator, rhi::CommandList::eCopy);
+    copyAllocator = device->newAllocator(rhi::CommandList::Type::eCopy);
+    copyQueue = device->newQueue(rhi::CommandList::Type::eCopy);
+    copyCommands = device->newCommandList(copyAllocator, rhi::CommandList::Type::eCopy);
 
     fence = device->newFence();
 

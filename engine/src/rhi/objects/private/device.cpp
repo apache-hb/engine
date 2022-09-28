@@ -23,46 +23,11 @@ namespace {
         .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D
     };
 
-    constexpr D3D12_COMMAND_LIST_TYPE getCommandListType(rhi::CommandList::Type type) {
-        switch (type) {
-        case rhi::CommandList::eCopy: return D3D12_COMMAND_LIST_TYPE_COPY;
-        case rhi::CommandList::eDirect: return D3D12_COMMAND_LIST_TYPE_DIRECT;
-        default: return D3D12_COMMAND_LIST_TYPE();
-        }
-    }
-
     constexpr const D3D12_HEAP_PROPERTIES *getHeapProps(rhi::DescriptorSet::Visibility visibility) {
         switch (visibility) {
         case rhi::DescriptorSet::Visibility::eDeviceOnly: return &kDefaultProps;
         case rhi::DescriptorSet::Visibility::eHostVisible: return &kUploadProps;
         default: return nullptr;
-        }
-    }
-
-    constexpr D3D12_SHADER_VISIBILITY getShaderVisibility(rhi::ShaderVisibility visibility) {
-        switch (visibility) {
-        case rhi::ShaderVisibility::ePixel: return D3D12_SHADER_VISIBILITY_PIXEL;
-        case rhi::ShaderVisibility::eVertex: return D3D12_SHADER_VISIBILITY_VERTEX;
-
-        default: return D3D12_SHADER_VISIBILITY();
-        }
-    }
-
-    constexpr D3D12_DESCRIPTOR_RANGE_TYPE getRangeType(rhi::Object::Type type) {
-        switch (type) {
-        case rhi::Object::eTexture: return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-        case rhi::Object::eConstBuffer: return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-
-        default: return D3D12_DESCRIPTOR_RANGE_TYPE();
-        }
-    }
-
-    constexpr D3D12_DESCRIPTOR_RANGE_FLAGS getDescriptorFlags(rhi::BindingMutability mut) {
-        switch (mut) {
-        case rhi::BindingMutability::eAlwaysStatic: return D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
-        case rhi::BindingMutability::eStaticAtExecute: return D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE;
-        
-        default: return D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
         }
     }
 
@@ -94,7 +59,7 @@ namespace {
             .MaxLOD = D3D12_FLOAT32_MAX,
             .ShaderRegister = UINT(index),
             .RegisterSpace = 0,
-            .ShaderVisibility = getShaderVisibility(sampler.visibility)
+            .ShaderVisibility = D3D12_SHADER_VISIBILITY(sampler.visibility)
         };
     }
 
@@ -114,11 +79,11 @@ namespace {
 
     constexpr D3D12_DESCRIPTOR_RANGE1 createRange(rhi::Binding binding) {
         return D3D12_DESCRIPTOR_RANGE1 {
-            .RangeType = getRangeType(binding.type),
+            .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE(binding.type),
             .NumDescriptors = 1,
             .BaseShaderRegister = UINT(binding.base),
             .RegisterSpace = 0,
-            .Flags = getDescriptorFlags(binding.mutability),
+            .Flags = D3D12_DESCRIPTOR_RANGE_FLAGS(binding.mutability),
             .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
         };
     }
@@ -184,7 +149,7 @@ rhi::Fence *DxDevice::newFence() {
 
 rhi::CommandQueue *DxDevice::newQueue(rhi::CommandList::Type type) {
     const D3D12_COMMAND_QUEUE_DESC kDesc = {
-        .Type = getCommandListType(type)
+        .Type = D3D12_COMMAND_LIST_TYPE(type)
     };
 
     ID3D12CommandQueue *queue;
@@ -197,7 +162,7 @@ rhi::CommandList *DxDevice::newCommandList(rhi::Allocator *allocator, rhi::Comma
     auto *alloc = static_cast<DxAllocator*>(allocator);
 
     ID3D12GraphicsCommandList *commands;
-    DX_CHECK(device->CreateCommandList(0, getCommandListType(type), alloc->get(), nullptr, IID_PPV_ARGS(&commands)));
+    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), alloc->get(), nullptr, IID_PPV_ARGS(&commands)));
     DX_CHECK(commands->Close());
 
     return new DxCommandList(commands);
@@ -205,7 +170,7 @@ rhi::CommandList *DxDevice::newCommandList(rhi::Allocator *allocator, rhi::Comma
 
 rhi::Allocator *DxDevice::newAllocator(rhi::CommandList::Type type) {
     ID3D12CommandAllocator *allocator;
-    DX_CHECK(device->CreateCommandAllocator(getCommandListType(type), IID_PPV_ARGS(&allocator)));
+    DX_CHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
 
     return new DxAllocator(allocator);
 }
