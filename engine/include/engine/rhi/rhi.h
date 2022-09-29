@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/base/window.h"
+#include "engine/base/util.h"
 
 #include <span>
 #include <string_view>
@@ -8,6 +9,19 @@
 #include "dx/d3dx12.h"
 
 namespace engine::rhi {
+    template<typename T>
+    concept IsComObject = std::is_base_of_v<IUnknown, T>;
+    
+    template<IsComObject T>
+    struct ComDeleter {
+        void operator()(T *ptr) {
+            ptr->Release();
+        }
+    };
+
+    template<IsComObject T>
+    using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
+
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
 
@@ -29,8 +43,11 @@ namespace engine::rhi {
         };
     }
 
-    struct Allocator {
-        virtual ~Allocator() = default;
+    struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
+        using Super = UniqueComPtr<ID3D12CommandAllocator>;
+        using Super::Super;
+
+        void reset();
     };
     
     struct InputElement {

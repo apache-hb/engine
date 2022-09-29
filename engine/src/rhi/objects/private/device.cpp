@@ -1,7 +1,6 @@
 #include "objects/device.h"
 
 #include "objects/fence.h"
-#include "objects/allocator.h"
 #include "objects/buffer.h"
 #include "objects/commands.h"
 #include "objects/queue.h"
@@ -101,7 +100,7 @@ namespace {
         return ranges;
     }
 
-    UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
+    rhi::UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::Binding> bindings) {
         // TODO: make this configurable
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -119,8 +118,8 @@ namespace {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(1, &param, UINT(samplerData.size()), samplerData.data(), kFlags);
 
-        UniqueComPtr<ID3DBlob> signature;
-        UniqueComPtr<ID3DBlob> error;
+        rhi::UniqueComPtr<ID3DBlob> signature;
+        rhi::UniqueComPtr<ID3DBlob> error;
 
         HRESULT err = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
         ASSERTF(SUCCEEDED(err), "failed to serialize root signature: {}", std::string((char*)error->GetBufferPointer(), error->GetBufferSize()));
@@ -159,10 +158,8 @@ rhi::CommandQueue *DxDevice::newQueue(rhi::CommandList::Type type) {
 }
 
 rhi::CommandList *DxDevice::newCommandList(rhi::Allocator *allocator, rhi::CommandList::Type type) {
-    auto *alloc = static_cast<DxAllocator*>(allocator);
-
     ID3D12GraphicsCommandList *commands;
-    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), alloc->get(), nullptr, IID_PPV_ARGS(&commands)));
+    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator->get(), nullptr, IID_PPV_ARGS(&commands)));
     DX_CHECK(commands->Close());
 
     return new DxCommandList(commands);
@@ -172,7 +169,7 @@ rhi::Allocator *DxDevice::newAllocator(rhi::CommandList::Type type) {
     ID3D12CommandAllocator *allocator;
     DX_CHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
 
-    return new DxAllocator(allocator);
+    return new rhi::Allocator(allocator);
 }
 
 rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {

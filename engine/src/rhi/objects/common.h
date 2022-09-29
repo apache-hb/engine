@@ -1,7 +1,6 @@
 #pragma once
 
 #include "engine/base/panic.h"
-#include "engine/base/util.h"
 #include "engine/rhi/rhi.h"
 
 #include <type_traits>
@@ -12,19 +11,6 @@
 #include <dxgidebug.h>
 
 namespace engine {
-    template<typename T>
-    concept IsComObject = std::is_base_of_v<IUnknown, T>;
-    
-    template<IsComObject T>
-    struct ComDeleter {
-        void operator()(T *ptr) {
-            ptr->Release();
-        }
-    };
-
-    template<IsComObject T>
-    using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
-
     std::string hrErrorString(HRESULT hr);
 
     extern IDXGIFactory5 *gFactory;

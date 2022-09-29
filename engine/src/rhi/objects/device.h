@@ -32,7 +32,7 @@ namespace engine {
 
         ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input);
 
-        UniqueComPtr<ID3D12Device> device;
+        rhi::UniqueComPtr<ID3D12Device> device;
         const D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };
 }

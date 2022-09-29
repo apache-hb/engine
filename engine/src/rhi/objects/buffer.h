@@ -15,6 +15,6 @@ namespace engine {
 
         ID3D12Resource *get();
     private:
-        UniqueComPtr<ID3D12Resource> resource;
+        rhi::UniqueComPtr<ID3D12Resource> resource;
     };
 }

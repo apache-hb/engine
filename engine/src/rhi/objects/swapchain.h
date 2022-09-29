@@ -13,7 +13,7 @@ namespace engine {
         size_t currentBackBuffer() override;
 
     private:
-        UniqueComPtr<IDXGISwapChain3> swapchain;
+        rhi::UniqueComPtr<IDXGISwapChain3> swapchain;
         UINT flags;
     };
 }

@@ -9,7 +9,7 @@ namespace engine {
         ID3D12RootSignature *getSignature();
         ID3D12PipelineState *getPipelineState();
     private:
-        UniqueComPtr<ID3D12RootSignature> signature;
-        UniqueComPtr<ID3D12PipelineState> pipeline;
+        rhi::UniqueComPtr<ID3D12RootSignature> signature;
+        rhi::UniqueComPtr<ID3D12PipelineState> pipeline;
     };
 }

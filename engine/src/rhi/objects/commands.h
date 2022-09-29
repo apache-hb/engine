@@ -28,6 +28,6 @@ namespace engine {
     private:
         void transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
 
-        UniqueComPtr<ID3D12GraphicsCommandList> commands;
+        rhi::UniqueComPtr<ID3D12GraphicsCommandList> commands;
     };
 }
