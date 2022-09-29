@@ -1,15 +1,9 @@
 [submodule "subprojects/fmt/fmt"]
 	path = subprojects/fmt/fmt
 	url = https://github.com/fmtlib/fmt
-[submodule "subprojects/glfw/glfw"]
-	path = subprojects/glfw/glfw
-	url = https://github.com/glfw/glfw
 [submodule "subprojects/imgui/imgui"]
 	path = subprojects/imgui/imgui
 	url = https://github.com/ocornut/imgui
-[submodule "subprojects/fastgltf/fastgltf"]
-	path = subprojects/fastgltf/fastgltf
-	url = https://github.com/spnda/fastgltf
 [submodule "subprojects/simdjson/simdjson"]
 	path = subprojects/simdjson/simdjson
 	url = https://github.com/simdjson/simdjson

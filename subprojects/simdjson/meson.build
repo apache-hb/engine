@@ -1,7 +1,13 @@
-project('simdjson', 'cpp')
+project('simdjson', 'cpp',
+    default_options : [
+        'warning_level=0',
+        'werror=false'
+    ]
+)
 
 args = [
-    '-DSIMDJSON_DISABLE_DEPRECATED_API=1'
+    '-DSIMDJSON_DISABLE_DEPRECATED_API=1',
+    '-D_HAS_EXCEPTIONS=0'
 ]
 
 libjson = library('json', 'simdjson/src/simdjson.cpp',

@@ -125,10 +125,10 @@ void Context::create() {
     // upload our data to the gpu
 
     const Vertex kVerts[] = {
-        { { -1.f, -1.f, 0.0f }, { 0.f, 1.f } }, // bottom left
-        { { -1.f, 1.f, 0.0f }, { 0.f, 0.f } }, // top left
-        { { 1.f, -1.f, 0.f }, { 1.f, 1.f } }, // bottom right
-        { { 1.f, 1.f, 0.f }, { 1.f, 0.f } } // top right
+        { { -2.f, -1.f, 0.0f }, { 0.f, 1.f } }, // bottom left
+        { { -2.f, 1.f, 0.0f }, { 0.f, 0.f } }, // top left
+        { { 2.f, -1.f, 0.f }, { 1.f, 1.f } }, // bottom right
+        { { 2.f, 1.f, 0.f }, { 1.f, 0.f } } // top right
     };
 
     const uint32_t kIndices[] = {
@@ -136,7 +136,7 @@ void Context::create() {
         2, 1, 3
     };
 
-    auto image = loadImage("C:\\Users\\ehb56\\Downloads\\796631765.jpg");
+    auto image = loadImage("C:\\Users\\ehb56\\Downloads\\Screenshot 2022-09-29 093058.png");
 
     directCommands.beginRecording(allocators[frameIndex]);
 

@@ -9,8 +9,6 @@
 
 #include "engine/render/render.h"
 
-#include <glfw/glfw3.h>
-
 #include "imgui.h"
 
 using namespace engine;
@@ -22,9 +20,6 @@ int commonMain() {
     
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
-
-    // setup glfw
-    glfwInit();
 
     // setup imgui
     IMGUI_CHECKVERSION();
@@ -42,9 +37,10 @@ int commonMain() {
     logging::MultiChannel logger { "general", channels };
 
     // make a fullscreen borderless window on the primary monitor
-    const auto *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    int width = GetSystemMetrics(SM_CXSCREEN);
+    int height = GetSystemMetrics(SM_CYSCREEN);
 
-    Window window { mode->width, mode->height, "game" };
+    Window window { width, height, "game" };
     render::Context render { { &window, &logger } };
     render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
 
@@ -67,8 +63,6 @@ int commonMain() {
 
         render.end();
     }
-
-    glfwTerminate();
 
     logger.info("clean exit");
 
