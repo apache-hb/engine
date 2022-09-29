@@ -126,28 +126,20 @@ void Context::create() {
         textureData[i + 3] = 0xFF;
     }
 
-    auto result = device.newTexture({ 256, 256 }, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
-
-    textureBuffer = std::move(result.buffer);
+    directCommands.beginRecording(allocators[frameIndex]);
 
     size_t signal = recordCopy([&] {
         vertexBuffer = uploadData(kVerts, sizeof(kVerts));
         indexBuffer = uploadData(kIndices, sizeof(kIndices));
 
-        auto uploadTexture = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
-        copyCommands.copyTexture(textureBuffer, uploadTexture, textureData.data(), { 256, 256 });
-
-        pendingCopies.push_back(std::move(uploadTexture));
+        textureBuffer = uploadTexture({ 256, 256 }, textureData);
 
         vertexBufferView = rhi::VertexBufferView{vertexBuffer.gpuAddress(), std::size(kVerts), sizeof(Vertex)};
         indexBufferView = rhi::IndexBufferView{indexBuffer.gpuAddress(), std::size(kIndices), rhi::Format::uint32};
     });
+    directCommands.endRecording();
 
     device.createTextureBufferView(textureBuffer, dataSet.cpuHandle(Slots::eTexture));
-
-    directCommands.beginRecording(allocators[frameIndex]);
-    directCommands.transition(textureBuffer, BufferState::eCopyDst, BufferState::ePixelShaderResource);
-    directCommands.endRecording();
 
     ID3D12CommandList* directCommandList[] = { directCommands.get() };
     directQueue.execute(directCommandList);
@@ -210,6 +202,18 @@ void Context::waitForFrame() {
 void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value) {
     queue.signal(fence, value);
     fence.waitUntil(value);
+}
+
+rhi::Buffer Context::uploadTexture(rhi::TextureSize size, std::span<uint8_t> data) {
+    auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
+    auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
+    
+    directCommands.transition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource);
+    copyCommands.copyTexture(result.buffer, upload, data.data(), size);
+
+    pendingCopies.push_back(std::move(upload));
+
+    return std::move(result.buffer);
 }
 
 rhi::Buffer Context::uploadData(const void *ptr, size_t size) {

@@ -51,6 +51,7 @@ namespace engine::render {
         }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
+        rhi::Buffer uploadTexture(rhi::TextureSize size, std::span<uint8_t> data);
 
         rhi::Viewport viewport;
         float aspectRatio;
