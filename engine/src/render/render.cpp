@@ -1,6 +1,8 @@
 #include "engine/render/render.h"
 #include <array>
 
+#include "stb_image.h"
+
 using namespace engine;
 using namespace engine::render;
 
@@ -20,6 +22,23 @@ namespace {
     std::vector<std::byte> loadShader(std::string_view path) {
         Io *io = Io::open(path, Io::eRead);
         return io->read<std::byte>();
+    }
+
+    struct Image {
+        std::vector<std::byte> data;
+        size_t width;
+        size_t height;
+    };
+
+    Image loadImage(const char *path) {
+        int x, y, channels;
+        auto *it = reinterpret_cast<std::byte*>(stbi_load(path, &x, &y, &channels, 4));
+        
+        return Image {
+            .data = std::vector(it, it + (x * y * 4)),
+            .width = size_t(x),
+            .height = size_t(y)
+        };
     }
 
 #if 0
@@ -117,14 +136,7 @@ void Context::create() {
         2, 1, 3
     };
 
-    std::vector<uint8_t> textureData(256 * 256 * 4);
-
-    for (size_t i = 0; i < (256 * 256 * 4); i += 4) {
-        textureData[i + 0] = uint8_t(i % (256 * 256));
-        textureData[i + 1] = uint8_t(i % (256 * 256));
-        textureData[i + 2] = 0;
-        textureData[i + 3] = 0xFF;
-    }
+    auto image = loadImage("C:\\Users\\ehb56\\Downloads\\796631765.jpg");
 
     directCommands.beginRecording(allocators[frameIndex]);
 
@@ -132,7 +144,7 @@ void Context::create() {
         vertexBuffer = uploadData(kVerts, sizeof(kVerts));
         indexBuffer = uploadData(kIndices, sizeof(kIndices));
 
-        textureBuffer = uploadTexture({ 256, 256 }, textureData);
+        textureBuffer = uploadTexture({ image.width, image.height }, image.data);
 
         vertexBufferView = rhi::VertexBufferView{vertexBuffer.gpuAddress(), std::size(kVerts), sizeof(Vertex)};
         indexBufferView = rhi::IndexBufferView{indexBuffer.gpuAddress(), std::size(kIndices), rhi::Format::uint32};
@@ -141,18 +153,18 @@ void Context::create() {
 
     device.createTextureBufferView(textureBuffer, dataSet.cpuHandle(Slots::eTexture));
 
-    ID3D12CommandList* directCommandList[] = { directCommands.get() };
-    directQueue.execute(directCommandList);
-
     ID3D12CommandList* copyCommandList[] = { copyCommands.get() };
     copyQueue.execute(copyCommandList);
 
     waitOnQueue(copyQueue, signal);
-    pendingCopies.resize(0);
     // wait for the direct queue to be available
+
+    ID3D12CommandList* directCommandList[] = { directCommands.get() };
+    directQueue.execute(directCommandList);
 
     waitForFrame();
 
+    pendingCopies.resize(0);
     device.imguiInit(kFrameCount, dataSet, dataSet.cpuHandle(Slots::eImgui), dataSet.gpuHandle(Slots::eImgui));
 }
 
@@ -204,7 +216,7 @@ void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value) {
     fence.waitUntil(value);
 }
 
-rhi::Buffer Context::uploadTexture(rhi::TextureSize size, std::span<uint8_t> data) {
+rhi::Buffer Context::uploadTexture(rhi::TextureSize size, std::span<std::byte> data) {
     auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
     auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
     
