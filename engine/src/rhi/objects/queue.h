@@ -11,6 +11,6 @@ namespace engine {
         void execute(std::span<rhi::CommandList*> lists) override;
 
     private:
-        rhi::UniqueComPtr<ID3D12CommandQueue> queue;
+        UniqueComPtr<ID3D12CommandQueue> queue;
     };
 }

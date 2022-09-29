@@ -12,7 +12,7 @@ namespace engine {
         ID3D12DescriptorHeap *get();
 
     private:
-        rhi::UniqueComPtr<ID3D12DescriptorHeap> heap;
+        UniqueComPtr<ID3D12DescriptorHeap> heap;
         UINT stride;
     };
 }

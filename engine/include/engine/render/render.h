@@ -70,13 +70,13 @@ namespace engine::render {
         // copy commands
         rhi::CommandQueue *copyQueue;
         rhi::CommandList *copyCommands;
-        rhi::Allocator copyAllocator;
+        rhi::Allocator *copyAllocator;
         std::vector<rhi::Buffer*> pendingCopies;
         size_t currentCopy = 0;
 
         // per frame data
         rhi::Buffer *renderTargets[kFrameCount];
-        rhi::Allocator allocators[kFrameCount];
+        rhi::Allocator *allocators[kFrameCount];
 
         // rendering state
         rhi::PipelineState *pipeline;

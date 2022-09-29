@@ -157,6 +157,7 @@ void Context::destroy() {
     delete vertexBuffer;
     delete indexBuffer;
 
+    delete copyAllocator;
     delete copyCommands;
     delete copyQueue;
 
@@ -164,6 +165,7 @@ void Context::destroy() {
 
     for (size_t i = 0; i < kFrameCount; i++) {
         delete renderTargets[i];
+        delete allocators[i];
     }
     
     delete renderTargetSet;

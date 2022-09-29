@@ -3,7 +3,7 @@
 #include "common.h"
 
 namespace engine {
-    struct DxBuffer final : rhi::Buffer {
+    struct DxBuffer : rhi::Buffer {
         DxBuffer(ID3D12Resource *resource);
 
         void write(const void *src, size_t size) override;
@@ -15,6 +15,6 @@ namespace engine {
 
         ID3D12Resource *get();
     private:
-        rhi::UniqueComPtr<ID3D12Resource> resource;
+        UniqueComPtr<ID3D12Resource> resource;
     };
 }

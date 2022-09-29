@@ -63,7 +63,6 @@ namespace engine {
         UniquePtr &operator=(UniquePtr &&other) {
             destroy();
             data = other.claim();
-            return *this;
         }
 
         UniquePtr(const UniquePtr&) = delete;

@@ -12,7 +12,7 @@ namespace engine {
         ID3D12Fence *get();
 
     private:
-        rhi::UniqueComPtr<ID3D12Fence> fence;
+        UniqueComPtr<ID3D12Fence> fence;
         HANDLE event;
     };
 }
