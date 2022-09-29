@@ -93,7 +93,10 @@ namespace engine::rhi {
         void reset();
     };
 
-    struct Buffer {
+    struct Buffer final : UniqueComPtr<ID3D12Resource> {
+        using Super = UniqueComPtr<ID3D12Resource>;
+        using Super::Super;
+
         enum State {
             eUpload = D3D12_RESOURCE_STATE_GENERIC_READ,
             eCopyDst = D3D12_RESOURCE_STATE_COPY_DEST,
@@ -108,24 +111,22 @@ namespace engine::rhi {
             ePresent = D3D12_RESOURCE_STATE_PRESENT
         };
 
-        virtual void write(const void *src, size_t size) = 0;
+        void write(const void *src, size_t size);
         
-        virtual void *map() = 0;
-        virtual void unmap() = 0;
+        void *map();
+        void unmap();
 
-        virtual GpuHandle gpuAddress() = 0;
-
-        virtual ~Buffer() = default;
+        GpuHandle gpuAddress();
     };
 
     struct IndexBufferView {
-        Buffer *buffer;
+        GpuHandle buffer;
         size_t size;
         Format format;
     };
 
     struct VertexBufferView {
-        Buffer *buffer;
+        GpuHandle buffer;
         size_t size;
         size_t stride;
     };
@@ -187,11 +188,11 @@ namespace engine::rhi {
         virtual void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) = 0;
         virtual void bindTable(size_t index, GpuHandle handle) = 0;
 
-        virtual void copyBuffer(Buffer *dst, Buffer *src, size_t size) = 0;
+        virtual void copyBuffer(Buffer &dst, Buffer &src, size_t size) = 0;
 
         virtual void drawMesh(const IndexBufferView &indexView, const VertexBufferView &vertexView) = 0;
 
-        virtual void transition(Buffer *buffer, Buffer::State before, Buffer::State after) = 0;
+        virtual void transition(Buffer &buffer, Buffer::State before, Buffer::State after) = 0;
 
         virtual void imguiRender() = 0;
 
@@ -200,7 +201,7 @@ namespace engine::rhi {
     
     struct SwapChain {
         virtual void present() = 0;
-        virtual Buffer *getBuffer(size_t index) = 0;
+        virtual Buffer getBuffer(size_t index) = 0;
 
         virtual size_t currentBackBuffer() = 0;
 
@@ -223,12 +224,11 @@ namespace engine::rhi {
 
         virtual DescriptorSet newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 
-        virtual void createRenderTargetView(Buffer *buffer, CpuHandle handle) = 0;
-        virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle handle) = 0;
-        virtual void createDepthStencilView(Buffer *buffer, CpuHandle handle) = 0;
+        virtual void createRenderTargetView(Buffer &buffer, CpuHandle handle) = 0;
+        virtual void createConstBufferView(Buffer &buffer, size_t size, CpuHandle handle) = 0;
 
-        virtual Buffer *newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
-        virtual Buffer *newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
+        virtual Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
+        virtual Buffer newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
 
         virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
 

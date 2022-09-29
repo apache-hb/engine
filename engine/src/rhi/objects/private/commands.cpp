@@ -1,6 +1,5 @@
 #include "objects/commands.h"
 
-#include "objects/buffer.h"
 #include "objects/pipeline.h"
 
 #include "imgui.h"
@@ -66,17 +65,12 @@ void DxCommandList::setViewport(const rhi::Viewport &view) {
     commands->RSSetScissorRects(1, &kScissor);
 }
 
-void DxCommandList::copyBuffer(rhi::Buffer *dst, rhi::Buffer *src, size_t size) {
-    auto *input = static_cast<DxBuffer*>(src);
-    auto *output = static_cast<DxBuffer*>(dst);
-
-    commands->CopyBufferRegion(output->get(), 0, input->get(), 0, size);
+void DxCommandList::copyBuffer(rhi::Buffer &dst, rhi::Buffer &src, size_t size) {
+    commands->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
 }
 
-void DxCommandList::transition(rhi::Buffer *buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
-    auto *resource = static_cast<DxBuffer*>(buffer);
-    
-    transitionBarrier(resource->get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
+void DxCommandList::transition(rhi::Buffer &buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
+    transitionBarrier(buffer.get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
 }
 
 void DxCommandList::bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) {
@@ -96,13 +90,13 @@ void DxCommandList::setPipeline(rhi::PipelineState *pipeline) {
 
 void DxCommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) {
     const D3D12_VERTEX_BUFFER_VIEW kVertexBufferView = {
-        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(vertexView.buffer->gpuAddress()),
+        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(vertexView.buffer),
         .SizeInBytes = UINT(vertexView.size * vertexView.stride),
         .StrideInBytes = UINT(vertexView.stride)
     };
     
     const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
-        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(indexView.buffer->gpuAddress()),
+        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(indexView.buffer),
         .SizeInBytes = UINT(indexView.size * getElementSize(indexView.format)),
         .Format = getElementFormat(indexView.format)
     };

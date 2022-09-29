@@ -8,7 +8,7 @@ namespace engine {
 
         void present() override;
 
-        rhi::Buffer *getBuffer(size_t index) override;
+        rhi::Buffer getBuffer(size_t index) override;
 
         size_t currentBackBuffer() override;
 

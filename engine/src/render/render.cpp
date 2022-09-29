@@ -59,10 +59,10 @@ void Context::create() {
 
     renderTargetSet = device->newDescriptorSet(kFrameCount, rhi::DescriptorSet::Type::eRenderTarget, false);
     for (size_t i = 0; i < kFrameCount; i++) {
-        rhi::Buffer *target = swapchain->getBuffer(i);
+        rhi::Buffer target = swapchain->getBuffer(i);
         device->createRenderTargetView(target, renderTargetSet.cpuHandle(i));
 
-        renderTargets[i] = target;
+        renderTargets[i] = std::move(target);
         allocators[i] = device->newAllocator(rhi::CommandList::Type::eDirect);
     }
 
@@ -95,7 +95,7 @@ void Context::create() {
 
     constBuffer = device->newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
     device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet.cpuHandle(Slots::eCamera));
-    constBufferPtr = constBuffer->map();
+    constBufferPtr = constBuffer.map();
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
     auto bindings = std::to_array<rhi::Binding>({
@@ -129,39 +129,27 @@ void Context::create() {
         vertexBuffer = uploadData(kVerts, sizeof(kVerts));
         indexBuffer = uploadData(kIndices, sizeof(kIndices));
 
-        vertexBufferView = rhi::VertexBufferView{vertexBuffer, std::size(kVerts), sizeof(Vertex)};
-        indexBufferView = rhi::IndexBufferView{indexBuffer, std::size(kIndices), rhi::Format::uint32};
+        vertexBufferView = rhi::VertexBufferView{vertexBuffer.gpuAddress(), std::size(kVerts), sizeof(Vertex)};
+        indexBufferView = rhi::IndexBufferView{indexBuffer.gpuAddress(), std::size(kIndices), rhi::Format::uint32};
     });
 
     auto commands = std::to_array({ copyCommands });
     copyQueue->execute(commands);
 
     waitOnQueue(copyQueue, signal);
-    for (rhi::Buffer *buffer : pendingCopies) {
-        delete buffer;
-    }
-
+    pendingCopies.resize(0);
     // wait for the direct queue to be available
 
     waitForFrame();
 }
 
 void Context::destroy() {
-    delete constBuffer;
-
     delete pipeline;
-
-    delete vertexBuffer;
-    delete indexBuffer;
 
     delete copyCommands;
     delete copyQueue;
 
     delete directCommands;
-
-    for (size_t i = 0; i < kFrameCount; i++) {
-        delete renderTargets[i];
-    }
     
     delete swapchain;
     delete directQueue;
@@ -219,18 +207,17 @@ void Context::waitOnQueue(rhi::CommandQueue *queue, size_t value) {
     fence.waitUntil(value);
 }
 
-rhi::Buffer *Context::uploadData(const void *ptr, size_t size) {
-    rhi::Buffer *upload = device->newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
-    rhi::Buffer *result = device->newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
+rhi::Buffer Context::uploadData(const void *ptr, size_t size) {
+    rhi::Buffer upload = device->newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
+    rhi::Buffer result = device->newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
 
-    upload->write(ptr, size);
+    upload.write(ptr, size);
     copyCommands->copyBuffer(result, upload, size);
 
-    pendingCopies.push_back(upload);
+    pendingCopies.emplace_back(std::move(upload));
 
     return result;
 }
-
 
 void Context::beginCopy() {
     copyCommands->beginRecording(copyAllocator);

@@ -52,7 +52,7 @@ namespace engine::render {
             return endCopy();
         }
 
-        rhi::Buffer *uploadData(const void *ptr, size_t size);
+        rhi::Buffer uploadData(const void *ptr, size_t size);
 
         rhi::Viewport viewport;
         float aspectRatio;
@@ -71,21 +71,21 @@ namespace engine::render {
         rhi::CommandQueue *copyQueue;
         rhi::CommandList *copyCommands;
         rhi::Allocator copyAllocator;
-        std::vector<rhi::Buffer*> pendingCopies;
+        std::vector<rhi::Buffer> pendingCopies;
         size_t currentCopy = 0;
 
         // per frame data
-        rhi::Buffer *renderTargets[kFrameCount];
+        rhi::Buffer renderTargets[kFrameCount];
         rhi::Allocator allocators[kFrameCount];
 
         // rendering state
         rhi::PipelineState *pipeline;
-        rhi::Buffer *vertexBuffer;
-        rhi::Buffer *indexBuffer;
+        rhi::Buffer vertexBuffer;
+        rhi::Buffer indexBuffer;
 
         // const buffer data
         rhi::DescriptorSet constBufferSet;
-        rhi::Buffer *constBuffer;
+        rhi::Buffer constBuffer;
         void *constBufferPtr;
         ConstBuffer constBufferData;
 

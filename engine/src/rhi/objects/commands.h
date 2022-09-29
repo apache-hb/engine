@@ -12,8 +12,8 @@ namespace engine {
 
         void setViewport(const rhi::Viewport &view) override;
 
-        void copyBuffer(rhi::Buffer *dst, rhi::Buffer *src, size_t size) override;
-        void transition(rhi::Buffer *buffer, rhi::Buffer::State before, rhi::Buffer::State after) override;
+        void copyBuffer(rhi::Buffer &dst, rhi::Buffer &src, size_t size) override;
+        void transition(rhi::Buffer &buffer, rhi::Buffer::State before, rhi::Buffer::State after) override;
         
         void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) override;
         void bindTable(size_t index, rhi::GpuHandle handle) override;

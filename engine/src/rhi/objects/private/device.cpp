@@ -1,6 +1,5 @@
 #include "objects/device.h"
 
-#include "objects/buffer.h"
 #include "objects/commands.h"
 #include "objects/queue.h"
 #include "objects/pipeline.h"
@@ -182,28 +181,21 @@ rhi::DescriptorSet DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::
     return rhi::DescriptorSet(rtvHeap, stride);
 }
 
-void DxDevice::createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) {
-    auto *dxTarget = static_cast<DxBuffer*>(target);
+void DxDevice::createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandle) {
     D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(rtvHandle) };
-    device->CreateRenderTargetView(dxTarget->get(), nullptr, handle);
+    device->CreateRenderTargetView(target.get(), nullptr, handle);
 }
 
-void DxDevice::createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) {
+void DxDevice::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(srvHandle) };
     const D3D12_CONSTANT_BUFFER_VIEW_DESC kDesc {
-        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer->gpuAddress()),
+        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer.gpuAddress()),
         .SizeInBytes = UINT(size)
     };
     device->CreateConstantBufferView(&kDesc, kHandle);
 }
 
-void DxDevice::createDepthStencilView(rhi::Buffer *buffer, rhi::CpuHandle handle) {
-    auto *stencil = static_cast<DxBuffer*>(buffer);
-    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
-    device->CreateDepthStencilView(stencil->get(), &kDsvDesc, kHandle);
-}
-
-rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::Buffer DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     ID3D12Resource *resource;
@@ -216,10 +208,10 @@ rhi::Buffer *DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility vis
         IID_PPV_ARGS(&resource)
     ));
     
-    return new DxBuffer(resource);
+    return rhi::Buffer(resource);
 }
 
-rhi::Buffer *DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::Buffer DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const D3D12_RESOURCE_DESC kTextureDesc {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D,
         .Alignment = 0,
@@ -246,7 +238,7 @@ rhi::Buffer *DxDevice::newTexture(math::Resolution<size_t> size, rhi::Descriptor
         IID_PPV_ARGS(&resource)
     ));
 
-    return new DxBuffer(resource);
+    return rhi::Buffer(resource);
 }
 
 rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindings) {

@@ -15,12 +15,11 @@ namespace engine {
         rhi::Allocator newAllocator(rhi::CommandList::Type type) override;
         rhi::DescriptorSet newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) override;
         
-        void createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) override;
-        void createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) override;
-        void createDepthStencilView(rhi::Buffer *buffer, rhi::CpuHandle handle) override;
+        void createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandle) override;
+        void createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) override;
 
-        rhi::Buffer *newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
-        rhi::Buffer *newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
+        rhi::Buffer newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
+        rhi::Buffer newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) override;
 
         rhi::PipelineState *newPipelineState(const rhi::PipelineBinding& bindings) override;
 
