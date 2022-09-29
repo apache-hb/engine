@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "dx/d3dx12.h"
+#include <dxgi1_6.h>
 
 namespace engine::rhi {
     template<typename T>
@@ -167,76 +168,101 @@ namespace engine::rhi {
         UINT stride;
     };
 
-    struct PipelineState {
-        virtual ~PipelineState() = default;
+    struct PipelineState final {
+        PipelineState(ID3D12RootSignature *signature = nullptr, ID3D12PipelineState *pipeline = nullptr);
+
+        UniqueComPtr<ID3D12RootSignature> signature;
+        UniqueComPtr<ID3D12PipelineState> pipeline;
     };
 
-    struct CommandList {
+    struct CommandList final : UniqueComPtr<ID3D12GraphicsCommandList> {
+        using Super = UniqueComPtr<ID3D12GraphicsCommandList>;
+        using Super::Super;
+
         enum struct Type {
             eDirect = D3D12_COMMAND_LIST_TYPE_DIRECT,
             eCopy = D3D12_COMMAND_LIST_TYPE_COPY
         };
 
-        virtual void beginRecording(Allocator &allocator) = 0;
-        virtual void endRecording() = 0;
+        void beginRecording(Allocator &allocator);
+        void endRecording();
 
-        virtual void setRenderTarget(CpuHandle target, const math::float4 &colour) = 0;
-        virtual void setViewport(const Viewport &view) = 0;
-        virtual void setPipeline(PipelineState *pipeline) = 0;
+        void setRenderTarget(CpuHandle target, const math::float4 &colour);
+        void setViewport(const Viewport &view);
+        void setPipeline(PipelineState &pipeline);
 
         // TODO: this is a bit wonky
-        virtual void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) = 0;
-        virtual void bindTable(size_t index, GpuHandle handle) = 0;
+        void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets);
+        void bindTable(size_t index, GpuHandle handle);
 
-        virtual void copyBuffer(Buffer &dst, Buffer &src, size_t size) = 0;
+        void copyBuffer(Buffer &dst, Buffer &src, size_t size);
 
-        virtual void drawMesh(const IndexBufferView &indexView, const VertexBufferView &vertexView) = 0;
+        void drawMesh(const IndexBufferView &indexView, const VertexBufferView &vertexView);
 
-        virtual void transition(Buffer &buffer, Buffer::State before, Buffer::State after) = 0;
+        void transition(Buffer &buffer, Buffer::State before, Buffer::State after);
 
-        virtual void imguiRender() = 0;
+        void imguiRender();
 
-        virtual ~CommandList() = default;
+    private:
+        void transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     };
     
-    struct SwapChain {
-        virtual void present() = 0;
-        virtual Buffer getBuffer(size_t index) = 0;
+    struct SwapChain final : UniqueComPtr<IDXGISwapChain3> {
+        using Super = UniqueComPtr<IDXGISwapChain3>;
+        using Super::Super;
 
-        virtual size_t currentBackBuffer() = 0;
+        SwapChain(IDXGISwapChain3 *swapchain = nullptr, bool tearing = false);
 
-        virtual ~SwapChain() = default;
+        void present();
+        Buffer getBuffer(size_t index);
+
+        size_t currentBackBuffer();
+
+    private:
+        UINT flags;
     };
 
-    struct CommandQueue {
-        virtual SwapChain *newSwapChain(Window *window, size_t buffers) = 0;
-        virtual void signal(Fence &fence, size_t value) = 0;
-        virtual void execute(std::span<CommandList*> lists) = 0;
+    struct CommandQueue final : UniqueComPtr<ID3D12CommandQueue> {
+        using Super = UniqueComPtr<ID3D12CommandQueue>;
+        using Super::Super;
 
-        virtual ~CommandQueue() = default;
+        SwapChain newSwapChain(Window *window, size_t buffers);
+        void signal(Fence &fence, size_t value);
+        void execute(std::span<ID3D12CommandList*> lists);
     };
 
-    struct Device {
-        virtual Fence newFence() = 0;
-        virtual CommandQueue *newQueue(CommandList::Type type) = 0;
-        virtual CommandList *newCommandList(Allocator &allocator, CommandList::Type type) = 0;
-        virtual Allocator newAllocator(CommandList::Type type) = 0;
+    struct Device final : UniqueComPtr<ID3D12Device> {
+        using Super = UniqueComPtr<ID3D12Device>;
+        using Super::Super;
 
-        virtual DescriptorSet newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
+        Device(ID3D12Device *device);
+        ~Device();
 
-        virtual void createRenderTargetView(Buffer &buffer, CpuHandle handle) = 0;
-        virtual void createConstBufferView(Buffer &buffer, size_t size, CpuHandle handle) = 0;
+        Fence newFence();
+        CommandQueue newQueue(CommandList::Type type);
+        CommandList newCommandList(Allocator &allocator, CommandList::Type type);
+        Allocator newAllocator(CommandList::Type type);
 
-        virtual Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
-        virtual Buffer newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state) = 0;
+        DescriptorSet newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible);
 
-        virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
+        void createRenderTargetView(Buffer &buffer, CpuHandle handle);
+        void createConstBufferView(Buffer &buffer, size_t size, CpuHandle handle);
 
-        virtual void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle) = 0;
-        virtual void imguiNewFrame() = 0;
+        Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state);
+        Buffer newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state);
 
-        virtual ~Device() = default;
+        PipelineState newPipelineState(const PipelineBinding& bindings);
+
+        void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle);
+        void imguiNewFrame();
+
+    private:
+        ID3D12RootSignature *createRootSignature(ID3DBlob *signature);
+
+        ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input);
+
+        D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };
 
-    Device *getDevice();
+    Device getDevice();
 }

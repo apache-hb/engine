@@ -1,11 +1,11 @@
-#include "objects/commands.h"
-
-#include "objects/pipeline.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx12.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
 namespace {
     constexpr size_t getElementSize(rhi::Format format) {
@@ -22,29 +22,26 @@ namespace {
     }
 }
 
-DxCommandList::DxCommandList(ID3D12GraphicsCommandList *commands)
-    : commands(commands)
-{ }
 
-void DxCommandList::beginRecording(rhi::Allocator &allocator) {
+void CommandList::beginRecording(rhi::Allocator &allocator) {
     allocator.reset();
 
-    DX_CHECK(commands->Reset(allocator.get(), nullptr));
+    DX_CHECK(get()->Reset(allocator.get(), nullptr));
 }
 
-void DxCommandList::endRecording() {
-    DX_CHECK(commands->Close());
+void CommandList::endRecording() {
+    DX_CHECK(get()->Close());
 }
 
-void DxCommandList::setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) {
+void CommandList::setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kRtv { size_t(target) };
     const float kClear[] = { colour.x, colour.y, colour.z, colour.w };
 
-    commands->OMSetRenderTargets(1, &kRtv, false, nullptr);
-    commands->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
+    get()->OMSetRenderTargets(1, &kRtv, false, nullptr);
+    get()->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
 }
 
-void DxCommandList::setViewport(const rhi::Viewport &view) {
+void CommandList::setViewport(const rhi::Viewport &view) {
     const D3D12_VIEWPORT kViewport = {
         .TopLeftX = 0.f,
         .TopLeftY = 0.f,
@@ -61,34 +58,33 @@ void DxCommandList::setViewport(const rhi::Viewport &view) {
         .bottom = LONG(view.height)
     };
 
-    commands->RSSetViewports(1, &kViewport);
-    commands->RSSetScissorRects(1, &kScissor);
+    get()->RSSetViewports(1, &kViewport);
+    get()->RSSetScissorRects(1, &kScissor);
 }
 
-void DxCommandList::copyBuffer(rhi::Buffer &dst, rhi::Buffer &src, size_t size) {
-    commands->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
+void CommandList::copyBuffer(rhi::Buffer &dst, rhi::Buffer &src, size_t size) {
+    get()->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
 }
 
-void DxCommandList::transition(rhi::Buffer &buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
+void CommandList::transition(rhi::Buffer &buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
     transitionBarrier(buffer.get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
 }
 
-void DxCommandList::bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) {
-    commands->SetDescriptorHeaps(UINT(sets.size()), sets.data());
+void CommandList::bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) {
+    get()->SetDescriptorHeaps(UINT(sets.size()), sets.data());
 }
 
-void DxCommandList::bindTable(size_t index, rhi::GpuHandle handle) {
+void CommandList::bindTable(size_t index, rhi::GpuHandle handle) {
     const D3D12_GPU_DESCRIPTOR_HANDLE kOffset { size_t(handle) };
-    commands->SetGraphicsRootDescriptorTable(UINT(index), kOffset);
+    get()->SetGraphicsRootDescriptorTable(UINT(index), kOffset);
 }
 
-void DxCommandList::setPipeline(rhi::PipelineState *pipeline) {
-    auto *pso = static_cast<DxPipelineState*>(pipeline);
-    commands->SetGraphicsRootSignature(pso->getSignature());
-    commands->SetPipelineState(pso->getPipelineState());
+void CommandList::setPipeline(rhi::PipelineState &pipeline) {
+    get()->SetGraphicsRootSignature(pipeline.signature.get());
+    get()->SetPipelineState(pipeline.pipeline.get());
 }
 
-void DxCommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) {
+void CommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) {
     const D3D12_VERTEX_BUFFER_VIEW kVertexBufferView = {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(vertexView.buffer),
         .SizeInBytes = UINT(vertexView.size * vertexView.stride),
@@ -101,22 +97,18 @@ void DxCommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::V
         .Format = getElementFormat(indexView.format)
     };
 
-    commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    commands->IASetVertexBuffers(0, 1, &kVertexBufferView);
-    commands->IASetIndexBuffer(&kIndexBufferView);
-    commands->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
+    get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    get()->IASetVertexBuffers(0, 1, &kVertexBufferView);
+    get()->IASetIndexBuffer(&kIndexBufferView);
+    get()->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
 }
 
-ID3D12GraphicsCommandList *DxCommandList::get() { 
-    return commands.get(); 
-}
-
-void DxCommandList::transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+void CommandList::transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
     const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
 
-    commands->ResourceBarrier(1, &kBarrier);
+    get()->ResourceBarrier(1, &kBarrier);
 }
 
-void DxCommandList::imguiRender() {
+void CommandList::imguiRender() {
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), get());
 }

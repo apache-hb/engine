@@ -1,16 +1,10 @@
-#include "objects/pipeline.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
-DxPipelineState::DxPipelineState(ID3D12RootSignature *signature, ID3D12PipelineState *pipeline)
+PipelineState::PipelineState(ID3D12RootSignature *signature, ID3D12PipelineState *pipeline)
     : signature(signature)
     , pipeline(pipeline) 
 { }
-
-ID3D12RootSignature *DxPipelineState::getSignature() { 
-    return signature.get(); 
-}
-
-ID3D12PipelineState *DxPipelineState::getPipelineState() { 
-    return pipeline.get(); 
-}

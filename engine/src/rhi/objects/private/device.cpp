@@ -1,23 +1,14 @@
-#include "objects/device.h"
-
-#include "objects/commands.h"
-#include "objects/queue.h"
-#include "objects/pipeline.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 #include "imgui_impl_dx12.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
 namespace {
     constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-
-    constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
-
-    constexpr D3D12_DEPTH_STENCIL_VIEW_DESC kDsvDesc {
-        .Format = kDepthFormat,
-        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D
-    };
 
     constexpr const D3D12_HEAP_PROPERTIES *getHeapProps(rhi::DescriptorSet::Visibility visibility) {
         switch (visibility) {
@@ -122,51 +113,59 @@ namespace {
         ASSERTF(SUCCEEDED(err), "failed to serialize root signature: {}", std::string((char*)error->GetBufferPointer(), error->GetBufferSize()));
         return signature;
     }
+
+    D3D_ROOT_SIGNATURE_VERSION getHighestVersion(ID3D12Device *device) {
+        D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
+        if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
+            featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+        }
+        return featureData.HighestVersion;
+    }
 }
 
-DxDevice::DxDevice(ID3D12Device *device, D3D_ROOT_SIGNATURE_VERSION version)
-    : device(device)
-    , kHighestVersion(version)
+Device::Device(ID3D12Device *device)
+    : Super(device)
+    , kHighestVersion(getHighestVersion(device))
 { }
 
-DxDevice::~DxDevice() {
+Device::~Device() {
     ImGui_ImplDX12_Shutdown();
 }
 
-rhi::Fence DxDevice::newFence() {
+rhi::Fence Device::newFence() {
     ID3D12Fence *fence;
-    DX_CHECK(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    DX_CHECK(get()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
     return rhi::Fence(fence);
 }
 
-rhi::CommandQueue *DxDevice::newQueue(rhi::CommandList::Type type) {
+rhi::CommandQueue Device::newQueue(rhi::CommandList::Type type) {
     const D3D12_COMMAND_QUEUE_DESC kDesc = {
         .Type = D3D12_COMMAND_LIST_TYPE(type)
     };
 
     ID3D12CommandQueue *queue;
-    DX_CHECK(device->CreateCommandQueue(&kDesc, IID_PPV_ARGS(&queue)));
+    DX_CHECK(get()->CreateCommandQueue(&kDesc, IID_PPV_ARGS(&queue)));
 
-    return new DxCommandQueue(queue);
+    return rhi::CommandQueue(queue);
 }
 
-rhi::CommandList *DxDevice::newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) {
+rhi::CommandList Device::newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) {
     ID3D12GraphicsCommandList *commands;
-    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator.get(), nullptr, IID_PPV_ARGS(&commands)));
+    DX_CHECK(get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator.get(), nullptr, IID_PPV_ARGS(&commands)));
     DX_CHECK(commands->Close());
 
-    return new DxCommandList(commands);
+    return rhi::CommandList(commands);
 }
 
-rhi::Allocator DxDevice::newAllocator(rhi::CommandList::Type type) {
+rhi::Allocator Device::newAllocator(rhi::CommandList::Type type) {
     ID3D12CommandAllocator *allocator;
-    DX_CHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
+    DX_CHECK(get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
 
     return rhi::Allocator(allocator);
 }
 
-rhi::DescriptorSet DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {
+rhi::DescriptorSet Device::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {
     const auto kHeapType = D3D12_DESCRIPTOR_HEAP_TYPE(type);
     const D3D12_DESCRIPTOR_HEAP_DESC kRtvHeapDesc {
         .Type = kHeapType,
@@ -175,31 +174,31 @@ rhi::DescriptorSet DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::
     };
 
     ID3D12DescriptorHeap *rtvHeap;
-    DX_CHECK(device->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
-    UINT stride = device->GetDescriptorHandleIncrementSize(kHeapType);
+    DX_CHECK(get()->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+    UINT stride = get()->GetDescriptorHandleIncrementSize(kHeapType);
 
     return rhi::DescriptorSet(rtvHeap, stride);
 }
 
-void DxDevice::createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandle) {
+void Device::createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandle) {
     D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(rtvHandle) };
-    device->CreateRenderTargetView(target.get(), nullptr, handle);
+    get()->CreateRenderTargetView(target.get(), nullptr, handle);
 }
 
-void DxDevice::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) {
+void Device::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(srvHandle) };
     const D3D12_CONSTANT_BUFFER_VIEW_DESC kDesc {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer.gpuAddress()),
         .SizeInBytes = UINT(size)
     };
-    device->CreateConstantBufferView(&kDesc, kHandle);
+    get()->CreateConstantBufferView(&kDesc, kHandle);
 }
 
-rhi::Buffer DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     ID3D12Resource *resource;
-    DX_CHECK(device->CreateCommittedResource(
+    DX_CHECK(get()->CreateCommittedResource(
         getHeapProps(visibility), 
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &kBufferSize,
@@ -211,7 +210,7 @@ rhi::Buffer DxDevice::newBuffer(size_t size, rhi::DescriptorSet::Visibility visi
     return rhi::Buffer(resource);
 }
 
-rhi::Buffer DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::Buffer Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const D3D12_RESOURCE_DESC kTextureDesc {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D,
         .Alignment = 0,
@@ -229,7 +228,7 @@ rhi::Buffer DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorS
     };
 
     ID3D12Resource *resource;
-    DX_CHECK(device->CreateCommittedResource(
+    DX_CHECK(get()->CreateCommittedResource(
         getHeapProps(visibility), 
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &kTextureDesc, 
@@ -241,7 +240,7 @@ rhi::Buffer DxDevice::newTexture(math::Resolution<size_t> size, rhi::DescriptorS
     return rhi::Buffer(resource);
 }
 
-rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindings) {
+rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings) {
     const auto vs = createShader(bindings.vs);
     const auto ps = createShader(bindings.ps);
 
@@ -251,18 +250,18 @@ rhi::PipelineState *DxDevice::newPipelineState(const rhi::PipelineBinding& bindi
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
     ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input);
-    return new DxPipelineState(root, pipeline);
+    return rhi::PipelineState(root, pipeline);
 }
 
-ID3D12RootSignature *DxDevice::createRootSignature(ID3DBlob *signature) {
+ID3D12RootSignature *Device::createRootSignature(ID3DBlob *signature) {
     ID3D12RootSignature *root;
 
-    DX_CHECK(device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)));
+    DX_CHECK(get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)));
 
     return root;
 }
 
-ID3D12PipelineState *DxDevice::createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input) {
+ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input) {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
         .pRootSignature = root,
         .VS = vertex,
@@ -287,18 +286,18 @@ ID3D12PipelineState *DxDevice::createPipelineState(ID3D12RootSignature *root, D3
     };
 
     ID3D12PipelineState *pipeline;
-    DX_CHECK(device->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline)));
+    DX_CHECK(get()->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline)));
     return pipeline;
 }
 
 
-void DxDevice::imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
+void Device::imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kCpuHandle { size_t(cpuHandle) };
     const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(gpuHandle) };
 
-    ImGui_ImplDX12_Init(device.get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
+    ImGui_ImplDX12_Init(get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
 }
 
-void DxDevice::imguiNewFrame() {
+void Device::imguiNewFrame() {
     ImGui_ImplDX12_NewFrame();
 }

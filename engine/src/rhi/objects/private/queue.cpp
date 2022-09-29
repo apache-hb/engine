@@ -1,15 +1,10 @@
-#include "objects/queue.h"
-
-#include "objects/swapchain.h"
-#include "objects/commands.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
-DxCommandQueue::DxCommandQueue(ID3D12CommandQueue *queue)
-    : queue(queue)
-{ }
-
-rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
+rhi::SwapChain CommandQueue::newSwapChain(Window *window, size_t buffers) {
     auto [width, height] = window->size();
     HWND handle = window->handle();
 
@@ -33,7 +28,7 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
 
     IDXGISwapChain1 *swapchain;
     DX_CHECK(gFactory->CreateSwapChainForHwnd(
-        queue.get(),
+        get(),
         handle,
         &kDesc,
         nullptr,
@@ -47,19 +42,13 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
     DX_CHECK(swapchain->QueryInterface(IID_PPV_ARGS(&swapchain3)));
     ASSERT(swapchain->Release() == 1);
 
-    return new DxSwapChain(swapchain3, tearing);
+    return rhi::SwapChain(swapchain3, tearing);
 }
 
-void DxCommandQueue::signal(rhi::Fence &fence, size_t value) {
-    DX_CHECK(queue->Signal(fence.get(), value));
+void CommandQueue::signal(rhi::Fence &fence, size_t value) {
+    DX_CHECK(get()->Signal(fence.get(), value));
 }
 
-void DxCommandQueue::execute(std::span<rhi::CommandList*> lists) {
-    UniquePtr<ID3D12CommandList*[]> data(new ID3D12CommandList*[lists.size()]);
-    for (size_t i = 0; i < lists.size(); i++) {
-        auto *list = static_cast<DxCommandList*>(lists[i]);
-        data[i] = list->get();
-    }
-
-    queue->ExecuteCommandLists(UINT(lists.size()), data.get());
+void CommandQueue::execute(std::span<ID3D12CommandList*> lists) {
+    get()->ExecuteCommandLists(UINT(lists.size()), lists.data());
 }

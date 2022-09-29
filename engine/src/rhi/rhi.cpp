@@ -1,8 +1,8 @@
 #include "engine/rhi/rhi.h"
-
-#include "objects/device.h"
+#include "objects/common.h"
 
 using namespace engine;
+using namespace rhi;
 
 constexpr GUID kShaderModel6 = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
     0x76f5573e,
@@ -11,7 +11,7 @@ constexpr GUID kShaderModel6 = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
     { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
 };
 
-rhi::Device *rhi::getDevice() {
+rhi::Device rhi::getDevice() {
     DX_CHECK(D3D12EnableExperimentalFeatures(1, &kShaderModel6, nullptr, nullptr));
 
     DX_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
@@ -38,10 +38,5 @@ rhi::Device *rhi::getDevice() {
     ID3D12Device *device;
     DX_CHECK(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
-    D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
-    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
-        featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
-    }
-
-    return new DxDevice(device, featureData.HighestVersion);
+    return rhi::Device(device);
 }

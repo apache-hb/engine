@@ -28,7 +28,6 @@ namespace engine::render {
         };
 
         Context(Create &&info);
-        ~Context();
 
         void begin(Camera *camera);
         void end();
@@ -37,10 +36,9 @@ namespace engine::render {
         Create info;
 
         void create();
-        void destroy();
 
         void waitForFrame();
-        void waitOnQueue(rhi::CommandQueue *queue, size_t value);
+        void waitOnQueue(rhi::CommandQueue &queue, size_t value);
 
         void beginCopy();
         size_t endCopy(); // return the value to wait for to signal that all copies are complete
@@ -57,19 +55,19 @@ namespace engine::render {
         rhi::Viewport viewport;
         float aspectRatio;
 
-        rhi::Device *device;
+        rhi::Device device;
 
         // presentation data
-        rhi::SwapChain *swapchain;
+        rhi::SwapChain swapchain;
         rhi::DescriptorSet renderTargetSet;
 
         // presentation queue
-        rhi::CommandQueue *directQueue;
-        rhi::CommandList *directCommands;
+        rhi::CommandQueue directQueue;
+        rhi::CommandList directCommands;
 
         // copy commands
-        rhi::CommandQueue *copyQueue;
-        rhi::CommandList *copyCommands;
+        rhi::CommandQueue copyQueue;
+        rhi::CommandList copyCommands;
         rhi::Allocator copyAllocator;
         std::vector<rhi::Buffer> pendingCopies;
         size_t currentCopy = 0;
@@ -79,7 +77,7 @@ namespace engine::render {
         rhi::Allocator allocators[kFrameCount];
 
         // rendering state
-        rhi::PipelineState *pipeline;
+        rhi::PipelineState pipeline;
         rhi::Buffer vertexBuffer;
         rhi::Buffer indexBuffer;
 
