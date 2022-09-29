@@ -157,19 +157,19 @@ rhi::CommandQueue *DxDevice::newQueue(rhi::CommandList::Type type) {
     return new DxCommandQueue(queue);
 }
 
-rhi::CommandList *DxDevice::newCommandList(rhi::Allocator *allocator, rhi::CommandList::Type type) {
+rhi::CommandList *DxDevice::newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) {
     ID3D12GraphicsCommandList *commands;
-    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator->get(), nullptr, IID_PPV_ARGS(&commands)));
+    DX_CHECK(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator.get(), nullptr, IID_PPV_ARGS(&commands)));
     DX_CHECK(commands->Close());
 
     return new DxCommandList(commands);
 }
 
-rhi::Allocator *DxDevice::newAllocator(rhi::CommandList::Type type) {
+rhi::Allocator DxDevice::newAllocator(rhi::CommandList::Type type) {
     ID3D12CommandAllocator *allocator;
     DX_CHECK(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
 
-    return new rhi::Allocator(allocator);
+    return rhi::Allocator(allocator);
 }
 
 rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {

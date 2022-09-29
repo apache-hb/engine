@@ -28,10 +28,10 @@ DxCommandList::DxCommandList(ID3D12GraphicsCommandList *commands)
     : commands(commands)
 { }
 
-void DxCommandList::beginRecording(rhi::Allocator *allocator) {
-    allocator->reset();
+void DxCommandList::beginRecording(rhi::Allocator &allocator) {
+    allocator.reset();
 
-    DX_CHECK(commands->Reset(allocator->get(), nullptr));
+    DX_CHECK(commands->Reset(allocator.get(), nullptr));
 }
 
 void DxCommandList::endRecording() {

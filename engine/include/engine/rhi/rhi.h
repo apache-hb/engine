@@ -156,7 +156,7 @@ namespace engine::rhi {
             eCopy = D3D12_COMMAND_LIST_TYPE_COPY
         };
 
-        virtual void beginRecording(Allocator *allocator) = 0;
+        virtual void beginRecording(Allocator &allocator) = 0;
         virtual void endRecording() = 0;
 
         virtual void setRenderTarget(CpuHandle target, const math::float4 &colour) = 0;
@@ -197,8 +197,8 @@ namespace engine::rhi {
     struct Device {
         virtual Fence *newFence() = 0;
         virtual CommandQueue *newQueue(CommandList::Type type) = 0;
-        virtual CommandList *newCommandList(Allocator *allocator, CommandList::Type type) = 0;
-        virtual Allocator *newAllocator(CommandList::Type type) = 0;
+        virtual CommandList *newCommandList(Allocator &allocator, CommandList::Type type) = 0;
+        virtual Allocator newAllocator(CommandList::Type type) = 0;
 
         virtual DescriptorSet *newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 

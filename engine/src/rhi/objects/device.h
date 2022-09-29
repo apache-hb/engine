@@ -10,9 +10,9 @@ namespace engine {
         rhi::Fence *newFence() override;
         rhi::CommandQueue *newQueue(rhi::CommandList::Type type) override;
 
-        rhi::CommandList *newCommandList(rhi::Allocator *allocator, rhi::CommandList::Type type) override;
+        rhi::CommandList *newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) override;
         
-        rhi::Allocator *newAllocator(rhi::CommandList::Type type) override;
+        rhi::Allocator newAllocator(rhi::CommandList::Type type) override;
         rhi::DescriptorSet *newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) override;
         
         void createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) override;

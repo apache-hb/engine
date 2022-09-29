@@ -5,7 +5,7 @@
 namespace engine {
     struct DxCommandList : rhi::CommandList {
         DxCommandList(ID3D12GraphicsCommandList *commands);
-        void beginRecording(rhi::Allocator *allocator) override;
+        void beginRecording(rhi::Allocator &allocator) override;
         
         void endRecording() override;
         void setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) override;
