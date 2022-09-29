@@ -60,7 +60,7 @@ void Context::create() {
     renderTargetSet = device->newDescriptorSet(kFrameCount, rhi::DescriptorSet::Type::eRenderTarget, false);
     for (size_t i = 0; i < kFrameCount; i++) {
         rhi::Buffer *target = swapchain->getBuffer(i);
-        device->createRenderTargetView(target, renderTargetSet->cpuHandle(i));
+        device->createRenderTargetView(target, renderTargetSet.cpuHandle(i));
 
         renderTargets[i] = target;
         allocators[i] = device->newAllocator(rhi::CommandList::Type::eDirect);
@@ -89,12 +89,12 @@ void Context::create() {
 
     constBufferSet = device->newDescriptorSet(Slots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
 
-    device->imguiInit(kFrameCount, constBufferSet, constBufferSet->cpuHandle(Slots::eImgui), constBufferSet->gpuHandle(Slots::eImgui));
+    device->imguiInit(kFrameCount, constBufferSet, constBufferSet.cpuHandle(Slots::eImgui), constBufferSet.gpuHandle(Slots::eImgui));
 
     // const buffer binding data
 
     constBuffer = device->newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet->cpuHandle(Slots::eCamera));
+    device->createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet.cpuHandle(Slots::eCamera));
     constBufferPtr = constBuffer->map();
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
@@ -147,9 +147,6 @@ void Context::create() {
 }
 
 void Context::destroy() {
-    delete fence;
-
-    delete constBufferSet;
     delete constBuffer;
 
     delete pipeline;
@@ -166,8 +163,6 @@ void Context::destroy() {
         delete renderTargets[i];
     }
     
-    delete renderTargetSet;
-
     delete swapchain;
     delete directQueue;
 
@@ -178,7 +173,7 @@ void Context::begin(Camera *camera) {
     constBufferData.mvp = camera->mvp(float4x4::identity(), aspectRatio);
     memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
-    const rhi::CpuHandle rtvHandle = renderTargetSet->cpuHandle(frameIndex);
+    const rhi::CpuHandle rtvHandle = renderTargetSet.cpuHandle(frameIndex);
 
     device->imguiNewFrame();
 
@@ -191,9 +186,9 @@ void Context::begin(Camera *camera) {
 
     directCommands->setPipeline(pipeline);
 
-    auto kDescriptors = std::to_array({ constBufferSet });
+    auto kDescriptors = std::to_array({ constBufferSet.get() });
     directCommands->bindDescriptors(kDescriptors);
-    directCommands->bindTable(0, constBufferSet->gpuHandle(0));
+    directCommands->bindTable(0, constBufferSet.gpuHandle(0));
 
     directCommands->drawMesh(indexBufferView, vertexBufferView);
 }
@@ -221,7 +216,7 @@ void Context::waitForFrame() {
 
 void Context::waitOnQueue(rhi::CommandQueue *queue, size_t value) {
     queue->signal(fence, value);
-    fence->waitUntil(value);
+    fence.waitUntil(value);
 }
 
 rhi::Buffer *Context::uploadData(const void *ptr, size_t size) {

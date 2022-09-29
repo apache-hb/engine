@@ -22,6 +22,14 @@ namespace engine::rhi {
     template<IsComObject T>
     using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
 
+    struct HandleDeleter {
+        void operator()(HANDLE handle) {
+            CloseHandle(handle);
+        }
+    };
+
+    using UniqueHandle = UniqueResource<HANDLE, HandleDeleter>;
+
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
 
@@ -42,13 +50,6 @@ namespace engine::rhi {
             eConstBuffer = D3D12_DESCRIPTOR_RANGE_TYPE_CBV
         };
     }
-
-    struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
-        using Super = UniqueComPtr<ID3D12CommandAllocator>;
-        using Super::Super;
-
-        void reset();
-    };
     
     struct InputElement {
         std::string name;
@@ -83,6 +84,13 @@ namespace engine::rhi {
 
         std::span<std::byte> ps;
         std::span<std::byte> vs;
+    };
+
+    struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
+        using Super = UniqueComPtr<ID3D12CommandAllocator>;
+        using Super::Super;
+
+        void reset();
     };
 
     struct Buffer {
@@ -122,13 +130,22 @@ namespace engine::rhi {
         size_t stride;
     };
 
-    struct Fence {
-        virtual void waitUntil(size_t signal) = 0;
+    struct Fence final : UniqueComPtr<ID3D12Fence> {
+        using Super = UniqueComPtr<ID3D12Fence>;
+        using Super::Super;
 
-        virtual ~Fence() = default;
+        Fence(ID3D12Fence *fence = nullptr);
+
+        void waitUntil(size_t signal);
+
+    private:
+        UniqueHandle event;
     };
     
-    struct DescriptorSet {
+    struct DescriptorSet final : UniqueComPtr<ID3D12DescriptorHeap> {
+        using Super = UniqueComPtr<ID3D12DescriptorHeap>;
+        using Super::Super;
+
         enum struct Type {
             eConstBuffer = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
             eRenderTarget = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -140,10 +157,13 @@ namespace engine::rhi {
             eDeviceOnly
         };
 
-        virtual CpuHandle cpuHandle(size_t offset) = 0;
-        virtual GpuHandle gpuHandle(size_t offset) = 0;
+        DescriptorSet(ID3D12DescriptorHeap *heap = nullptr, UINT stride = UINT_MAX);
 
-        virtual ~DescriptorSet() = default;
+        CpuHandle cpuHandle(size_t offset);
+        GpuHandle gpuHandle(size_t offset);
+
+    private:
+        UINT stride;
     };
 
     struct PipelineState {
@@ -163,7 +183,8 @@ namespace engine::rhi {
         virtual void setViewport(const Viewport &view) = 0;
         virtual void setPipeline(PipelineState *pipeline) = 0;
 
-        virtual void bindDescriptors(std::span<DescriptorSet*> sets) = 0;
+        // TODO: this is a bit wonky
+        virtual void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) = 0;
         virtual void bindTable(size_t index, GpuHandle handle) = 0;
 
         virtual void copyBuffer(Buffer *dst, Buffer *src, size_t size) = 0;
@@ -188,19 +209,19 @@ namespace engine::rhi {
 
     struct CommandQueue {
         virtual SwapChain *newSwapChain(Window *window, size_t buffers) = 0;
-        virtual void signal(Fence *fence, size_t value) = 0;
+        virtual void signal(Fence &fence, size_t value) = 0;
         virtual void execute(std::span<CommandList*> lists) = 0;
 
         virtual ~CommandQueue() = default;
     };
 
     struct Device {
-        virtual Fence *newFence() = 0;
+        virtual Fence newFence() = 0;
         virtual CommandQueue *newQueue(CommandList::Type type) = 0;
         virtual CommandList *newCommandList(Allocator &allocator, CommandList::Type type) = 0;
         virtual Allocator newAllocator(CommandList::Type type) = 0;
 
-        virtual DescriptorSet *newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
+        virtual DescriptorSet newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible) = 0;
 
         virtual void createRenderTargetView(Buffer *buffer, CpuHandle handle) = 0;
         virtual void createConstBufferView(Buffer *buffer, size_t size, CpuHandle handle) = 0;
@@ -211,7 +232,7 @@ namespace engine::rhi {
 
         virtual PipelineState *newPipelineState(const PipelineBinding& bindings) = 0;
 
-        virtual void imguiInit(size_t frames, DescriptorSet *heap, CpuHandle cpuHandle, GpuHandle gpuHandle) = 0;
+        virtual void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle) = 0;
         virtual void imguiNewFrame() = 0;
 
         virtual ~Device() = default;

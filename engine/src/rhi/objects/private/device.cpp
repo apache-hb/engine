@@ -1,10 +1,8 @@
 #include "objects/device.h"
 
-#include "objects/fence.h"
 #include "objects/buffer.h"
 #include "objects/commands.h"
 #include "objects/queue.h"
-#include "objects/descriptors.h"
 #include "objects/pipeline.h"
 
 #include "imgui_impl_dx12.h"
@@ -136,14 +134,11 @@ DxDevice::~DxDevice() {
     ImGui_ImplDX12_Shutdown();
 }
 
-rhi::Fence *DxDevice::newFence() {
-    HANDLE event = CreateEvent(nullptr, false, false, nullptr);
-    ASSERT(event != nullptr);
-
+rhi::Fence DxDevice::newFence() {
     ID3D12Fence *fence;
     DX_CHECK(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
-    return new DxFence(fence, event);
+    return rhi::Fence(fence);
 }
 
 rhi::CommandQueue *DxDevice::newQueue(rhi::CommandList::Type type) {
@@ -172,7 +167,7 @@ rhi::Allocator DxDevice::newAllocator(rhi::CommandList::Type type) {
     return rhi::Allocator(allocator);
 }
 
-rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {
+rhi::DescriptorSet DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) {
     const auto kHeapType = D3D12_DESCRIPTOR_HEAP_TYPE(type);
     const D3D12_DESCRIPTOR_HEAP_DESC kRtvHeapDesc {
         .Type = kHeapType,
@@ -184,7 +179,7 @@ rhi::DescriptorSet *DxDevice::newDescriptorSet(size_t count, rhi::DescriptorSet:
     DX_CHECK(device->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
     UINT stride = device->GetDescriptorHandleIncrementSize(kHeapType);
 
-    return new DxDescriptorSet(rtvHeap, stride);
+    return rhi::DescriptorSet(rtvHeap, stride);
 }
 
 void DxDevice::createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) {
@@ -305,12 +300,11 @@ ID3D12PipelineState *DxDevice::createPipelineState(ID3D12RootSignature *root, D3
 }
 
 
-void DxDevice::imguiInit(size_t frames, rhi::DescriptorSet *heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
-    auto *it = static_cast<DxDescriptorSet*>(heap);
+void DxDevice::imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kCpuHandle { size_t(cpuHandle) };
     const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(gpuHandle) };
 
-    ImGui_ImplDX12_Init(device.get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, it->get(), kCpuHandle, kGpuHandle);
+    ImGui_ImplDX12_Init(device.get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
 }
 
 void DxDevice::imguiNewFrame() {

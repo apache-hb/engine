@@ -7,13 +7,13 @@ namespace engine {
         DxDevice(ID3D12Device *device, D3D_ROOT_SIGNATURE_VERSION version);
         ~DxDevice() override;
 
-        rhi::Fence *newFence() override;
+        rhi::Fence newFence() override;
         rhi::CommandQueue *newQueue(rhi::CommandList::Type type) override;
 
         rhi::CommandList *newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) override;
         
         rhi::Allocator newAllocator(rhi::CommandList::Type type) override;
-        rhi::DescriptorSet *newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) override;
+        rhi::DescriptorSet newDescriptorSet(size_t count, rhi::DescriptorSet::Type type, bool shaderVisible) override;
         
         void createRenderTargetView(rhi::Buffer *target, rhi::CpuHandle rtvHandle) override;
         void createConstBufferView(rhi::Buffer *buffer, size_t size, rhi::CpuHandle srvHandle) override;
@@ -24,7 +24,7 @@ namespace engine {
 
         rhi::PipelineState *newPipelineState(const rhi::PipelineBinding& bindings) override;
 
-        void imguiInit(size_t frames, rhi::DescriptorSet *heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) override;
+        void imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) override;
         void imguiNewFrame() override;
 
     private:

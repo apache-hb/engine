@@ -40,6 +40,57 @@ namespace engine {
         using Type = T;
     };
 
+    template<typename T, typename Delete> requires (std::is_trivially_copy_constructible<T>::value)
+    struct UniqueResource {
+        UniqueResource(T object) { 
+            init(object);
+        }
+
+        UniqueResource(UniqueResource &&other) { 
+            init(other.claim());
+        }
+
+        UniqueResource &operator=(UniqueResource &&other) {
+            destroy();
+            init(other.claim());
+            return *this;
+        }
+
+        UniqueResource(const UniqueResource&) = delete;
+        UniqueResource &operator=(const UniqueResource&) = delete;
+
+        ~UniqueResource() {
+            destroy();
+        }
+
+        T get() { return value(); }
+
+    private:
+        void destroy() {
+            if (valid) {
+                Delete{}(data);
+            }
+            valid = false;
+        }
+
+        T claim() {
+            valid = false;
+            return value();
+        }
+
+        T value() {
+            return data;
+        }
+
+        void init(T it) {
+            data = it;
+            valid = true;
+        }
+
+        T data;
+        bool valid = false;
+    };
+
     template<typename T, typename Delete = DefaultDelete<T>>
     struct UniquePtr {
         using Type = typename RemoveArray<T>::Type;

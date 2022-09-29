@@ -1,22 +1,20 @@
-#include "objects/descriptors.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
-DxDescriptorSet::DxDescriptorSet(ID3D12DescriptorHeap *heap, UINT stride)
-    : heap(heap)
+DescriptorSet::DescriptorSet(ID3D12DescriptorHeap *heap, UINT stride)
+    : Super(heap)
     , stride(stride)
 { }
 
-rhi::CpuHandle DxDescriptorSet::cpuHandle(size_t offset) {
-    const auto kCpuHeapStart = heap->GetCPUDescriptorHandleForHeapStart();
+rhi::CpuHandle DescriptorSet::cpuHandle(size_t offset) {
+    const auto kCpuHeapStart = get()->GetCPUDescriptorHandleForHeapStart();
     return rhi::CpuHandle(kCpuHeapStart.ptr + (offset * stride));
 }
 
-rhi::GpuHandle DxDescriptorSet::gpuHandle(size_t offset) {
-    const auto kGpuHeapStart = heap->GetGPUDescriptorHandleForHeapStart();
+rhi::GpuHandle DescriptorSet::gpuHandle(size_t offset) {
+    const auto kGpuHeapStart = get()->GetGPUDescriptorHandleForHeapStart();
     return rhi::GpuHandle(kGpuHeapStart.ptr + (offset * stride));
-}
-
-ID3D12DescriptorHeap *DxDescriptorSet::get() { 
-    return heap.get(); 
 }

@@ -1,6 +1,5 @@
 #include "objects/queue.h"
 
-#include "objects/fence.h"
 #include "objects/swapchain.h"
 #include "objects/commands.h"
 
@@ -51,9 +50,8 @@ rhi::SwapChain *DxCommandQueue::newSwapChain(Window *window, size_t buffers) {
     return new DxSwapChain(swapchain3, tearing);
 }
 
-void DxCommandQueue::signal(rhi::Fence *fence, size_t value) {
-    auto *it = static_cast<DxFence*>(fence);
-    DX_CHECK(queue->Signal(it->get(), value));
+void DxCommandQueue::signal(rhi::Fence &fence, size_t value) {
+    DX_CHECK(queue->Signal(fence.get(), value));
 }
 
 void DxCommandQueue::execute(std::span<rhi::CommandList*> lists) {

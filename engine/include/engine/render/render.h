@@ -61,7 +61,7 @@ namespace engine::render {
 
         // presentation data
         rhi::SwapChain *swapchain;
-        rhi::DescriptorSet *renderTargetSet;
+        rhi::DescriptorSet renderTargetSet;
 
         // presentation queue
         rhi::CommandQueue *directQueue;
@@ -84,7 +84,7 @@ namespace engine::render {
         rhi::Buffer *indexBuffer;
 
         // const buffer data
-        rhi::DescriptorSet *constBufferSet;
+        rhi::DescriptorSet constBufferSet;
         rhi::Buffer *constBuffer;
         void *constBufferPtr;
         ConstBuffer constBufferData;
@@ -94,7 +94,7 @@ namespace engine::render {
         rhi::IndexBufferView indexBufferView;
 
         // sync objects
-        rhi::Fence *fence;
+        rhi::Fence fence;
         size_t fenceValue;
         size_t frameIndex;
     };

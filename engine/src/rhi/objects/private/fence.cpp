@@ -1,23 +1,17 @@
-#include "objects/fence.h"
+#include "engine/rhi/rhi.h"
+#include "objects/common.h"
 
 using namespace engine;
+using namespace engine::rhi;
 
-DxFence::DxFence(ID3D12Fence *fence, HANDLE event)
-    : fence(fence)
-    , event(event)
+Fence::Fence(ID3D12Fence *fence)
+    : Super(fence)
+    , event(CreateEvent(nullptr, false, false, nullptr))
 { }
 
-DxFence::~DxFence() {
-    CloseHandle(event);
-}
-
-void DxFence::waitUntil(size_t signal) {
-    if (fence->GetCompletedValue() < signal) {
-        DX_CHECK(fence->SetEventOnCompletion(signal, event));
-        WaitForSingleObject(event, INFINITE);
+void Fence::waitUntil(size_t signal) {
+    if (get()->GetCompletedValue() < signal) {
+        DX_CHECK(get()->SetEventOnCompletion(signal, event.get()));
+        WaitForSingleObject(event.get(), INFINITE);
     }
-}
-
-ID3D12Fence *DxFence::get() { 
-    return fence.get(); 
 }
