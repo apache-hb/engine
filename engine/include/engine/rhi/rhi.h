@@ -257,7 +257,7 @@ namespace engine::rhi {
         void createTextureBufferView(Buffer &buffer, CpuHandle handle);
 
         Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state);
-        TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state);
+        TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
         PipelineState newPipelineState(const PipelineBinding& bindings);
 

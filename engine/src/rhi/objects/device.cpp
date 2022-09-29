@@ -181,8 +181,8 @@ rhi::DescriptorSet Device::newDescriptorSet(size_t count, rhi::DescriptorSet::Ty
 }
 
 void Device::createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandle) {
-    D3D12_CPU_DESCRIPTOR_HANDLE handle { size_t(rtvHandle) };
-    get()->CreateRenderTargetView(target.get(), nullptr, handle);
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(rtvHandle) };
+    get()->CreateRenderTargetView(target.get(), nullptr, kHandle);
 }
 
 void Device::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) {
@@ -203,7 +203,7 @@ void Device::createTextureBufferView(Buffer &buffer, CpuHandle handle) {
             .MipLevels = 1
         }
     };
-    
+
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
     get()->CreateShaderResourceView(buffer.get(), &kDesc, kHandle);
 }
@@ -213,18 +213,23 @@ rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibi
 
     ID3D12Resource *resource;
     DX_CHECK(get()->CreateCommittedResource(
-        getHeapProps(visibility), 
+        getHeapProps(visibility),
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &kBufferSize,
-        D3D12_RESOURCE_STATES(state), 
-        nullptr, 
+        D3D12_RESOURCE_STATES(state),
+        nullptr,
         IID_PPV_ARGS(&resource)
     ));
-    
+
     return rhi::Buffer(resource);
 }
 
-rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state, math::float4 clear) {
+    const D3D12_CLEAR_VALUE kClear { 
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .Color = { clear.x, clear.y, clear.z, clear.w }
+    };
+    const auto kState = D3D12_RESOURCE_STATES(state);
     const D3D12_RESOURCE_DESC kTextureDesc {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         .Alignment = 0,
@@ -238,16 +243,16 @@ rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::Descri
             .Quality = 0
         },
         .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        .Flags = D3D12_RESOURCE_FLAG_NONE
+        .Flags = (kState & D3D12_RESOURCE_STATE_RENDER_TARGET) ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE
     };
 
     ID3D12Resource *resource;
     DX_CHECK(get()->CreateCommittedResource(
-        getHeapProps(visibility), 
-        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
-        &kTextureDesc, 
-        D3D12_RESOURCE_STATES(state), 
-        nullptr, 
+        getHeapProps(visibility),
+        D3D12_HEAP_FLAG_NONE,
+        &kTextureDesc,
+        kState,
+        (kState & D3D12_RESOURCE_STATE_RENDER_TARGET) ? &kClear : nullptr,
         IID_PPV_ARGS(&resource)
     ));
 
