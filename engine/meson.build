@@ -39,16 +39,16 @@ src = [
     'src/rhi/vendor/agility.cpp', 
     'src/rhi/vendor/vendor.cpp',
 
-    'src/rhi/objects/private/common.cpp',
-    'src/rhi/objects/private/allocator.cpp',
-    'src/rhi/objects/private/fence.cpp',
-    'src/rhi/objects/private/buffer.cpp',
-    'src/rhi/objects/private/descriptors.cpp',
-    'src/rhi/objects/private/swapchain.cpp',
-    'src/rhi/objects/private/commands.cpp',
-    'src/rhi/objects/private/pipeline.cpp',
-    'src/rhi/objects/private/queue.cpp',
-    'src/rhi/objects/private/device.cpp',
+    'src/rhi/objects/common.cpp',
+    'src/rhi/objects/allocator.cpp',
+    'src/rhi/objects/fence.cpp',
+    'src/rhi/objects/buffer.cpp',
+    'src/rhi/objects/descriptors.cpp',
+    'src/rhi/objects/swapchain.cpp',
+    'src/rhi/objects/commands.cpp',
+    'src/rhi/objects/pipeline.cpp',
+    'src/rhi/objects/queue.cpp',
+    'src/rhi/objects/device.cpp',
 
     'src/rhi/rhi.cpp'
 ]
