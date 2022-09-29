@@ -17,11 +17,10 @@ namespace {
         case rhi::Format::float32x3: return sizeof(math::float3);
         case rhi::Format::float32x4: return sizeof(math::float4);
         
-        default: return DXGI_FORMAT_UNKNOWN;
+        default: return SIZE_MAX;
         }
     }
 }
-
 
 void CommandList::beginRecording(rhi::Allocator &allocator) {
     allocator.reset();
@@ -62,11 +61,21 @@ void CommandList::setViewport(const rhi::Viewport &view) {
     get()->RSSetScissorRects(1, &kScissor);
 }
 
-void CommandList::copyBuffer(rhi::Buffer &dst, rhi::Buffer &src, size_t size) {
+void CommandList::copyBuffer(Buffer &dst, Buffer &src, size_t size) {
     get()->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
 }
 
-void CommandList::transition(rhi::Buffer &buffer, rhi::Buffer::State before, rhi::Buffer::State after) {
+void CommandList::copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size) {
+    const D3D12_SUBRESOURCE_DATA kUpdate {
+        .pData = ptr,
+        .RowPitch = LONG_PTR(size.width * 4),
+        .SlicePitch = LONG_PTR(size.width * 4 * size.height)
+    };
+
+    UpdateSubresources(get(), dst.get(), src.get(), 0, 0, 1, &kUpdate);
+}
+
+void CommandList::transition(Buffer &buffer, Buffer::State before, rhi::Buffer::State after) {
     transitionBarrier(buffer.get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
 }
 

@@ -81,11 +81,16 @@ namespace engine::render {
         rhi::Buffer vertexBuffer;
         rhi::Buffer indexBuffer;
 
+        // scene data set
+        // contains texture, imgui data, and the camera buffer
+        rhi::DescriptorSet dataSet;
+        
         // const buffer data
-        rhi::DescriptorSet constBufferSet;
         rhi::Buffer constBuffer;
         void *constBufferPtr;
         ConstBuffer constBufferData;
+
+        rhi::Buffer textureBuffer;
 
         // out object
         rhi::VertexBufferView vertexBufferView;

@@ -8,8 +8,8 @@ namespace {
     namespace Slots {
         enum Slot : unsigned {
             eCamera,
-            eImgui,
             eTexture,
+            eImgui,
             eTotal
         };
     }
@@ -81,21 +81,19 @@ void Context::create() {
         { rhi::ShaderVisibility::ePixel }
     });
 
-    constBufferSet = device.newDescriptorSet(Slots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
-
-    device.imguiInit(kFrameCount, constBufferSet, constBufferSet.cpuHandle(Slots::eImgui), constBufferSet.gpuHandle(Slots::eImgui));
-
-    // const buffer binding data
-
-    constBuffer = device.newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    device.createConstBufferView(constBuffer, sizeof(ConstBuffer), constBufferSet.cpuHandle(Slots::eCamera));
-    constBufferPtr = constBuffer.map();
-    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
-
     auto bindings = std::to_array<rhi::Binding>({
         rhi::Binding { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }, // register(b0, space0)
         rhi::Binding { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic } // register(t0, space0)
     });
+
+    dataSet = device.newDescriptorSet(Slots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
+
+    // const buffer binding data
+
+    constBuffer = device.newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
+    device.createConstBufferView(constBuffer, sizeof(ConstBuffer), dataSet.cpuHandle(Slots::eCamera));
+    constBufferPtr = constBuffer.map();
+    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
 
     pipeline = device.newPipelineState({
         .samplers = samplers,
@@ -119,22 +117,51 @@ void Context::create() {
         2, 1, 3
     };
 
+    std::vector<uint8_t> textureData(256 * 256 * 4);
+
+    for (size_t i = 0; i < (256 * 256 * 4); i += 4) {
+        textureData[i + 0] = uint8_t(i % (256 * 256));
+        textureData[i + 1] = uint8_t(i % (256 * 256));
+        textureData[i + 2] = 0;
+        textureData[i + 3] = 0xFF;
+    }
+
+    auto result = device.newTexture({ 256, 256 }, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
+
+    textureBuffer = std::move(result.buffer);
+
     size_t signal = recordCopy([&] {
         vertexBuffer = uploadData(kVerts, sizeof(kVerts));
         indexBuffer = uploadData(kIndices, sizeof(kIndices));
+
+        auto uploadTexture = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
+        copyCommands.copyTexture(textureBuffer, uploadTexture, textureData.data(), { 256, 256 });
+
+        pendingCopies.push_back(std::move(uploadTexture));
 
         vertexBufferView = rhi::VertexBufferView{vertexBuffer.gpuAddress(), std::size(kVerts), sizeof(Vertex)};
         indexBufferView = rhi::IndexBufferView{indexBuffer.gpuAddress(), std::size(kIndices), rhi::Format::uint32};
     });
 
-    ID3D12CommandList* commands[] = { copyCommands.get() };
-    copyQueue.execute(commands);
+    device.createTextureBufferView(textureBuffer, dataSet.cpuHandle(Slots::eTexture));
+
+    directCommands.beginRecording(allocators[frameIndex]);
+    directCommands.transition(textureBuffer, BufferState::eCopyDst, BufferState::ePixelShaderResource);
+    directCommands.endRecording();
+
+    ID3D12CommandList* directCommandList[] = { directCommands.get() };
+    directQueue.execute(directCommandList);
+
+    ID3D12CommandList* copyCommandList[] = { copyCommands.get() };
+    copyQueue.execute(copyCommandList);
 
     waitOnQueue(copyQueue, signal);
     pendingCopies.resize(0);
     // wait for the direct queue to be available
 
     waitForFrame();
+
+    device.imguiInit(kFrameCount, dataSet, dataSet.cpuHandle(Slots::eImgui), dataSet.gpuHandle(Slots::eImgui));
 }
 
 void Context::begin(Camera *camera) {
@@ -147,16 +174,16 @@ void Context::begin(Camera *camera) {
 
     directCommands.beginRecording(allocators[frameIndex]);
 
-    directCommands.transition(renderTargets[frameIndex], rhi::Buffer::State::ePresent, rhi::Buffer::State::eRenderTarget);
+    directCommands.transition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget);
 
     directCommands.setViewport(viewport);
     directCommands.setRenderTarget(rtvHandle, kClearColour);
 
     directCommands.setPipeline(pipeline);
 
-    auto kDescriptors = std::to_array({ constBufferSet.get() });
+    auto kDescriptors = std::to_array({ dataSet.get() });
     directCommands.bindDescriptors(kDescriptors);
-    directCommands.bindTable(0, constBufferSet.gpuHandle(0));
+    directCommands.bindTable(0, dataSet.gpuHandle(0));
 
     directCommands.drawMesh(indexBufferView, vertexBufferView);
 }
@@ -175,9 +202,7 @@ void Context::end() {
 }
 
 void Context::waitForFrame() {
-    const auto value = fenceValue++;
-
-    waitOnQueue(directQueue, value);
+    waitOnQueue(directQueue, fenceValue++);
 
     frameIndex = swapchain.currentBackBuffer();
 }

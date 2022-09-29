@@ -194,6 +194,20 @@ void Device::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHan
     get()->CreateConstantBufferView(&kDesc, kHandle);
 }
 
+void Device::createTextureBufferView(Buffer &buffer, CpuHandle handle) {
+    const D3D12_SHADER_RESOURCE_VIEW_DESC kDesc {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MipLevels = 1
+        }
+    };
+    
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
+    get()->CreateShaderResourceView(buffer.get(), &kDesc, kHandle);
+}
+
 rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
@@ -210,9 +224,9 @@ rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibi
     return rhi::Buffer(resource);
 }
 
-rhi::Buffer Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
     const D3D12_RESOURCE_DESC kTextureDesc {
-        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D,
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         .Alignment = 0,
         .Width = UINT(size.width),
         .Height = UINT(size.height),
@@ -237,7 +251,11 @@ rhi::Buffer Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet
         IID_PPV_ARGS(&resource)
     ));
 
-    return rhi::Buffer(resource);
+    // get the size needed for the destination buffer
+    UINT64 requiredSize = 0;
+    get()->GetCopyableFootprints(&kTextureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &requiredSize);
+
+    return { rhi::Buffer(resource), requiredSize };
 }
 
 rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings) {

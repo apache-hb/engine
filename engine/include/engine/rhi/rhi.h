@@ -35,6 +35,7 @@ namespace engine::rhi {
     enum struct GpuHandle : std::size_t {};
 
     using Viewport = math::Resolution<float>;
+    using TextureSize = math::Resolution<size_t>;
 
     enum struct Format {
         uint32,
@@ -196,6 +197,7 @@ namespace engine::rhi {
         void bindTable(size_t index, GpuHandle handle);
 
         void copyBuffer(Buffer &dst, Buffer &src, size_t size);
+        void copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size);
 
         void drawMesh(const IndexBufferView &indexView, const VertexBufferView &vertexView);
 
@@ -231,6 +233,11 @@ namespace engine::rhi {
         void execute(std::span<ID3D12CommandList*> lists);
     };
 
+    struct TextureCreate {
+        Buffer buffer;
+        size_t uploadSize;
+    };
+
     struct Device final : UniqueComPtr<ID3D12Device> {
         using Super = UniqueComPtr<ID3D12Device>;
         using Super::Super;
@@ -247,9 +254,10 @@ namespace engine::rhi {
 
         void createRenderTargetView(Buffer &buffer, CpuHandle handle);
         void createConstBufferView(Buffer &buffer, size_t size, CpuHandle handle);
+        void createTextureBufferView(Buffer &buffer, CpuHandle handle);
 
         Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state);
-        Buffer newTexture(math::Resolution<size_t> size, DescriptorSet::Visibility visibility, Buffer::State state);
+        TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state);
 
         PipelineState newPipelineState(const PipelineBinding& bindings);
 
