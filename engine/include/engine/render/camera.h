@@ -2,6 +2,8 @@
 
 #include "engine/math/math.h"
 
+#include "engine/rhi/rhi.h"
+
 namespace engine::render {
     using namespace math;
 
@@ -41,5 +43,24 @@ namespace engine::render {
         float3 focus;
 
         float fov;
+    };
+
+    struct alignas(256) CameraData {
+        math::float4x4 mvp = math::float4x4::identity();
+    };
+
+    struct CameraBuffer {
+        CameraBuffer(Camera *camera);
+        
+        void attach(rhi::Device& device, rhi::CpuHandle handle);
+        void detach();
+
+        void update(float aspectRatio);
+    private:
+        Camera *camera;
+
+        rhi::Buffer buffer;
+        void *ptr;
+        CameraData data; 
     };
 }

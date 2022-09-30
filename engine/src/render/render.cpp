@@ -76,7 +76,7 @@ namespace {
     };
 }
 
-Context::Context(Create &&info) : info(info), device(rhi::getDevice()) {
+Context::Context(Create &&info) : info(info), device(rhi::getDevice()), cameraBuffer(info.camera) {
     auto [width, height] = info.resolution;
 
     sceneView = rhi::View(0, 0, float(width), float(height));
@@ -162,11 +162,8 @@ void Context::create() {
 
     fence = device.newFence();
 
-    // const buffer binding data
-    constBuffer = device.newBuffer(sizeof(ConstBuffer), rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
-    device.createConstBufferView(constBuffer, sizeof(ConstBuffer), sceneDataHeap.cpuHandle(SceneSlots::eCamera));
-    constBufferPtr = constBuffer.map();
-    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
+    // attach camera to the scene
+    cameraBuffer.attach(device, sceneDataHeap.cpuHandle(SceneSlots::eCamera));
 
     auto input = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3 },
@@ -324,9 +321,8 @@ void Context::create() {
     device.imguiInit(kFrameCount, postDataHeap, postDataHeap.cpuHandle(PostSlots::eImgui), postDataHeap.gpuHandle(PostSlots::eImgui));
 }
 
-void Context::begin(Camera *camera) {
-    constBufferData.mvp = camera->mvp(float4x4::identity(), aspectRatio);
-    memcpy(constBufferPtr, &constBufferData, sizeof(ConstBuffer));
+void Context::begin() {
+    cameraBuffer.update(aspectRatio);
 
     device.imguiNewFrame();
 

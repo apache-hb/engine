@@ -41,8 +41,9 @@ int commonMain() {
     int height = GetSystemMetrics(SM_CYSCREEN);
 
     Window window { width, height, "game" };
-    render::Context render { { &window, &logger } };
     render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
+
+    render::Context render { { &window, &logger, &camera } };
 
     Timer timer;
     float total = 0.f;
@@ -53,7 +54,7 @@ int commonMain() {
 
         camera.setPosition({ std::sin(total), std::cos(total), 1.f });
 
-        render.begin(&camera);
+        render.begin();
         window.imguiNewFrame();
         ImGui::NewFrame();
 

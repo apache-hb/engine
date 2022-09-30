@@ -67,3 +67,23 @@ void LookAt::setPosition(float3 update) {
 void LookAt::setFocus(float3 update) {
     focus = update;
 }
+
+CameraBuffer::CameraBuffer(Camera *camera)
+    : camera(camera)
+{ }
+
+void CameraBuffer::attach(rhi::Device& device, rhi::CpuHandle handle) {
+    buffer = device.newBuffer(sizeof(CameraData), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
+    device.createConstBufferView(buffer, sizeof(CameraData), handle);
+
+    ptr = buffer.map();
+}
+
+void CameraBuffer::detach() {
+
+}
+
+void CameraBuffer::update(float aspectRatio) {
+    data.mvp = camera->mvp(float4x4::identity(), aspectRatio);
+    memcpy(ptr, &data, sizeof(CameraData));
+}

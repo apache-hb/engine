@@ -28,14 +28,10 @@ namespace engine::render {
         rhi::IndexBufferView indexBufferView;
     };
 
-    struct alignas(256) ConstBuffer {
-        math::float4x4 mvp = math::float4x4::identity();
-    };
-
     struct Context;
 
     struct Scene {
-        Scene(Context *ctx);
+        virtual ID3D12CommandList *populate() = 0;
         virtual ~Scene() = default;
     };
 
@@ -43,12 +39,13 @@ namespace engine::render {
         struct Create {
             Window *window; // window to attach to
             logging::Channel *channel; // logging channel
-            rhi::TextureSize resolution = { 1920 * 2, 1080 * 2 }; // internal render resolution
+            Camera *camera; // camera
+            rhi::TextureSize resolution = { 1920, 1080 }; // internal render resolution
         };
 
         Context(Create &&info);
 
-        void begin(Camera *camera);
+        void begin();
         void end();
 
     private:
@@ -122,12 +119,9 @@ namespace engine::render {
         rhi::DescriptorSet postDataHeap;
         rhi::DescriptorSet sceneDataHeap;
         
-        // const buffer data
-        rhi::Buffer constBuffer;
-        void *constBufferPtr;
-        ConstBuffer constBufferData;
-
         rhi::Buffer textureBuffer;
+
+        CameraBuffer cameraBuffer;
 
         // sync objects
         rhi::Fence fence;
