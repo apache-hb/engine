@@ -79,7 +79,7 @@ namespace engine::rhi {
     }
     
     struct InputElement {
-        std::string name;
+        const char *name;
         Format format;
     };
 
@@ -106,14 +106,14 @@ namespace engine::rhi {
 
     struct BindingTable {
         ShaderVisibility visibility;
-        std::span<BindingRange> ranges;
+        std::span<const BindingRange> ranges;
     };
 
     struct PipelineBinding {
-        std::span<Sampler> samplers;
-        std::span<BindingTable> tables;
+        std::span<const Sampler> samplers;
+        std::span<const BindingTable> tables;
 
-        std::span<InputElement> input;
+        std::span<const InputElement> input;
 
         std::span<std::byte> ps;
         std::span<std::byte> vs;

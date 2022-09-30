@@ -70,12 +70,12 @@ src = [ 'src/render/render.cpp', 'src/render/camera.cpp', 'src/render/scene.cpp'
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, stb ],
+    dependencies : [ base, rhi, stb, gltf ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, stb ],
+    dependencies : [ base, rhi, stb, gltf ],
     include_directories : 'include'
 )

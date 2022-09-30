@@ -78,13 +78,6 @@ namespace engine::render {
         void beginCopy();
         size_t endCopy(); // return the value to wait for to signal that all copies are complete
 
-        template<typename F>
-        size_t recordCopy(F &&func) {
-            beginCopy();
-            func();
-            return endCopy();
-        }
-
         void beginPost();
         void endPost();
 

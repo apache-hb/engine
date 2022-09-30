@@ -4,28 +4,33 @@
 
 #include "stb_image.h"
 
+#pragma warning (push)
+#pragma warning (disable : 5030)
+#include "fastgltf/fastgltf_parser.hpp"
+#pragma warning (pop)
+
 using namespace engine;
 using namespace engine::render;
 
 namespace {
-    auto input = std::to_array<rhi::InputElement>({
+    constexpr auto input = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3 },
         { "TEXCOORD", rhi::Format::float32x2 }
     });
 
-    auto samplers = std::to_array<rhi::Sampler>({
+    constexpr auto samplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
     });
 
-    auto sceneVertexRanges = std::to_array<rhi::BindingRange>({
+    constexpr auto sceneVertexRanges = std::to_array<rhi::BindingRange>({
         { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }
     });
 
-    auto scenePixelRanges = std::to_array<rhi::BindingRange>({
+    constexpr auto scenePixelRanges = std::to_array<rhi::BindingRange>({
         { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic }
     });
 
-    auto sceneBindings = std::to_array<rhi::BindingTable>({
+    constexpr auto sceneBindings = std::to_array<rhi::BindingTable>({
         rhi::BindingTable {
             .visibility = rhi::ShaderVisibility::eVertex,
             .ranges = sceneVertexRanges
@@ -76,6 +81,26 @@ GltfScene::GltfScene(Create&& info) : Scene(info.resolution), camera(info.camera
     auto [width, height] = resolution;
     view = rhi::View(0, 0, float(width), float(height));
     aspectRatio = resolution.aspectRatio<float>();
+
+    loadFile(info.path);
+}
+
+void GltfScene::loadFile(const std::filesystem::path &path) {
+    fg::Parser parser;
+    auto json = fastgltf::JsonData(path);
+    auto gltf = parser.loadGLTF(&json, path.parent_path(), fg::Options::DontRequireValidAssetMember);
+
+    ASSERTF(parser.getError() == fg::Error::None, "gltf loading failed: {}", fg::to_underlying(parser.getError()));
+
+    gltf->parseScenes();
+    gltf->parseNodes();
+    gltf->parseMeshes();
+    gltf->parseAccessors();
+    gltf->parseBufferViews();
+    auto error = gltf->parseBuffers();
+    ASSERTF(error == fg::Error::None, "gltf parsing failed: {}", fg::to_underlying(error));
+
+    asset = gltf->getParsedAsset();
 }
 
 ID3D12CommandList *GltfScene::populate(Context *ctx) {

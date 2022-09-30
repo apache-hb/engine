@@ -44,7 +44,7 @@ int commonMain() {
     Window window { width, height, "game" };
     render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
 
-    render::GltfScene scene { { camera } };
+    render::GltfScene scene { { camera, "B:\\downloads\\Box\\glTF\\Box.gltf" } };
 
     render::Context render { { &window, &logger, scene } };
 

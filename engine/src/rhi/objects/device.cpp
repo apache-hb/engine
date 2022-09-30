@@ -18,12 +18,12 @@ namespace {
         }
     }
 
-    std::vector<D3D12_INPUT_ELEMENT_DESC> createInputLayout(std::span<rhi::InputElement> layout) {
+    std::vector<D3D12_INPUT_ELEMENT_DESC> createInputLayout(std::span<const rhi::InputElement> layout) {
         std::vector<D3D12_INPUT_ELEMENT_DESC> input{layout.size()};
 
         for (size_t i = 0; i < layout.size(); i++) {
             const auto &item = layout[i];
-            D3D12_INPUT_ELEMENT_DESC desc { item.name.c_str(), 0, getElementFormat(item.format), 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+            D3D12_INPUT_ELEMENT_DESC desc { item.name, 0, getElementFormat(item.format), 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
             input[i] = desc;
         }
 
@@ -50,7 +50,7 @@ namespace {
         };
     }
 
-    std::vector<D3D12_STATIC_SAMPLER_DESC> createSamplers(std::span<rhi::Sampler> samplers) {
+    std::vector<D3D12_STATIC_SAMPLER_DESC> createSamplers(std::span<const rhi::Sampler> samplers) {
         if (samplers.size() == 0) {
             return {};
         }
@@ -79,7 +79,7 @@ namespace {
         using DxRanges = UniquePtr<D3D12_DESCRIPTOR_RANGE1[]>;
         using DxParams = UniquePtr<D3D12_ROOT_PARAMETER1[]>;
 
-        D3D12_DESCRIPTOR_RANGE1 *createBindingRange(std::span<rhi::BindingRange> bindings) {
+        D3D12_DESCRIPTOR_RANGE1 *createBindingRange(std::span<const rhi::BindingRange> bindings) {
             DxRanges ranges { bindings.size() };
             for (size_t i = 0; i < bindings.size(); i++) {
                 ranges[i] = createRange(bindings[i]);
@@ -97,7 +97,7 @@ namespace {
             return param;
         }
 
-        DxParams createBindingParams(std::span<BindingTable> tables) {
+        DxParams createBindingParams(std::span<const BindingTable> tables) {
             DxParams params { tables.size() };
             for (size_t i = 0; i < tables.size(); i++) {
                 params[i] = createRootTable(tables[i]);
@@ -110,7 +110,7 @@ namespace {
         std::vector<DxRanges> descriptors;
     };
 
-    rhi::UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<rhi::Sampler> samplers, std::span<rhi::BindingTable> tables) {
+    rhi::UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<const rhi::Sampler> samplers, std::span<const rhi::BindingTable> tables) {
         // TODO: make this configurable
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
