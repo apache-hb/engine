@@ -58,9 +58,10 @@ namespace engine::rhi {
         Format format;
     };
 
-    enum struct ShaderVisibility {
+    enum ShaderVisibility {
         ePixel = D3D12_SHADER_VISIBILITY_PIXEL,
-        eVertex = D3D12_SHADER_VISIBILITY_VERTEX
+        eVertex = D3D12_SHADER_VISIBILITY_VERTEX,
+        eTotal = D3D12_SHADER_VISIBILITY_ALL
     };
 
     enum struct BindingMutability {
@@ -72,15 +73,20 @@ namespace engine::rhi {
         ShaderVisibility visibility;
     };
 
-    struct Binding {
+    struct BindingRange {
         size_t base;
         Object::Type type;
         BindingMutability mutability;
     };
 
+    struct BindingTable {
+        ShaderVisibility visibility;
+        std::span<BindingRange> ranges;
+    };
+
     struct PipelineBinding {
         std::span<Sampler> samplers;
-        std::span<Binding> bindings;
+        std::span<BindingTable> tables;
 
         std::span<InputElement> input;
 
