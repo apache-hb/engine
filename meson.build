@@ -19,7 +19,7 @@ d3d12 = subproject('d3d12').get_variable('d3d12')
 fmt = subproject('fmt').get_variable('fmt')
 imgui = subproject('imgui').get_variable('imgui')
 stb = subproject('stb').get_variable('stb')
-json = subproject('simdjson').get_variable('json')
+gltf = subproject('fastgltf').get_variable('gltf')
 
 subdir('engine')
 

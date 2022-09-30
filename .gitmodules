@@ -7,3 +7,9 @@
 [submodule "subprojects/simdjson/simdjson"]
 	path = subprojects/simdjson/simdjson
 	url = https://github.com/simdjson/simdjson
+[submodule "subprojects/fastgltf/--force"]
+	path = subprojects/fastgltf/--force
+	url = https://github.com/spnda/fastgltf
+[submodule "subprojects/fastgltf/fastgltf"]
+	path = subprojects/fastgltf/fastgltf
+	url = https://github.com/spnda/fastgltf

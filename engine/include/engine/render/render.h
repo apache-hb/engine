@@ -43,7 +43,7 @@ namespace engine::render {
         struct Create {
             Window *window; // window to attach to
             logging::Channel *channel; // logging channel
-            rhi::TextureSize resolution = { 1920, 1080 / 2 }; // internal render resolution
+            rhi::TextureSize resolution = { 1920 * 2, 1080 * 2 }; // internal render resolution
         };
 
         Context(Create &&info);
