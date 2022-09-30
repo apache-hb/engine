@@ -66,7 +66,7 @@ rhi = declare_dependency(
     include_directories : 'include'
 )
 
-src = [ 'src/render/render.cpp', 'src/render/camera.cpp' ]
+src = [ 'src/render/render.cpp', 'src/render/camera.cpp', 'src/render/scene.cpp' ]
 
 librender = library('render', src,
     cpp_args : args,

@@ -8,6 +8,7 @@
 #include "engine/input/input.h"
 
 #include "engine/render/render.h"
+#include "engine/render/scene.h"
 
 #include "imgui.h"
 
@@ -43,7 +44,9 @@ int commonMain() {
     Window window { width, height, "game" };
     render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
 
-    render::Context render { { &window, &logger, &camera } };
+    render::GltfScene scene { { camera } };
+
+    render::Context render { { &window, &logger, scene } };
 
     Timer timer;
     float total = 0.f;

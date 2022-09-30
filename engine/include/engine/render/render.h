@@ -13,6 +13,10 @@ namespace engine::render {
     constexpr auto kFrameCount = 2;
     constexpr auto kRenderTargets = kFrameCount + 1; // +1 for intermediate target
 
+    constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
+
+    std::vector<std::byte> loadShader(std::string_view path);
+
     struct Vertex {
         math::float3 pos;
         math::float2 uv;
@@ -31,22 +35,35 @@ namespace engine::render {
     struct Context;
 
     struct Scene {
-        virtual ID3D12CommandList *populate() = 0;
+        Scene(rhi::TextureSize resolution) : resolution(resolution) { }
+
+        virtual ID3D12CommandList *populate(Context *ctx) = 0;
+        virtual ID3D12CommandList *attach(Context *ctx) = 0;
         virtual ~Scene() = default;
+
+        rhi::TextureSize resolution;
     };
 
     struct Context {
         struct Create {
             Window *window; // window to attach to
             logging::Channel *channel; // logging channel
-            Camera *camera; // camera
-            rhi::TextureSize resolution = { 1920, 1080 }; // internal render resolution
+            Scene &scene; // scene to display
         };
 
         Context(Create &&info);
 
         void begin();
         void end();
+
+        // accessors
+        size_t currentFrame() const { return frameIndex; }
+        rhi::Device &getDevice() { return device; }
+
+        rhi::Buffer uploadData(const void *ptr, size_t size);
+        rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data);
+
+        rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(kFrameCount); }
 
     private:
         Create info;
@@ -68,19 +85,10 @@ namespace engine::render {
             return endCopy();
         }
 
-        void beginScene();
         void beginPost();
-
-        void endScene();
         void endPost();
 
-        rhi::Buffer uploadData(const void *ptr, size_t size);
-        rhi::Buffer uploadTexture(rhi::TextureSize size, std::span<std::byte> data);
-
         rhi::Device device;
-
-        // scene data
-        float aspectRatio;
 
         // presentation queue
         rhi::CommandQueue directQueue;
@@ -104,25 +112,10 @@ namespace engine::render {
         std::vector<rhi::Buffer> pendingCopies;
         size_t currentCopy = 0;
 
-        // scene data
-        rhi::CommandList sceneCommands;
-        rhi::View sceneView;
-
-        // per frame scene data
-        rhi::Allocator sceneAllocators[kFrameCount];
-
-        // fullscreen quad
-        Mesh sceneObject;
-
         // scene data set
         // contains texture, imgui data, and the camera buffer
         rhi::DescriptorSet postDataHeap;
-        rhi::DescriptorSet sceneDataHeap;
         
-        rhi::Buffer textureBuffer;
-
-        CameraBuffer cameraBuffer;
-
         // sync objects
         rhi::Fence fence;
         size_t fenceValue = 0;

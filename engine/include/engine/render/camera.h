@@ -50,14 +50,14 @@ namespace engine::render {
     };
 
     struct CameraBuffer {
-        CameraBuffer(Camera *camera);
+        CameraBuffer(Camera &camera);
         
         void attach(rhi::Device& device, rhi::CpuHandle handle);
         void detach();
 
         void update(float aspectRatio);
     private:
-        Camera *camera;
+        Camera &camera;
 
         rhi::Buffer buffer;
         void *ptr;
