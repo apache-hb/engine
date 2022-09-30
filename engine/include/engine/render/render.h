@@ -43,7 +43,7 @@ namespace engine::render {
         struct Create {
             Window *window; // window to attach to
             logging::Channel *channel; // logging channel
-            rhi::TextureSize resolution = { 1920 / 2, 1080 / 2 }; // internal render resolution
+            rhi::TextureSize resolution = { 1920, 1080 / 2 }; // internal render resolution
         };
 
         Context(Create &&info);
@@ -55,6 +55,8 @@ namespace engine::render {
         Create info;
 
         void create();
+
+        void updateViewports();
 
         void waitForFrame();
         void waitOnQueue(rhi::CommandQueue &queue, size_t value);
@@ -93,7 +95,7 @@ namespace engine::render {
         rhi::Allocator postAllocators[kFrameCount];
 
         rhi::CommandList postCommands;
-        rhi::Viewport postViewport;
+        rhi::View postView;
         Mesh screenQuad;
 
         rhi::Buffer intermediateTarget;
@@ -107,7 +109,7 @@ namespace engine::render {
 
         // scene data
         rhi::CommandList sceneCommands;
-        rhi::Viewport sceneViewport;
+        rhi::View sceneView;
 
         // per frame scene data
         rhi::Allocator sceneAllocators[kFrameCount];

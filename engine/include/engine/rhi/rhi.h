@@ -34,8 +34,33 @@ namespace engine::rhi {
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
 
-    using Viewport = math::Resolution<float>;
     using TextureSize = math::Resolution<size_t>;
+
+    struct Scissor : D3D12_RECT {
+        using Super = D3D12_RECT;
+
+        Scissor(LONG top, LONG left, LONG width, LONG height)
+            : Super({ top, left, width, height })
+        { }
+    };
+
+    struct Viewport : D3D12_VIEWPORT {
+        using Super = D3D12_VIEWPORT;
+        Viewport(FLOAT top, FLOAT left, FLOAT width, FLOAT height)
+            : Super({ top, left, width, height, 0.f, 1.f })
+        { }
+    };
+
+    struct View {
+        View() = default;
+        View(FLOAT top, FLOAT left, FLOAT width, FLOAT height)
+            : scissor(LONG(top), LONG(left), LONG(width + left), LONG(height + top))
+            , viewport(top, left, width, height)
+        { }
+
+        Scissor scissor{0, 0, 0, 0};
+        Viewport viewport{0.f, 0.f, 0.f, 0.f};
+    };
 
     enum struct Format {
         uint32,
@@ -195,7 +220,7 @@ namespace engine::rhi {
         void endRecording();
 
         void setRenderTarget(CpuHandle target, const math::float4 &colour);
-        void setViewport(const Viewport &view);
+        void setViewAndScissor(const View &view);
         void setPipeline(PipelineState &pipeline);
 
         // TODO: this is a bit wonky

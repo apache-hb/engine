@@ -77,15 +77,39 @@ namespace {
 }
 
 Context::Context(Create &&info) : info(info), device(rhi::getDevice()) {
-    auto size = info.window->size();
     auto [width, height] = info.resolution;
 
-    postViewport = { float(size.width), float(size.height) };
+    sceneView = rhi::View(0, 0, float(width), float(height));
+    aspectRatio = info.resolution.aspectRatio<float>();
 
-    sceneViewport = { float(width), float(height) };
-    aspectRatio = size.aspectRatio<float>();
-
+    updateViewports();
     create();
+}
+
+void Context::updateViewports() {
+    auto [windowWidth, windowHeight] = info.window->size();
+
+    auto widthRatio = float(info.resolution.width) / windowWidth;
+    auto heightRatio = float(info.resolution.height) / windowHeight;
+
+    float x = 1.f;
+    float y = 1.f;
+
+    if (widthRatio < heightRatio) {
+        x = widthRatio / heightRatio;
+    } else {
+        y = heightRatio / widthRatio;
+    }
+
+    postView.viewport.TopLeftX = windowWidth * (1.f - x) / 2.f;
+    postView.viewport.TopLeftY = windowHeight * (1.f - y) / 2.f;
+    postView.viewport.Width = x * windowWidth;
+    postView.viewport.Height = y * windowHeight;
+
+    postView.scissor.left = LONG(postView.viewport.TopLeftX);
+    postView.scissor.right = LONG(postView.viewport.TopLeftX + postView.viewport.Width);
+    postView.scissor.top = LONG(postView.viewport.TopLeftY);
+    postView.scissor.bottom = LONG(postView.viewport.TopLeftY + postView.viewport.Height);
 }
 
 void Context::create() {
@@ -331,7 +355,7 @@ void Context::beginScene() {
     sceneCommands.bindTable(0, sceneDataHeap.gpuHandle(SceneSlots::eCamera));
     sceneCommands.bindTable(1, sceneDataHeap.gpuHandle(SceneSlots::eTexture));
 
-    sceneCommands.setViewport(sceneViewport);
+    sceneCommands.setViewAndScissor(sceneView);
     sceneCommands.setRenderTarget(renderTargetSet.cpuHandle(kFrameCount), kClearColour); // render to the intermediate framebuffer
 
     sceneCommands.drawMesh(sceneObject.indexBufferView, sceneObject.vertexBufferView);
@@ -350,7 +374,7 @@ void Context::beginPost() {
     postCommands.transition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource);
 
     postCommands.bindTable(0, postDataHeap.gpuHandle(PostSlots::eFrame));
-    postCommands.setViewport(postViewport);
+    postCommands.setViewAndScissor(postView);
 
     postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), kLetterBox);
     postCommands.drawMesh(screenQuad.indexBufferView, screenQuad.vertexBufferView);

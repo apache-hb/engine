@@ -40,25 +40,9 @@ void CommandList::setRenderTarget(rhi::CpuHandle target, const math::float4 &col
     get()->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
 }
 
-void CommandList::setViewport(const rhi::Viewport &view) {
-    const D3D12_VIEWPORT kViewport = {
-        .TopLeftX = 0.f,
-        .TopLeftY = 0.f,
-        .Width = view.width,
-        .Height = view.height,
-        .MinDepth = D3D12_MIN_DEPTH,
-        .MaxDepth = D3D12_MAX_DEPTH
-    };
-
-    const D3D12_RECT kScissor = {
-        .left = 0,
-        .top = 0,
-        .right = LONG(view.width),
-        .bottom = LONG(view.height)
-    };
-
-    get()->RSSetViewports(1, &kViewport);
-    get()->RSSetScissorRects(1, &kScissor);
+void CommandList::setViewAndScissor(const rhi::View &view) {
+    get()->RSSetViewports(1, &view.viewport);
+    get()->RSSetScissorRects(1, &view.scissor);
 }
 
 void CommandList::copyBuffer(Buffer &dst, Buffer &src, size_t size) {
