@@ -14,6 +14,8 @@ namespace engine {
         math::Resolution<int> size() const;
         HWND handle();
 
+        size_t dpi() const;
+
         bool poll();
 
         void imguiNewFrame();

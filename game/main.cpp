@@ -27,6 +27,7 @@ int commonMain() {
     ImGui::CreateContext();
     auto& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     ImGui::StyleColorsDark();
 
@@ -46,7 +47,11 @@ int commonMain() {
 
     render::BasicScene scene { { camera } };
 
-    render::Context render { { &window, &logger, scene } };
+    render::Context render { { &window, &logger, &scene } };
+
+    auto dpi = window.dpi();
+    io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
+    io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
 
     Timer timer;
     float total = 0.f;
@@ -59,8 +64,8 @@ int commonMain() {
 
         render.begin();
         window.imguiNewFrame();
-        ImGui::NewFrame();
 
+        ImGui::NewFrame();
         ImGui::ShowDemoWindow();
 
         ImGui::Render();

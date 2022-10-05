@@ -48,7 +48,7 @@ namespace engine::render {
         struct Create {
             Window *window; // window to attach to
             logging::Channel *channel; // logging channel
-            Scene &scene; // scene to display
+            Scene *scene; // scene to display
         };
 
         Context(Create &&info);
@@ -60,7 +60,7 @@ namespace engine::render {
         size_t currentFrame() const { return frameIndex; }
         rhi::Device &getDevice() { return device; }
 
-        logging::Channel *getChannel() { return info.channel;}
+        logging::Channel *getChannel() { return channel; }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
         rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data);
@@ -68,7 +68,9 @@ namespace engine::render {
         rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(kFrameCount); }
 
     private:
-        Create info;
+        Window *window;
+        logging::Channel *channel;
+        Scene *scene;
 
         void create();
 

@@ -71,6 +71,10 @@ math::Resolution<int> Window::size() const {
     return { client.right - client.left, client.bottom - client.top };
 }
 
+size_t Window::dpi() const {
+    return GetDpiForWindow(hwnd);
+}
+
 HWND Window::handle() {
     return hwnd;
 }

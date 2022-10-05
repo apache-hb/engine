@@ -18,7 +18,6 @@ args = [ '-D_HAS_EXCEPTIONS=0', '/wd4324' ]
 d3d12 = subproject('d3d12').get_variable('d3d12')
 imgui = subproject('imgui').get_variable('imgui')
 stb = subproject('stb').get_variable('stb')
-gltf = subproject('fastgltf').get_variable('gltf')
 
 subdir('engine')
 

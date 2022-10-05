@@ -35,6 +35,9 @@ namespace engine::rhi {
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
 
+    static_assert(sizeof(CpuHandle) == sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
+    static_assert(sizeof(GpuHandle) == sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+
     using TextureSize = math::Resolution<size_t>;
 
     struct Scissor : D3D12_RECT {

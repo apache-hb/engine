@@ -36,14 +36,19 @@ std::vector<std::byte> render::loadShader(std::string_view path) {
     return io->read<std::byte>();
 }
 
-Context::Context(Create &&info) : info(info), device(rhi::getDevice(info.channel)) {
+Context::Context(Create &&info) 
+    : window(info.window)
+    , channel(info.channel)
+    , scene(info.scene)
+    , device(rhi::getDevice(info.channel)) 
+{
     updateViewports();
     create();
 }
 
 void Context::updateViewports() {
-    auto [windowWidth, windowHeight] = info.window->size();
-    auto resolution = info.scene.resolution;
+    auto [windowWidth, windowHeight] = window->size();
+    auto resolution = scene->resolution;
 
     auto widthRatio = float(resolution.width) / windowWidth;
     auto heightRatio = float(resolution.height) / windowHeight;
@@ -73,7 +78,7 @@ void Context::create() {
     directQueue = device.newQueue(rhi::CommandList::Type::eDirect);
     DX_NAME(directQueue);
 
-    swapchain = directQueue.newSwapChain(info.window, kFrameCount);
+    swapchain = directQueue.newSwapChain(window, kFrameCount);
     frameIndex = swapchain.currentBackBuffer();
 
     renderTargetSet = device.newDescriptorSet(kRenderTargets, rhi::DescriptorSet::Type::eRenderTarget, false);
@@ -92,7 +97,7 @@ void Context::create() {
     }
 
     // create our intermediate render target
-    auto result = device.newTexture(info.scene.resolution, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eRenderTarget, kClearColour);
+    auto result = device.newTexture(scene->resolution, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eRenderTarget, kClearColour);
     intermediateTarget = std::move(result.buffer);
 
     device.createRenderTargetView(intermediateTarget, renderTargetSet.cpuHandle(kFrameCount));
@@ -180,7 +185,7 @@ void Context::create() {
         .indexBufferView = indexBufferView
     };
 
-    ID3D12CommandList *sceneCommands = info.scene.attach(this);
+    ID3D12CommandList *sceneCommands = scene->attach(this);
 
     size_t signal = endCopy();
 
@@ -193,7 +198,7 @@ void Context::create() {
     directQueue.execute(directCommandList);
     waitForFrame();
 
-
+    // release copy resources that are no longer needed
     pendingCopies.resize(0);
     device.imguiInit(kFrameCount, postDataHeap, postDataHeap.cpuHandle(PostSlots::eImgui), postDataHeap.gpuHandle(PostSlots::eImgui));
 }
@@ -207,7 +212,7 @@ void Context::begin() {
 void Context::end() {
     endPost();
 
-    ID3D12CommandList *sceneCommands = info.scene.populate(this);
+    ID3D12CommandList *sceneCommands = scene->populate(this);
 
     ID3D12CommandList* commands[] = { sceneCommands, postCommands.get() };
     directQueue.execute(commands);
