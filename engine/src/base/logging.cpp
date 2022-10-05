@@ -1,6 +1,7 @@
 #include "engine/base/logging.h"
 
 #include <ranges>
+#include <iostream>
 
 using namespace engine::logging;
 
@@ -25,11 +26,11 @@ void Channel::process(Level reportLevel, std::string_view message) {
 }
 
 void IoChannel::send(Level reportLevel, const std::string_view message) {
-    io->write(fmt::format("[{}:{}]: {}\n", name, levelName(reportLevel), message));
+    io->write(std::format("[{}:{}]: {}\n", name, levelName(reportLevel), message));
 }
 
 void ConsoleChannel::send(Level reportLevel, const std::string_view message) {
-    fmt::print("[{}:{}]: {}\n", name, levelName(reportLevel), message);
+    std::cout << std::format("[{}:{}]: {}", name, levelName(reportLevel), message) << std::endl;
 }
 
 void MultiChannel::send(Level reportLevel, const std::string_view message) {

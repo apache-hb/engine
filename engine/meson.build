@@ -8,13 +8,12 @@ src = [
 
 libbase = library('base', src,
     cpp_args : args,
-    dependencies : [ fmt, imgui ],
+    dependencies : [ imgui ],
     include_directories : 'include'
 )
 
 base = declare_dependency(
     link_with : libbase,
-    dependencies : [ fmt ],
     include_directories : 'include'
 )
 
@@ -70,12 +69,12 @@ src = [ 'src/render/render.cpp', 'src/render/camera.cpp', 'src/render/scene.cpp'
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, stb, gltf ],
+    dependencies : [ base, rhi, stb ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, stb, gltf ],
+    dependencies : [ base, rhi, stb ],
     include_directories : 'include'
 )

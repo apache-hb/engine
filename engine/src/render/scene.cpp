@@ -4,11 +4,6 @@
 
 #include "stb_image.h"
 
-#pragma warning (push)
-#pragma warning (disable : 5030)
-#include "fastgltf/fastgltf_parser.hpp"
-#pragma warning (pop)
-
 using namespace engine;
 using namespace engine::render;
 
@@ -82,35 +77,13 @@ namespace {
     };
 }
 
-GltfScene::GltfScene(Create&& info) : Scene(info.resolution), camera(info.camera) {
+BasicScene::BasicScene(Create&& info) : Scene(info.resolution), camera(info.camera) {
     auto [width, height] = resolution;
     view = rhi::View(0, 0, float(width), float(height));
     aspectRatio = resolution.aspectRatio<float>();
-
-    loadFile(info.path);
 }
 
-void GltfScene::loadFile(UNUSED const std::filesystem::path &path) {
-    /*
-    fg::Parser parser;
-    auto json = fastgltf::JsonData(path);
-    auto gltf = parser.loadGLTF(&json, path.parent_path(), fg::Options::DontRequireValidAssetMember);
-
-    ASSERTF(parser.getError() == fg::Error::None, "gltf loading failed: {}", fg::to_underlying(parser.getError()));
-
-    gltf->parseScenes();
-    gltf->parseNodes();
-    gltf->parseMeshes();
-    gltf->parseAccessors();
-    gltf->parseBufferViews();
-    auto error = gltf->parseBuffers();
-    ASSERTF(error == fg::Error::None, "gltf parsing failed: {}", fg::to_underlying(error));
-
-    asset = gltf->getParsedAsset();
-    */
-}
-
-ID3D12CommandList *GltfScene::populate(Context *ctx) {
+ID3D12CommandList *BasicScene::populate(Context *ctx) {
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
     camera.update(aspectRatio);
@@ -133,7 +106,7 @@ ID3D12CommandList *GltfScene::populate(Context *ctx) {
     return commands.get();
 }
 
-ID3D12CommandList *GltfScene::attach(Context *ctx) {
+ID3D12CommandList *BasicScene::attach(Context *ctx) {
     auto &device = ctx->getDevice();
 
     for (size_t i = 0; i < kFrameCount; i++) {

@@ -2,7 +2,7 @@
 
 #include "engine/base/io.h"
 
-#include <fmt/format.h>
+#include <format>
 #include <span>
 
 namespace engine::logging {
@@ -24,22 +24,22 @@ namespace engine::logging {
 
         template<typename... A>
         void debug(std::string_view message, A&&... args) {
-            process(eDebug, fmt::vformat(message, fmt::make_format_args(args...)));
+            process(eDebug, std::vformat(message, std::make_format_args(args...)));
         }
 
         template<typename... A>
         void info(std::string_view message, A&&... args) {
-            process(eInfo, fmt::vformat(message, fmt::make_format_args(args...)));
+            process(eInfo, std::vformat(message, std::make_format_args(args...)));
         }
 
         template<typename... A>
         void warn(std::string_view message, A&&... args) {
-            process(eWarn, fmt::vformat(message, fmt::make_format_args(args...)));
+            process(eWarn, std::vformat(message, std::make_format_args(args...)));
         }
 
         template<typename... A>
         void fatal(std::string_view message, A&&... args) {
-            process(eFatal, fmt::vformat(message, fmt::make_format_args(args...)));
+            process(eFatal, std::vformat(message, std::make_format_args(args...)));
         }
 
         void process(Level reportLevel, std::string_view message);

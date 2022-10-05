@@ -4,7 +4,7 @@
 
 #include <string>
 #include <string_view>
-#include <fmt/format.h>
+#include <format>
 
 namespace engine {
     struct PanicInfo {
@@ -22,7 +22,7 @@ namespace engine {
         if (!(expr))                                                                                               \
         {                                                                                                          \
             engine::PanicInfo panic{__FILE__, FUNCNAME, __LINE__};                                                        \
-            engine::panic(panic, fmt::format(__VA_ARGS__));                                                                           \
+            engine::panic(panic, std::format(__VA_ARGS__));                                                                           \
         }                                                                                                          \
     } while (0)
 
