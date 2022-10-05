@@ -60,6 +60,8 @@ namespace engine::render {
         size_t currentFrame() const { return frameIndex; }
         rhi::Device &getDevice() { return device; }
 
+        logging::Channel *getChannel() { return info.channel;}
+
         rhi::Buffer uploadData(const void *ptr, size_t size);
         rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data);
 

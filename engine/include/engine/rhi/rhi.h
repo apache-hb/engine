@@ -2,6 +2,7 @@
 
 #include "engine/base/window.h"
 #include "engine/base/util.h"
+#include "engine/base/logging.h"
 
 #include <span>
 #include <string_view>
@@ -303,5 +304,5 @@ namespace engine::rhi {
         D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };
 
-    Device getDevice();
+    Device getDevice(logging::Channel *channel);
 }

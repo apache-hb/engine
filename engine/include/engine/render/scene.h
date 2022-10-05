@@ -3,6 +3,7 @@
 #include "engine/render/render.h"
 
 #include <filesystem>
+#include "engine/base/util.h"
 
 #include "fastgltf/fastgltf_types.hpp"
 
@@ -24,7 +25,7 @@ namespace engine::render {
     private:
         void loadFile(const std::filesystem::path &path);
 
-        std::unique_ptr<fg::Asset> asset;
+        UniquePtr<fg::Asset> asset;
 
         rhi::View view;
         float aspectRatio;

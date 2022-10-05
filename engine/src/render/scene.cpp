@@ -46,9 +46,14 @@ namespace {
         rhi::TextureSize size;
     };
 
-    Image loadImage(const char *path) {
+    Image loadImage(const char *path, logging::Channel *channel) {
         int x, y, channels;
         auto *it = reinterpret_cast<std::byte*>(stbi_load(path, &x, &y, &channels, 4));
+
+        if (it == nullptr) {
+            channel->fatal("failed to load image at {}: {}", path, stbi_failure_reason());
+            return Image { };
+        }
 
         return Image {
             .data = std::vector(it, it + (x * y * 4)),
@@ -85,7 +90,8 @@ GltfScene::GltfScene(Create&& info) : Scene(info.resolution), camera(info.camera
     loadFile(info.path);
 }
 
-void GltfScene::loadFile(const std::filesystem::path &path) {
+void GltfScene::loadFile(UNUSED const std::filesystem::path &path) {
+    /*
     fg::Parser parser;
     auto json = fastgltf::JsonData(path);
     auto gltf = parser.loadGLTF(&json, path.parent_path(), fg::Options::DontRequireValidAssetMember);
@@ -101,6 +107,7 @@ void GltfScene::loadFile(const std::filesystem::path &path) {
     ASSERTF(error == fg::Error::None, "gltf parsing failed: {}", fg::to_underlying(error));
 
     asset = gltf->getParsedAsset();
+    */
 }
 
 ID3D12CommandList *GltfScene::populate(Context *ctx) {
@@ -141,7 +148,7 @@ ID3D12CommandList *GltfScene::attach(Context *ctx) {
 
     auto ps = loadShader("resources/shaders/scene-shader.ps.pso");
     auto vs = loadShader("resources/shaders/scene-shader.vs.pso");
-    auto [image, size] = loadImage("C:\\Users\\ehb56\\Downloads\\meme.jpg");
+    auto [image, size] = loadImage("C:\\Users\\elliot\\Downloads\\uv-coords.jpg", ctx->getChannel());
 
     auto pipeline = device.newPipelineState({
         .samplers = samplers,
