@@ -1,4 +1,4 @@
-#include "engine/base/window.h"
+#include "engine/window/window.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -83,7 +83,8 @@ void Window::imguiNewFrame() {
     ImGui_ImplWin32_NewFrame();
 }
 
-bool Window::poll() {
+// TODO: fill in input
+bool Window::poll(UNUSED input::Input *input) {
     MSG msg { };
     if (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
         if (msg.message == WM_PAINT) { 

@@ -3,6 +3,8 @@
 #include "engine/math/math.h"
 #include "engine/base/win32.h"
 
+#include "engine/input/input.h"
+
 namespace engine {
     struct Window {
         Window(int width, int height, const char *title);
@@ -16,7 +18,7 @@ namespace engine {
 
         size_t dpi() const;
 
-        bool poll();
+        bool poll(input::Input *input);
 
         void imguiNewFrame();
 

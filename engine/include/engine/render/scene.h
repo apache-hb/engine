@@ -5,6 +5,18 @@
 #include "engine/base/util.h"
 
 namespace engine::render {
+    struct Object {
+        std::vector<std::byte> vs;
+        std::vector<std::byte> ps;
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> inidices;
+    };
+
+    struct World {
+
+    };
+
     struct BasicScene : Scene {
         struct Create {
             Camera &camera;

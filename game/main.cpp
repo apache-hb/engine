@@ -1,7 +1,7 @@
 #include "engine/base/macros.h"
 #include "engine/base/io.h"
 #include "engine/base/logging.h"
-#include "engine/base/window.h"
+#include "engine/window/window.h"
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
@@ -11,11 +11,14 @@
 #include "engine/render/scene.h"
 
 #include "imgui.h"
+#include <dbghelp.h>
 
 using namespace engine;
 using namespace math;
 
 int commonMain() {
+    SymInitialize(GetCurrentProcess(), nullptr, true);
+    
     // we want to be dpi aware
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     
@@ -49,15 +52,17 @@ int commonMain() {
 
     render::Context render { { &window, &logger, &scene } };
 
+    // kinda icky way of making imgui scale properly
     auto dpi = window.dpi();
     io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
     io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
 
     Timer timer;
+    input::Input input;
     float total = 0.f;
 
-    while (window.poll()) {
-        UNUSED auto input = input::poll();
+    while (window.poll(&input)) {
+        input::poll(&input);
         total += float(timer.tick());
 
         camera.setPosition({ std::sin(total), std::cos(total), 1.f });

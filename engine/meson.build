@@ -2,18 +2,18 @@ src = [
     'src/base/panic.cpp', 
     'src/base/io.cpp', 
     'src/base/logging.cpp', 
-    'src/base/util.cpp',
-    'src/base/window.cpp'
+    'src/base/util.cpp'
 ]
 
 libbase = library('base', src,
     cpp_args : args,
-    dependencies : [ imgui ],
+    link_args : [ 'dbghelp.lib' ],
     include_directories : 'include'
 )
 
 base = declare_dependency(
     link_with : libbase,
+    link_args : [ 'dbghelp.lib' ],
     include_directories : 'include'
 )
 
@@ -30,6 +30,20 @@ input = declare_dependency(
     link_with : libinput,
     link_args : [ 'xinput.lib' ],
     dependencies : base,
+    include_directories : 'include'
+)
+
+src = [ 'src/window/window.cpp' ]
+
+libwindow = library('window', src,
+    cpp_args : args,
+    dependencies : [ base, input, imgui ],
+    include_directories : 'include'
+)
+
+window = declare_dependency(
+    link_with : libwindow,
+    dependencies : [ base, input ],
     include_directories : 'include'
 )
 
@@ -54,14 +68,14 @@ src = [
 
 librhi = library('d3d12-rhi', src,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ base, d3d12, imgui ],
+    dependencies : [ base, d3d12, imgui, window ],
     include_directories : [ 'include', 'src/rhi' ]
 )
 
 rhi = declare_dependency(
     link_with : librhi,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ base, d3d12, imgui ],
+    dependencies : [ base, d3d12, imgui, window ],
     include_directories : 'include'
 )
 
@@ -69,12 +83,12 @@ src = [ 'src/render/render.cpp', 'src/render/camera.cpp', 'src/render/scene.cpp'
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, stb ],
+    dependencies : [ base, rhi, stb, window ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, stb ],
+    dependencies : [ base, rhi, stb, window ],
     include_directories : 'include'
 )

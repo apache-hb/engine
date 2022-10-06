@@ -4,3 +4,7 @@
 #include <windows.h>
 
 #define DLLEXPORT __declspec(dllexport)
+
+namespace engine::win32 {
+    void init();
+}

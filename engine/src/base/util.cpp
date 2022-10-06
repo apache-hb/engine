@@ -4,7 +4,7 @@
 
 using namespace engine;
 
-std::string engine::narrow(std::wstring_view str) {
+std::string strings::narrow(std::wstring_view str) {
     std::string result(str.size() + 1, '\0');
     size_t size = result.size();
 
@@ -17,7 +17,7 @@ std::string engine::narrow(std::wstring_view str) {
     return result;
 }
 
-std::wstring engine::widen(std::string_view str) {
+std::wstring strings::widen(std::string_view str) {
     auto needed = MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), nullptr, 0);
     std::wstring result(needed, '\0');
     MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), result.data(), (int)result.size());

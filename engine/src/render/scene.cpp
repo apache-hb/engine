@@ -8,7 +8,7 @@ using namespace engine;
 using namespace engine::render;
 
 namespace {
-    constexpr auto input = std::to_array<rhi::InputElement>({
+    constexpr auto inputLayout = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3 },
         { "TEXCOORD", rhi::Format::float32x2 }
     });
@@ -126,7 +126,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
     auto pipeline = device.newPipelineState({
         .samplers = samplers,
         .tables = sceneBindings,
-        .input = input,
+        .input = inputLayout,
         .ps = ps,
         .vs = vs
     });

@@ -8,5 +8,5 @@ namespace engine::input {
         math::float2 rotation;
     };
 
-    Input poll();
+    bool poll(Input *input);
 }

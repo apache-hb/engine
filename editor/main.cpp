@@ -1,7 +1,7 @@
 #include "engine/base/macros.h"
 #include "engine/base/io.h"
 #include "engine/base/logging.h"
-#include "engine/base/window.h"
+#include "engine/window/window.h"
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 

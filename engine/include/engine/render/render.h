@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/base/logging.h"
-#include "engine/base/window.h"
+#include "engine/window/window.h"
 
 #include "engine/rhi/rhi.h"
 

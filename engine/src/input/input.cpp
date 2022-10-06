@@ -29,16 +29,18 @@ namespace {
     }
 }
 
-input::Input input::poll() {
+bool input::poll(input::Input *input) {
     XINPUT_STATE state;
     if (DWORD result = XInputGetState(0, &state); result != ERROR_SUCCESS) {
-        return { };
+        return false;
     }
 
     float vertical = triggerRatio(state.Gamepad.bLeftTrigger, kTriggerDeadzone) - triggerRatio(state.Gamepad.bRightTrigger, kTriggerDeadzone);
 
-    return input::Input {
+    *input = input::Input {
         .movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone).vec3(vertical),
         .rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone)
     };
+
+    return false;
 }

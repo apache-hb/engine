@@ -21,7 +21,7 @@ namespace engine {
     {                                                                                                              \
         if (!(expr))                                                                                               \
         {                                                                                                          \
-            engine::PanicInfo panic{__FILE__, FUNCNAME, __LINE__};                                                        \
+            engine::PanicInfo panic { .file = __FILE__, .function = FUNCNAME, .line = __LINE__};                                                        \
             engine::panic(panic, std::format(__VA_ARGS__));                                                                           \
         }                                                                                                          \
     } while (0)

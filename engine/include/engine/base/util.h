@@ -2,10 +2,26 @@
 
 #include <string>
 #include <string_view>
+#include <sstream>
+#include <span>
 
 namespace engine {
-    std::string narrow(std::wstring_view str);
-    std::wstring widen(std::string_view str);
+    namespace strings {
+        std::string narrow(std::wstring_view str);
+        std::wstring widen(std::string_view str);
+
+        template<typename T>
+        std::string join(std::span<T> items, std::string_view sep) {
+            std::stringstream ss;
+            for (size_t i = 0; i < items.size(); i++) {
+                if (i != 0) {
+                    ss << sep;
+                }
+                ss << items[i];
+            }
+            return ss.str();
+        }
+    }
 
     struct Timer {
         Timer();
