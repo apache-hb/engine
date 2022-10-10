@@ -2,7 +2,8 @@ src = [
     'src/base/panic.cpp', 
     'src/base/io.cpp', 
     'src/base/logging.cpp', 
-    'src/base/util.cpp'
+    'src/base/util.cpp',
+    'src/base/win32.cpp'
 ]
 
 libbase = library('base', src,

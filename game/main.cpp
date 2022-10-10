@@ -16,23 +16,22 @@
 using namespace engine;
 using namespace math;
 
+namespace gui {
+    ImGuiIO &init() {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        auto& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
+
+        ImGui::StyleColorsDark();
+
+        return io;
+    }
+}
+
 int commonMain() {
-    SymInitialize(GetCurrentProcess(), nullptr, true);
-    
-    // we want to be dpi aware
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    
-    // shut up abort
-    _set_abort_behavior(0, _WRITE_ABORT_MSG);
-
-    // setup imgui
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    ImGui::StyleColorsDark();
+    win32::init();  
+    auto &io = gui::init();
 
     UniquePtr<Io> logFile { Io::open("game.log", Io::eWrite) };
     logging::IoChannel fileLogger {"general", logFile.get(), logging::eFatal};
