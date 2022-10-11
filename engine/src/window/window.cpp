@@ -1,5 +1,7 @@
 #include "engine/window/window.h"
 
+#include "engine/base/logging.h"
+
 #include <windowsx.h>
 
 #include "imgui.h"
@@ -25,8 +27,8 @@ namespace {
         case 'A': return Window::eA;
         case 'S': return Window::eS;
         case 'D': return Window::eD;
-        case VK_SPACE: return Window::eSpace;
-        case VK_LCONTROL: return Window::eLeftCtrl;
+        case 'E': return Window::eE;
+        case 'Q': return Window::eQ;
 
         default: return Window::eUnknown;
         }
@@ -63,6 +65,7 @@ namespace {
             auto *pUser = getUser(hwnd);
             if (wparam == VK_OEM_3) {
                 pUser->toggleConsole = !pUser->toggleConsole;
+                ShowCursor(pUser->toggleConsole);
             }
             pUser->pressed[getKey(wparam)] = ++pUser->priority;
             break;
@@ -116,6 +119,7 @@ Window::Window(int width, int height, const char *title) {
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
+    ShowCursor(false);
 
     ImGui_ImplWin32_Init(hwnd);
 }
@@ -180,14 +184,15 @@ bool Window::poll(input::Input *input) {
         input->movement = {
             .x = getMovementWithPriority(info.pressed[Window::eA], info.pressed[Window::eD]),
             .y = getMovementWithPriority(info.pressed[Window::eS], info.pressed[Window::eW]),
-            .z = getMovementWithPriority(info.pressed[Window::eLeftCtrl], info.pressed[Window::eSpace])
+            .z = getMovementWithPriority(info.pressed[Window::eQ], info.pressed[Window::eE])
         };
 
         auto [mX, mY] = info.mousePosition;
 
+        // TODO: multiplying by 100 is stupid, there has to be a better fix right?
         input->rotation = {
-            .x = (x - mX) * float(delta),
-            .y = (y - mY) * float(delta)
+            .x = 200 * (mX - x) * float(delta),
+            .y = 200 * (y - mY) * float(delta)
         };
     }
 

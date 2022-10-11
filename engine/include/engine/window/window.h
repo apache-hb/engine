@@ -28,9 +28,9 @@ namespace engine {
             eA,
             eS,
             eD,
-            
-            eSpace,
-            eLeftCtrl,
+        
+            eE,
+            eQ,
 
             eUnknown,
 

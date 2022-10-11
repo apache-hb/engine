@@ -90,6 +90,8 @@ void logging::init() {
     Channel *generalChannels[] { fileLogger, consoleLogger };
 
     kSinks[eGeneral] = addChannel(new MultiChannel<2>("general", std::to_array(generalChannels)));
+    kSinks[eInput] = kSinks[eGeneral];
+    kSinks[eRender] = kSinks[eGeneral];
 }
 
 Channel &logging::get(Sink sink) {
