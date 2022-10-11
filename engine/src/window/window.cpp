@@ -1,5 +1,7 @@
 #include "engine/window/window.h"
 
+#include <windowsx.h>
+
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 
@@ -11,12 +13,71 @@ namespace {
     constexpr auto kClassName = "GameWindowClass";
     auto instance = GetModuleHandleA(nullptr);
 
+    Window::Info *getUser(HWND hwnd) {
+        auto *pInfo = reinterpret_cast<Window::Info*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
+        pInfo->dirty = true;
+        return pInfo;
+    }
+
+    constexpr Window::Key getKey(WPARAM wparam) {
+        switch (wparam) {
+        case 'W': return Window::eW;
+        case 'A': return Window::eA;
+        case 'S': return Window::eS;
+        case 'D': return Window::eD;
+        case VK_SPACE: return Window::eSpace;
+        case VK_LCONTROL: return Window::eLeftCtrl;
+
+        default: return Window::eUnknown;
+        }
+    }
+
+    constexpr float getMovementWithPriority(size_t neg, size_t pos) {
+        if (neg > 0 || pos > 0) {
+            return (neg > pos) ? -1.f : 1.f;
+        } else {
+            return 0.f;
+        }
+    }
+
     LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
             return true;
         }
 
         switch (msg) {
+        case WM_CREATE: {
+            auto *pCreate = reinterpret_cast<LPCREATESTRUCTA>(lparam);
+            auto *pInfo = reinterpret_cast<Window::Info*>(pCreate->lpCreateParams);
+            SetWindowLongPtrA(hwnd, GWLP_USERDATA, LONG_PTR(pInfo));
+            break;
+        }
+
+        case WM_KEYUP: {
+            auto *pUser = getUser(hwnd);
+            pUser->pressed[getKey(wparam)] = 0;
+            break;
+        }
+
+        case WM_KEYDOWN: {
+            auto *pUser = getUser(hwnd);
+            if (wparam == VK_OEM_3) {
+                pUser->toggleConsole = !pUser->toggleConsole;
+            }
+            pUser->pressed[getKey(wparam)] = ++pUser->priority;
+            break;
+        }
+
+        case WM_MOUSEMOVE: {
+            auto *pUser = getUser(hwnd);
+            auto x = GET_X_LPARAM(lparam);
+            auto y = GET_Y_LPARAM(lparam);
+
+            pUser->mousePosition = { x, y };
+
+            break;
+        }
+
         case WM_CLOSE:
             DestroyWindow(hwnd);
             return 0;
@@ -50,7 +111,7 @@ Window::Window(int width, int height, const char *title) {
         /* hWndParent = */ nullptr,
         /* hMenu = */ nullptr,
         /* hInstance = */ instance,
-        /* lpParam = */ nullptr
+        /* lpParam = */ &info
     );
 
     ShowWindow(hwnd, SW_SHOW);
@@ -83,17 +144,52 @@ void Window::imguiNewFrame() {
     ImGui_ImplWin32_NewFrame();
 }
 
-// TODO: fill in input
-bool Window::poll(UNUSED input::Input *input) {
+math::Vec2<int> Window::center() {
+    RECT client;
+    GetClientRect(hwnd, &client);
+    return { (client.right - client.left) / 2, (client.bottom - client.top) / 2 };
+}
+
+bool Window::poll(input::Input *input) {
     MSG msg { };
-    if (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
-        if (msg.message == WM_PAINT) { 
-            return running; 
-        } else if (msg.message == WM_QUIT) {
-            running = false;
+    while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
+        if (msg.message == WM_QUIT) {
+            return false;
         }
-        TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+
+        if (msg.message != WM_PAINT) { 
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
     }
-    return running;
+
+    auto [x, y] = center();
+
+    if (!input->enableConsole) {
+        SetCursorPos(x, y);
+    }
+    
+    auto delta = lastMouseEvent.tick();
+
+    if (info.dirty) {
+        info.dirty = false;
+        input->device = input::eMouseAndKeyboard;
+
+        input->enableConsole = info.toggleConsole;
+
+        input->movement = {
+            .x = getMovementWithPriority(info.pressed[Window::eA], info.pressed[Window::eD]),
+            .y = getMovementWithPriority(info.pressed[Window::eS], info.pressed[Window::eW]),
+            .z = getMovementWithPriority(info.pressed[Window::eLeftCtrl], info.pressed[Window::eSpace])
+        };
+
+        auto [mX, mY] = info.mousePosition;
+
+        input->rotation = {
+            .x = (x - mX) * float(delta),
+            .y = (y - mY) * float(delta)
+        };
+    }
+
+    return true;
 }

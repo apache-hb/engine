@@ -51,38 +51,14 @@ namespace engine::logging {
         std::string_view name;
     };
 
-    struct IoChannel : Channel {
-        IoChannel(std::string_view name, Io *io, Level level = eFatal)
-            : Channel(name, level)
-            , io(io)
-        { }
+    enum Sink {
+        eGeneral,
+        eInput,
+        eRender,
 
-    protected:
-        virtual void send(Level reportLevel, const std::string_view message) override;
-
-    private:
-        Io *io;
+        eTotal
     };
 
-    struct ConsoleChannel : Channel {
-        ConsoleChannel(std::string_view name, Level level = eInfo)
-            : Channel(name, level)
-        { }
-
-    protected:
-        virtual void send(Level reportLevel, const std::string_view message) override;
-    };
-
-    struct MultiChannel : Channel {
-        MultiChannel(std::string_view name, std::span<Channel*> channels, Level level = eDebug)
-            : Channel(name, level)
-            , channels(channels)
-        { }
-
-    protected:
-        virtual void send(Level reportLevel, const std::string_view message) override;
-
-    private:
-        std::span<Channel*> channels;
-    };
+    void init();
+    Channel &get(Sink sink = eGeneral);
 }

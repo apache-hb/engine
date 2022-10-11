@@ -47,7 +47,6 @@ namespace engine::render {
     struct Context {
         struct Create {
             Window *window; // window to attach to
-            logging::Channel *channel; // logging channel
             Scene *scene; // scene to display
         };
 
@@ -60,8 +59,6 @@ namespace engine::render {
         size_t currentFrame() const { return frameIndex; }
         rhi::Device &getDevice() { return device; }
 
-        logging::Channel *getChannel() { return channel; }
-
         rhi::Buffer uploadData(const void *ptr, size_t size);
         rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data);
 
@@ -69,7 +66,6 @@ namespace engine::render {
 
     private:
         Window *window;
-        logging::Channel *channel;
         Scene *scene;
 
         void create();

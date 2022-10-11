@@ -41,12 +41,12 @@ namespace {
         rhi::TextureSize size;
     };
 
-    Image loadImage(const char *path, logging::Channel *channel) {
+    Image loadImage(const char *path) {
         int x, y, channels;
         auto *it = reinterpret_cast<std::byte*>(stbi_load(path, &x, &y, &channels, 4));
 
         if (it == nullptr) {
-            channel->fatal("failed to load image at {}: {}", path, stbi_failure_reason());
+            logging::get(logging::eRender).fatal("failed to load image at {}: {}", path, stbi_failure_reason());
             return Image { };
         }
 
@@ -121,7 +121,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
 
     auto ps = loadShader("resources/shaders/scene-shader.ps.pso");
     auto vs = loadShader("resources/shaders/scene-shader.vs.pso");
-    auto [image, size] = loadImage("C:\\Users\\elliot\\Downloads\\uv-coords.jpg", ctx->getChannel());
+    auto [image, size] = loadImage("C:\\Users\\ehb56\\Downloads\\20220914_065037.jpg");
 
     auto pipeline = device.newPipelineState({
         .samplers = samplers,

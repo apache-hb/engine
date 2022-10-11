@@ -17,18 +17,22 @@ namespace {
     }
 }
 
-rhi::Device rhi::getDevice(logging::Channel *channel) {
-    if (HRESULT hr = enableSm6(); SUCCEEDED(hr)) {
-        channel->warn("failed to enable shader model 6_0: {}", engine::hrErrorString(hr));
+rhi::Device rhi::getDevice() {
+    auto &channel = logging::get(logging::eRender);
+
+    if (HRESULT hr = enableSm6(); !SUCCEEDED(hr)) {
+        channel.warn("failed to enable shader model 6_0: {}", engine::hrErrorString(hr));
     }
 
     DX_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
 
     UINT factoryFlags = 0;
 
-    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&gDxDebug)))) {
+    if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&gDxDebug)); SUCCEEDED(hr)) {
         gDxDebug->EnableDebugLayer();
         factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+    } else {
+        channel.warn("faield to get d3d12 debug interface: {}", engine::hrErrorString(hr));
     }
 
     DX_CHECK(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&gFactory)));

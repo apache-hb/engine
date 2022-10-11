@@ -1,7 +1,6 @@
 #include "engine/base/macros.h"
 #include "engine/base/io.h"
 #include "engine/base/logging.h"
-#include "engine/window/window.h"
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
@@ -10,74 +9,76 @@
 #include "engine/render/render.h"
 #include "engine/render/scene.h"
 
+#include "engine/ui/ui.h"
+
 #include "imgui.h"
-#include <dbghelp.h>
 
 using namespace engine;
 using namespace math;
 
-namespace gui {
-    ImGuiIO &init() {
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        auto& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-
-        ImGui::StyleColorsDark();
-
-        return io;
-    }
-}
+constexpr float kMoveSensitivity = 0.001f;
+constexpr float kLookSensitivity = 0.001f;
 
 int commonMain() {
     win32::init();  
-    auto &io = gui::init();
-
-    UniquePtr<Io> logFile { Io::open("game.log", Io::eWrite) };
-    logging::IoChannel fileLogger {"general", logFile.get(), logging::eFatal};
-    logging::ConsoleChannel consoleLogger { "general", logging::eDebug};
-
-    logging::Channel *channels[] { &fileLogger, &consoleLogger };
-    logging::MultiChannel logger { "general", channels };
+    logging::init();
 
     // make a fullscreen borderless window on the primary monitor
     int width = GetSystemMetrics(SM_CXSCREEN);
     int height = GetSystemMetrics(SM_CYSCREEN);
 
-    Window window { width, height, "game" };
-    render::LookAt camera { { 1.f, 1.f, 1.f }, { 0.0f, 0.f, 0.f }, 110.f };
+    UniquePtr<Window> window = ui::init("game", width, height);
+    render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
 
     render::BasicScene scene { { camera } };
 
-    render::Context render { { &window, &logger, &scene } };
-
-    // kinda icky way of making imgui scale properly
-    auto dpi = window.dpi();
-    io.Fonts->AddFontFromFileTTF("resources/DroidSans.ttf", float(dpi) / (96.f / 13.f));
-    io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
+    render::Context render { { window.get(), &scene } };
 
     Timer timer;
-    input::Input input;
-    float total = 0.f;
+    input::Gamepad gamepad { 0 };
+    input::Input state;
+    // float total = 0.f;
 
-    while (window.poll(&input)) {
-        input::poll(&input);
-        total += float(timer.tick());
+    while (window->poll(&state)) {
+        gamepad.poll(&state);
+        // total += float(timer.tick());
 
-        camera.setPosition({ std::sin(total), std::cos(total), 1.f });
+        // camera.setPosition({ std::sin(total), std::cos(total), 1.f });
+
+        if (state.enableConsole && state.device == input::eMouseAndKeyboard) {
+            state.rotation = { 0.f, 0.f };
+        }
+
+        camera.move(state.movement * kMoveSensitivity);
+        camera.rotate(state.rotation.x * kLookSensitivity, state.rotation.y * kLookSensitivity);
 
         render.begin();
-        window.imguiNewFrame();
+        window->imguiNewFrame();
 
         ImGui::NewFrame();
         ImGui::ShowDemoWindow();
+
+        if (ImGui::Begin("Input")) {
+            ImGui::Text("Method: %s", state.device == input::eGamepad ? "Controller" : "Mouse & Keyboard");
+            ImGui::Text("Movement %.2f %.2f %.2f", state.movement.x, state.movement.y, state.movement.z);
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("Camera")) {
+            auto mvp = camera.mvp(float4x4::identity(), window->size().aspectRatio<float>());
+            ImGui::Text("%f %f %f %f", mvp.at(0, 0), mvp.at(0, 1), mvp.at(0, 2), mvp.at(0, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(1, 0), mvp.at(1, 1), mvp.at(1, 2), mvp.at(1, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(2, 0), mvp.at(2, 1), mvp.at(2, 2), mvp.at(2, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(3, 0), mvp.at(3, 1), mvp.at(3, 2), mvp.at(3, 3));
+        }
+        ImGui::End();
 
         ImGui::Render();
 
         render.end();
     }
 
-    logger.info("clean exit");
+    logging::get(logging::eGeneral).info("clean exit");
 
     return 0;
 }

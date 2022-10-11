@@ -48,6 +48,20 @@ window = declare_dependency(
     include_directories : 'include'
 )
 
+src = [ 'src/ui/ui.cpp' ]
+
+libui = library('ui', src,
+    cpp_args : args,
+    dependencies : [ window, imgui ],
+    include_directories : 'include'
+)
+
+ui = declare_dependency(
+    link_with : libui,
+    dependencies : [ window, imgui ],
+    include_directories : 'include'
+)
+
 # d3d12 rhi
 src = [
     'src/rhi/vendor/agility.cpp', 

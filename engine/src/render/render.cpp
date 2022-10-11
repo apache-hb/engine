@@ -38,9 +38,8 @@ std::vector<std::byte> render::loadShader(std::string_view path) {
 
 Context::Context(Create &&info) 
     : window(info.window)
-    , channel(info.channel)
     , scene(info.scene)
-    , device(rhi::getDevice(info.channel)) 
+    , device(rhi::getDevice()) 
 {
     updateViewports();
     create();

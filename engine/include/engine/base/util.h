@@ -29,7 +29,6 @@ namespace engine {
 
     private:
         size_t last;
-        size_t frequency;
     };
 
     template<typename T>

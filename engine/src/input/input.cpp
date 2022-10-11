@@ -4,23 +4,26 @@
 #include "xinput.h"
 
 using namespace engine;
+using namespace engine::input;
+
+using namespace math;
 
 namespace {
     constexpr UINT kLeftDeadzone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
     constexpr UINT kRightDeadzone = XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE;
     constexpr float kTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
 
-    math::float2 stickRatio(float x, float y, float deadzone) {
+    float2 stickRatio(float x, float y, float deadzone) {
         float magnitude = sqrt((x * x) + (y * y));
 
         if (magnitude > deadzone) {
-            return math::float2 { x / SHRT_MAX, y / SHRT_MAX };
+            return float2 { x / SHRT_MAX, y / SHRT_MAX };
         } else {
-            return math::float2::of(0.f);
+            return float2::of(0.f);
         }
     }
 
-    float triggerRatio(float it, float deadzone) {
+    constexpr float triggerRatio(float it, float deadzone) {
         if (it > deadzone) {
             return it / 255.f;
         }
@@ -29,18 +32,52 @@ namespace {
     }
 }
 
-bool input::poll(input::Input *input) {
+Gamepad::Gamepad(size_t index) 
+    : index(index) 
+{ }
+
+bool Gamepad::poll(Input *input) {
     XINPUT_STATE state;
-    if (DWORD result = XInputGetState(0, &state); result != ERROR_SUCCESS) {
+    // controller not connected, nothing to update
+    if (DWORD result = XInputGetState(DWORD(index), &state); result != ERROR_SUCCESS) {
         return false;
     }
 
+    // no new packet, nothing to update
+    if (!shouldSendPacket(state.dwPacketNumber)) {
+        return false;
+    }
+
+    updatePacket(state.dwPacketNumber);
+
     float vertical = triggerRatio(state.Gamepad.bLeftTrigger, kTriggerDeadzone) - triggerRatio(state.Gamepad.bRightTrigger, kTriggerDeadzone);
 
-    *input = input::Input {
-        .movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone).vec3(vertical),
-        .rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone)
+    float2 movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone);
+    float2 rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone);
+
+    // no actual data to send
+    if (vertical == 0.f && movement == 0.f && rotation == 0.f && !(state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK)) {
+        return false;
+    }
+
+    *input = Input {
+        .device = eGamepad,
+        .enableConsole = (state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) ? !input->enableConsole : input->enableConsole,
+        .movement = movement.vec3(vertical),
+        .rotation = rotation
     };
 
+    return true;
+}
+
+bool Gamepad::shouldSendPacket(size_t packet) const {
+    if (packet >= lastPacket) {
+        return true;
+    }
+
     return false;
+}
+
+void Gamepad::updatePacket(size_t newPacket) {
+    lastPacket = newPacket;
 }

@@ -22,7 +22,7 @@ stb = subproject('stb').get_variable('stb')
 subdir('engine')
 
 executable('game', 'game/main.cpp',
-    dependencies : [ input, render ],
+    dependencies : [ input, render, ui ],
     cpp_args : args,
     win_subsystem : 'console'
 )

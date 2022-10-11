@@ -30,19 +30,24 @@ namespace {
         QueryPerformanceCounter(&now);
         return size_t(now.QuadPart);
     }
+
+    size_t getPerfFrequency() {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+
+        return size_t(freq.QuadPart);
+    }
+
+    auto kFrequency = getPerfFrequency();
 }
 
-Timer::Timer() {
-    LARGE_INTEGER freq;
-    QueryPerformanceFrequency(&freq);
-
-    frequency = size_t(freq.QuadPart);
-    last = getPerfCounter();
-}
+Timer::Timer() 
+    : last(getPerfCounter()) 
+{ }
 
 double Timer::tick() {
     size_t now = getPerfCounter();
-    double elapsed = double(now - last) / frequency;
+    double elapsed = double(now - last) / kFrequency;
     last = now;
     return elapsed;
 }

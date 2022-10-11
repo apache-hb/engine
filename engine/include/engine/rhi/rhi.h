@@ -307,5 +307,5 @@ namespace engine::rhi {
         D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };
 
-    Device getDevice(logging::Channel *channel);
+    Device getDevice();
 }

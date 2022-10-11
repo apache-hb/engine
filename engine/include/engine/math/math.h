@@ -31,7 +31,15 @@ namespace engine::math {
         T x;
         T y;
 
+        constexpr bool operator==(T other) const {
+            return equal(of(other));
+        }
+
         constexpr bool operator==(const Vec2& other) const {
+            return equal(other);
+        }
+
+        constexpr bool equal(const Vec2 &other) const {
             return x == other.x && y == other.y;
         }
 
