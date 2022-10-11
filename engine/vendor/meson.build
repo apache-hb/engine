@@ -1,5 +1,3 @@
-project('imgui', 'cpp')
-
 src = [
     'imgui/imgui_demo.cpp',
     'imgui/imgui_draw.cpp',
@@ -13,10 +11,12 @@ src = [
 inc = [ '.', 'imgui', 'imgui/backends' ]
 
 libimgui = library('imgui', src,
+    dependencies : [ base ],
     include_directories : inc
 )
 
 imgui = declare_dependency(
     link_with : libimgui,
+    dependencies : [ base ],
     include_directories : inc
 )

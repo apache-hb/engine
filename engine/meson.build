@@ -18,6 +18,8 @@ base = declare_dependency(
     include_directories : 'include'
 )
 
+subdir('vendor')
+
 src = [ 'src/input/input.cpp' ]
 
 libinput = library('input', src,

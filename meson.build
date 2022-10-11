@@ -13,22 +13,21 @@ project('engine', [ 'cpp', 'c' ],
     ]
 )
 
-args = [ '-D_HAS_EXCEPTIONS=0', '/wd4324' ]
+args = [ 
+    '-D_HAS_EXCEPTIONS=0', # msvc stl requires this
+    '/wd4324', # warnings about padding
+    '/wd4127' # warnings about if constexpr
+]
 
 d3d12 = subproject('d3d12').get_variable('d3d12')
-imgui = subproject('imgui').get_variable('imgui')
 gltf = subproject('tinygltf').get_variable('gltf')
 
 subdir('engine')
-
-executable('editor', 'editor/main.cpp',
-    dependencies : [ input, render, ui ],
-    cpp_args : args,
-    win_subsystem : 'console'
-)
 
 executable('game', 'game/main.cpp',
     dependencies : [ input, render, ui ],
     cpp_args : args,
     win_subsystem : 'console'
 )
+
+subdir('editor')

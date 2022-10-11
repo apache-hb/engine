@@ -14,11 +14,65 @@
 
 #include "imgui.h"
 
+#include "editor/widgets/file-dialog.h"
+
+#include <fstream>
+
 using namespace engine;
 using namespace math;
 
 constexpr float kMoveSensitivity = 0.001f;
 constexpr float kLookSensitivity = 0.001f;
+
+namespace {
+    constexpr auto kDockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+    constexpr auto kWindowFlags = 
+        ImGuiWindowFlags_MenuBar |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoBringToFrontOnFocus | 
+        ImGuiWindowFlags_NoNavFocus;
+
+    ImGui::FileBrowser browser;    
+    std::string filename;
+}
+
+namespace editor {
+    void dock() {
+        const auto *viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+
+        ImGui::Begin("Editor", nullptr, kWindowFlags);
+
+        ImGui::PopStyleVar(3);
+
+        ImGuiID id = ImGui::GetID("EditorDock");
+        ImGui::DockSpace(id, ImVec2(0.f, 0.f), kDockFlags);
+        
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Open")) {
+                    browser.Open();
+                }
+                ImGui::MenuItem("Save");
+
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        ImGui::End();
+    }
+}
 
 int commonMain() {
     win32::init();  
@@ -63,56 +117,15 @@ int commonMain() {
 
         ImGui::NewFrame();
 
-        constexpr auto kDockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+        editor::dock();
 
-        constexpr auto kWindowFlags = 
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoBackground;
+        browser.Display();
 
-        const auto *viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
-
-        ImGui::Begin("Editor", nullptr, kWindowFlags);
-
-        ImGui::PopStyleVar(2);
-
-        ImGuiID id = ImGui::GetID("EditorDock");
-        ImGui::DockSpace(id, ImVec2(0.f, 0.f), kDockFlags);
-        
-        if (ImGui::BeginMenuBar()) {
-            if (ImGui::BeginMenu("File")) {
-                ImGui::MenuItem("Open");
-                ImGui::MenuItem("Save");
-
-                ImGui::EndMenu();
-            }
-            ImGui::EndMenuBar();
+        if (browser.HasSelected()) {
+            filename = browser.GetSelected().string();
         }
-
-        ImGui::End();
 
         ImGui::ShowDemoWindow();
-
-        if (ImGui::Begin("Input")) {
-            ImGui::Text("Method: %s", state.device == input::eGamepad ? "Controller" : "Mouse & Keyboard");
-            ImGui::Text("Movement %.2f %.2f %.2f", state.movement.x, state.movement.y, state.movement.z);
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Camera")) {
-            auto mvp = camera.mvp(float4x4::identity(), window->size().aspectRatio<float>());
-            ImGui::Text("%f %f %f %f", mvp.at(0, 0), mvp.at(0, 1), mvp.at(0, 2), mvp.at(0, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(1, 0), mvp.at(1, 1), mvp.at(1, 2), mvp.at(1, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(2, 0), mvp.at(2, 1), mvp.at(2, 2), mvp.at(2, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(3, 0), mvp.at(3, 1), mvp.at(3, 2), mvp.at(3, 3));
-        }
-        ImGui::End();
 
         ImGui::Render();
 
