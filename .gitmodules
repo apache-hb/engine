@@ -1,0 +1,3 @@
+[submodule "subprojects/argo/argo"]
+	path = subprojects/argo/argo
+	url = https://github.com/andrewhaisley/argo

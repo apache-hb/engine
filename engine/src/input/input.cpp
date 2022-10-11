@@ -56,16 +56,13 @@ bool Gamepad::poll(Input *input) {
     float2 rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone);
 
     // no actual data to send
-    if (vertical == 0.f && movement == 0.f && rotation == 0.f && !(state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK)) {
+    if (vertical == 0.f && movement == 0.f && rotation == 0.f) {
         return false;
     }
 
-    *input = Input {
-        .device = eGamepad,
-        .enableConsole = (state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK) ? !input->enableConsole : input->enableConsole,
-        .movement = movement.vec3(vertical),
-        .rotation = rotation
-    };
+    input->device = eGamepad;
+    input->movement = movement.vec3(vertical);
+    input->rotation = rotation;
 
     return true;
 }

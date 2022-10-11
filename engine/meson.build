@@ -94,16 +94,21 @@ rhi = declare_dependency(
     include_directories : 'include'
 )
 
-src = [ 'src/render/render.cpp', 'src/render/camera.cpp', 'src/render/scene.cpp' ]
+src = [ 
+    'src/render/render.cpp', 
+    'src/render/camera.cpp', 
+    'src/render/scene.cpp', 
+    'src/render/world.cpp' 
+]
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, stb, window ],
+    dependencies : [ base, rhi, window, gltf ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, stb, window ],
+    dependencies : [ base, rhi, window ],
     include_directories : 'include'
 )

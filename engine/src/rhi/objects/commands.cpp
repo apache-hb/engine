@@ -72,6 +72,10 @@ void CommandList::bindTable(size_t index, rhi::GpuHandle handle) {
     get()->SetGraphicsRootDescriptorTable(UINT(index), kOffset);
 }
 
+void CommandList::bindConst(size_t index, size_t offset, uint32_t value) {
+    get()->SetGraphicsRoot32BitConstant(UINT(index), value, UINT(offset));
+}
+
 void CommandList::setPipeline(rhi::PipelineState &pipeline) {
     get()->SetGraphicsRootSignature(pipeline.signature.get());
     get()->SetPipelineState(pipeline.pipeline.get());

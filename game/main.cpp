@@ -8,6 +8,7 @@
 
 #include "engine/render/render.h"
 #include "engine/render/scene.h"
+#include "engine/render/world.h"
 
 #include "engine/ui/ui.h"
 
@@ -29,8 +30,9 @@ int commonMain() {
 
     UniquePtr<Window> window = ui::init("game", width, height);
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
+    auto world = render::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
 
-    render::BasicScene scene { { camera } };
+    render::BasicScene scene { { &camera, &world } };
 
     render::Context render { { window.get(), &scene } };
 

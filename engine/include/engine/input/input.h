@@ -11,7 +11,7 @@ namespace engine::input {
     struct Input {
         Device device = eMouseAndKeyboard;
 
-        bool enableConsole = true;
+        bool enableConsole;
         math::float3 movement;
         math::float2 rotation;
     };

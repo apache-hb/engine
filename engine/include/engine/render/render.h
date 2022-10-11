@@ -3,11 +3,8 @@
 #include "engine/base/logging.h"
 #include "engine/window/window.h"
 
-#include "engine/rhi/rhi.h"
-
+#include "engine/render/world.h"
 #include "engine/render/camera.h"
-
-#include <vector>
 
 namespace engine::render {
     constexpr auto kFrameCount = 2;
@@ -17,12 +14,7 @@ namespace engine::render {
 
     std::vector<std::byte> loadShader(std::string_view path);
 
-    struct Vertex {
-        math::float3 pos;
-        math::float2 uv;
-    };
-
-    struct Mesh {
+    struct MeshObject {
         rhi::PipelineState pso;
 
         rhi::Buffer vertexBuffer;
@@ -34,12 +26,12 @@ namespace engine::render {
 
     struct Context;
 
-    struct Scene {
-        Scene(rhi::TextureSize resolution) : resolution(resolution) { }
+    struct RenderScene {
+        RenderScene(rhi::TextureSize resolution) : resolution(resolution) { }
 
         virtual ID3D12CommandList *populate(Context *ctx) = 0;
         virtual ID3D12CommandList *attach(Context *ctx) = 0;
-        virtual ~Scene() = default;
+        virtual ~RenderScene() = default;
 
         rhi::TextureSize resolution;
     };
@@ -47,7 +39,7 @@ namespace engine::render {
     struct Context {
         struct Create {
             Window *window; // window to attach to
-            Scene *scene; // scene to display
+            RenderScene *scene; // scene to display
         };
 
         Context(Create &&info);
@@ -60,13 +52,13 @@ namespace engine::render {
         rhi::Device &getDevice() { return device; }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
-        rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data);
+        rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
 
         rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(kFrameCount); }
 
     private:
         Window *window;
-        Scene *scene;
+        RenderScene *scene;
 
         void create();
 
@@ -94,7 +86,7 @@ namespace engine::render {
 
         rhi::CommandList postCommands;
         rhi::View postView;
-        Mesh screenQuad;
+        MeshObject screenQuad;
 
         rhi::Buffer intermediateTarget;
 

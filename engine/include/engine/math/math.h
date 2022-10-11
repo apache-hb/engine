@@ -202,16 +202,20 @@ namespace engine::math {
         using RowSelect = typename Row::Select;
         Row rows[4];
 
-        constexpr const Row &at(size_t row) const {
+        constexpr const Row &row(size_t row) const {
             return rows[row];
+        }
+
+        constexpr const Vec4<T> column(size_t column) const {
+            return Vec4<T>::from(at(column, 0), at(column, 1), at(column, 2), at(column, 3));
         }
 
         constexpr Row& operator[](size_t row) const {
             return rows[row];
         }
 
-        constexpr T at(size_t row, size_t col) const {
-            return at(row).at(col);
+        constexpr T at(size_t it, size_t col) const {
+            return row(it).at(col);
         }
 
         constexpr Row mul(Row other) const {
@@ -229,15 +233,15 @@ namespace engine::math {
         }
 
         constexpr Mat4x4 mul(const Mat4x4& other) const {
-            auto row0 = at(0);
-            auto row1 = at(1);
-            auto row2 = at(2);
-            auto row3 = at(3);
+            auto row0 = row(0);
+            auto row1 = row(1);
+            auto row2 = row(2);
+            auto row3 = row(3);
 
-            auto other0 = other.at(0);
-            auto other1 = other.at(1);
-            auto other2 = other.at(2);
-            auto other3 = other.at(3);
+            auto other0 = other.row(0);
+            auto other1 = other.row(1);
+            auto other2 = other.row(2);
+            auto other3 = other.row(3);
 
             auto out0 = Row::from(
                 (other0.x * row0.x) + (other1.x * row0.y) + (other2.x * row0.z) + (other3.x * row0.w),
@@ -357,7 +361,7 @@ namespace engine::math {
             auto r3 = Row::from(rows[0].w, rows[1].w, rows[2].w, rows[3].w);
             return from(r0, r1, r2, r3);
         }
-
+        
         static constexpr Mat4x4 identity() {
             auto row0 = Row::from(1, 0, 0, 0);
             auto row1 = Row::from(0, 1, 0, 0);

@@ -44,7 +44,7 @@ namespace engine {
             size_t priority = 0;
             size_t pressed[eTotal] = { };
             
-            bool toggleConsole = false;
+            size_t toggleConsole = SIZE_MAX;
 
             math::Vec2<int> mousePosition;
 

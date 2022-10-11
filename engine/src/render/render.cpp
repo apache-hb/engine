@@ -133,16 +133,13 @@ void Context::create() {
         { 0, rhi::Object::eTexture, rhi::BindingMutability::eStaticAtExecute }
     });
 
-    auto postBindings = std::to_array<rhi::BindingTable>({
-        rhi::BindingTable { 
-            .visibility = rhi::ShaderVisibility::ePixel,
-            .ranges = postRanges
-        }
+    auto postBindings = std::to_array<rhi::Binding>({
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, postRanges)
     });
 
     auto postPipeline = device.newPipelineState({
         .samplers = samplers,
-        .tables = postBindings,
+        .bindings = postBindings,
         .input = input,
         .ps = postPs,
         .vs = postVs
@@ -174,7 +171,7 @@ void Context::create() {
         rhi::Format::uint32
     };
 
-    screenQuad = Mesh {
+    screenQuad = MeshObject {
         .pso = std::move(postPipeline),
 
         .vertexBuffer = std::move(postVertexBuffer),
@@ -260,7 +257,7 @@ void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value) {
     fence.waitUntil(value);
 }
 
-rhi::Buffer Context::uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<std::byte> data) {
+rhi::Buffer Context::uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data) {
     auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
     auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
 

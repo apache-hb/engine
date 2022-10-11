@@ -2,8 +2,6 @@
 
 #include <array>
 
-#include "stb_image.h"
-
 using namespace engine;
 using namespace engine::render;
 
@@ -18,49 +16,23 @@ namespace {
     });
 
     constexpr auto sceneVertexRanges = std::to_array<rhi::BindingRange>({
-        { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }
+        { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute } // register(b0) is global data
     });
 
     constexpr auto scenePixelRanges = std::to_array<rhi::BindingRange>({
-        { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic }
+        { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic, SIZE_MAX } // register(t0...) are all the textures
     });
 
-    constexpr auto sceneBindings = std::to_array<rhi::BindingTable>({
-        rhi::BindingTable {
-            .visibility = rhi::ShaderVisibility::eVertex,
-            .ranges = sceneVertexRanges
-        },
-        rhi::BindingTable {
-            .visibility = rhi::ShaderVisibility::ePixel,
-            .ranges = scenePixelRanges
-        }
+    constexpr auto sceneBindings = std::to_array<rhi::Binding>({
+        rhi::bindTable(rhi::ShaderVisibility::eVertex, sceneVertexRanges),
+        rhi::bindConst(rhi::ShaderVisibility::ePixel, 1, 1), // register(b1) is per object data
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, scenePixelRanges)
     });
-
-    struct Image {
-        std::vector<std::byte> data;
-        rhi::TextureSize size;
-    };
-
-    Image loadImage(const char *path) {
-        int x, y, channels;
-        auto *it = reinterpret_cast<std::byte*>(stbi_load(path, &x, &y, &channels, 4));
-
-        if (it == nullptr) {
-            logging::get(logging::eRender).fatal("failed to load image at {}: {}", path, stbi_failure_reason());
-            return Image { };
-        }
-
-        return Image {
-            .data = std::vector(it, it + (x * y * 4)),
-            .size = { size_t(x), size_t(y) }
-        };
-    }
 
     namespace Slots {
         enum Slot : unsigned {
             eCamera, // camera matrix
-            eTexture, // object texture
-            eTotal
+            eTextures
         };
     }
 
@@ -77,7 +49,7 @@ namespace {
     };
 }
 
-BasicScene::BasicScene(Create&& info) : Scene(info.resolution), camera(info.camera) {
+BasicScene::BasicScene(Create&& info) : RenderScene(info.resolution), world(info.world), camera(info.camera) {
     auto [width, height] = resolution;
     view = rhi::View(0, 0, float(width), float(height));
     aspectRatio = resolution.aspectRatio<float>();
@@ -94,7 +66,8 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     commands.bindDescriptors(kDescriptors);
 
     commands.bindTable(0, heap.gpuHandle(Slots::eCamera));
-    commands.bindTable(1, heap.gpuHandle(Slots::eTexture));
+    commands.bindConst(1, 0, 0);
+    commands.bindTable(2, heap.gpuHandle(Slots::eTextures));
 
     commands.setViewAndScissor(view);
     commands.setRenderTarget(ctx->getRenderTarget(), kClearColour); // render to the intermediate framebuffer
@@ -113,7 +86,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
         allocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
 
-    heap = device.newDescriptorSet(Slots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
+    heap = device.newDescriptorSet(cbvSetSize(), rhi::DescriptorSet::Type::eConstBuffer, true);
 
     camera.attach(device, heap.cpuHandle(Slots::eCamera));
 
@@ -121,11 +94,10 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
 
     auto ps = loadShader("resources/shaders/scene-shader.ps.pso");
     auto vs = loadShader("resources/shaders/scene-shader.vs.pso");
-    auto [image, size] = loadImage("C:\\Users\\ehb56\\Downloads\\20220914_065037.jpg");
 
     auto pipeline = device.newPipelineState({
         .samplers = samplers,
-        .tables = sceneBindings,
+        .bindings = sceneBindings,
         .input = inputLayout,
         .ps = ps,
         .vs = vs
@@ -133,8 +105,12 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
-    texture = ctx->uploadTexture(commands, size, image);
-    device.createTextureBufferView(texture, heap.cpuHandle(Slots::eTexture));
+    for (size_t i = 0; i < std::size(world->textures); i++) {
+        const auto &image = world->textures[i];
+        auto it = ctx->uploadTexture(commands, image.size, image.data);
+        device.createTextureBufferView(it, heap.cpuHandle(Slots::eTextures + i));
+        textures.push_back(std::move(it));
+    }
 
     auto vertexBuffer = ctx->uploadData(kCubeVerts, sizeof(kCubeVerts));
     auto indexBuffer = ctx->uploadData(kCubeIndices, sizeof(kCubeIndices));
@@ -164,4 +140,8 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
     commands.endRecording();
 
     return commands.get();
+}
+
+size_t BasicScene::cbvSetSize() const {
+    return std::size(world->textures) + Slots::eTextures;
 }

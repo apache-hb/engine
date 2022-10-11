@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/render/render.h"
+#include "engine/render/world.h"
 
 #include "engine/base/util.h"
 
@@ -13,13 +14,10 @@ namespace engine::render {
         std::vector<uint32_t> inidices;
     };
 
-    struct World {
-
-    };
-
-    struct BasicScene : Scene {
+    struct BasicScene : RenderScene {
         struct Create {
-            Camera &camera;
+            Camera *camera;
+            World *world;
             rhi::TextureSize resolution = { 1920, 1080 };
         };
 
@@ -29,6 +27,10 @@ namespace engine::render {
         ID3D12CommandList *attach(Context *ctx) override;
 
     private:
+        World *world;
+
+        size_t cbvSetSize() const;
+
         rhi::View view;
         float aspectRatio;
 
@@ -39,7 +41,7 @@ namespace engine::render {
         rhi::DescriptorSet heap;
         rhi::CommandList commands;
 
-        rhi::Buffer texture;
-        Mesh mesh;
+        std::vector<rhi::Buffer> textures;
+        MeshObject mesh;
     };
 }

@@ -65,7 +65,6 @@ namespace {
             auto *pUser = getUser(hwnd);
             if (wparam == VK_OEM_3) {
                 pUser->toggleConsole = !pUser->toggleConsole;
-                ShowCursor(pUser->toggleConsole);
             }
             pUser->pressed[getKey(wparam)] = ++pUser->priority;
             break;
@@ -119,7 +118,6 @@ Window::Window(int width, int height, const char *title) {
 
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
-    ShowCursor(false);
 
     ImGui_ImplWin32_Init(hwnd);
 }
@@ -155,6 +153,8 @@ math::Vec2<int> Window::center() {
 }
 
 bool Window::poll(input::Input *input) {
+    ShowCursor(input->enableConsole);
+    
     MSG msg { };
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
         if (msg.message == WM_QUIT) {
@@ -175,11 +175,15 @@ bool Window::poll(input::Input *input) {
     
     auto delta = lastMouseEvent.tick();
 
+    // TODO: we could probably extract out the isDirty logic
     if (info.dirty) {
         info.dirty = false;
         input->device = input::eMouseAndKeyboard;
 
-        input->enableConsole = info.toggleConsole;
+        // TODO: ugly way of doing defaults
+        if (info.toggleConsole != SIZE_MAX) {
+            input->enableConsole = info.toggleConsole;
+        }
 
         input->movement = {
             .x = getMovementWithPriority(info.pressed[Window::eA], info.pressed[Window::eD]),
@@ -189,7 +193,7 @@ bool Window::poll(input::Input *input) {
 
         auto [mX, mY] = info.mousePosition;
 
-        // TODO: multiplying by 100 is stupid, there has to be a better fix right?
+        // TODO: multiplying by a random number is stupid, there has to be a better fix right?
         input->rotation = {
             .x = 200 * (mX - x) * float(delta),
             .y = 200 * (y - mY) * float(delta)

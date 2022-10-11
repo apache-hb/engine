@@ -106,16 +106,44 @@ namespace engine::rhi {
         size_t base;
         Object::Type type;
         BindingMutability mutability;
+        size_t count = 1;
     };
 
-    struct BindingTable {
-        ShaderVisibility visibility;
-        std::span<const BindingRange> ranges;
+    using BindingSpan = std::span<const BindingRange>;
+
+    struct BindingConst {
+        size_t base;
+        size_t count;
     };
+
+    struct Binding {
+        enum Kind { eTable, eConst } kind;
+        ShaderVisibility visibility;
+        union {
+            BindingSpan ranges;
+            BindingConst root;
+        };
+    };
+
+    constexpr Binding bindTable(ShaderVisibility visibility, BindingSpan spans) {
+        return {
+            .kind = Binding::eTable,
+            .visibility = visibility,
+            .ranges = spans
+        };
+    };
+
+    constexpr Binding bindConst(ShaderVisibility visibility, size_t base, size_t count) {
+        return {
+            .kind = Binding::eConst,
+            .visibility = visibility,
+            .root = { base, count }
+        };
+    }
 
     struct PipelineBinding {
         std::span<const Sampler> samplers;
-        std::span<const BindingTable> tables;
+        std::span<const Binding> bindings;
 
         std::span<const InputElement> input;
 
@@ -230,6 +258,7 @@ namespace engine::rhi {
         // TODO: this is a bit wonky
         void bindDescriptors(std::span<ID3D12DescriptorHeap*> sets);
         void bindTable(size_t index, GpuHandle handle);
+        void bindConst(size_t index, size_t offset, uint32_t value);
 
         void copyBuffer(Buffer &dst, Buffer &src, size_t size);
         void copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size);

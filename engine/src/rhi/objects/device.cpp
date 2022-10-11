@@ -67,7 +67,7 @@ namespace {
     constexpr D3D12_DESCRIPTOR_RANGE1 createRange(rhi::BindingRange binding) {
         return D3D12_DESCRIPTOR_RANGE1 {
             .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE(binding.type),
-            .NumDescriptors = 1,
+            .NumDescriptors = (binding.count == SIZE_MAX) ? UINT_MAX : UINT(binding.count),
             .BaseShaderRegister = UINT(binding.base),
             .RegisterSpace = 0,
             .Flags = D3D12_DESCRIPTOR_RANGE_FLAGS(binding.mutability),
@@ -88,19 +88,31 @@ namespace {
             return descriptors.emplace_back(std::move(ranges)).get();
         }
 
-        D3D12_ROOT_PARAMETER1 createRootTable(const rhi::BindingTable& table) {
-            auto ranges = createBindingRange(table.ranges);
-
+        D3D12_ROOT_PARAMETER1 createRootBinding(const rhi::Binding& binding) {
+            const auto kVisibility = D3D12_SHADER_VISIBILITY(binding.visibility);
             CD3DX12_ROOT_PARAMETER1 param;
-            param.InitAsDescriptorTable(UINT(table.ranges.size()), ranges, D3D12_SHADER_VISIBILITY(table.visibility));
+            switch (binding.kind) {
+            case Binding::eTable: {
+                auto ranges = createBindingRange(binding.ranges);
+                param.InitAsDescriptorTable(UINT(binding.ranges.size()), ranges, kVisibility);
+                break;
+            }
+            case Binding::eConst:
+                param.InitAsConstants(UINT(binding.root.count), UINT(binding.root.base), 0, kVisibility);
+                break;
+            
+            default:
+                ASSERT(false);
+                break;
+            }
 
             return param;
         }
 
-        DxParams createBindingParams(std::span<const BindingTable> tables) {
-            DxParams params { tables.size() };
-            for (size_t i = 0; i < tables.size(); i++) {
-                params[i] = createRootTable(tables[i]);
+        DxParams createBindingParams(std::span<const Binding> bindings) {
+            DxParams params { bindings.size() };
+            for (size_t i = 0; i < bindings.size(); i++) {
+                params[i] = createRootBinding(bindings[i]);
             }
 
             return params;
@@ -110,7 +122,7 @@ namespace {
         std::vector<DxRanges> descriptors;
     };
 
-    rhi::UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<const rhi::Sampler> samplers, std::span<const rhi::BindingTable> tables) {
+    rhi::UniqueComPtr<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<const rhi::Sampler> samplers, std::span<const rhi::Binding> bindings) {
         // TODO: make this configurable
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -122,10 +134,10 @@ namespace {
 
         BindingBuilder builder;
 
-        auto params = builder.createBindingParams(tables);
+        auto params = builder.createBindingParams(bindings);
 
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
-        desc.Init_1_1(UINT(tables.size()), params.get(), UINT(samplerData.size()), samplerData.data(), kFlags);
+        desc.Init_1_1(UINT(bindings.size()), params.get(), UINT(samplerData.size()), samplerData.data(), kFlags);
 
         rhi::UniqueComPtr<ID3DBlob> signature;
         rhi::UniqueComPtr<ID3DBlob> error;
@@ -290,7 +302,7 @@ rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings
 
     auto input = createInputLayout(bindings.input);
 
-    auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.tables);
+    auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
     ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input);
