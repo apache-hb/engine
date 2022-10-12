@@ -1,9 +1,13 @@
-cbuffer GlobalBuffer : register(b0) {
-    float4x4 mvp;
+cbuffer SceneBuffer : register(b0) {
+    float4x4 camera;
 };
 
-cbuffer LocalBuffer : register(b1) {
-    uint texture;
+cbuffer ObjectBuffer : register(b1) {
+    float4x4 transform; // node transform
+};
+
+cbuffer PrimitiveBuffer : register(b2) {
+    uint texture; // texture index
 };
 
 struct PSInput {
@@ -15,7 +19,7 @@ Texture2D gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
 float4 perspective(float3 pos) {
-    return mul(float4(pos, 1.f), mvp);
+    return mul(float4(pos, 1.f), camera);
 }
 
 PSInput vsMain(float3 pos : POSITION, float2 uv : TEXCOORD) {

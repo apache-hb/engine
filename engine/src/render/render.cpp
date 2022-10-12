@@ -18,7 +18,7 @@ namespace {
     using BufferState = rhi::Buffer::State;
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 
-    constexpr Vertex kScreenQuad[] = {
+    constexpr assets::Vertex kScreenQuad[] = {
         { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }, // bottom left
         { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },  // top left
         { { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },  // bottom right
@@ -82,9 +82,9 @@ void Context::create() {
 
     renderTargetSet = device.newDescriptorSet(kRenderTargets, rhi::DescriptorSet::Type::eRenderTarget, false);
 
-    postDataHeap = device.newDescriptorSet(PostSlots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
+    postHeap = device.newDescriptorSet(PostSlots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
 
-    DX_NAME(postDataHeap);
+    DX_NAME(postHeap);
 
     for (size_t i = 0; i < kFrameCount; i++) {
         rhi::Buffer target = swapchain.getBuffer(i);
@@ -100,7 +100,7 @@ void Context::create() {
     intermediateTarget = std::move(result.buffer);
 
     device.createRenderTargetView(intermediateTarget, renderTargetSet.cpuHandle(kFrameCount));
-    device.createTextureBufferView(intermediateTarget, postDataHeap.cpuHandle(PostSlots::eFrame));
+    device.createTextureBufferView(intermediateTarget, postHeap.cpuHandle(PostSlots::eFrame));
 
     DX_NAME(intermediateTarget);
 
@@ -162,7 +162,7 @@ void Context::create() {
     rhi::VertexBufferView vertexBufferView {
         postVertexBuffer.gpuAddress(),
         std::size(kScreenQuad),
-        sizeof(Vertex)
+        sizeof(assets::Vertex)
     };
 
     rhi::IndexBufferView indexBufferView {
@@ -196,7 +196,7 @@ void Context::create() {
 
     // release copy resources that are no longer needed
     pendingCopies.resize(0);
-    device.imguiInit(kFrameCount, postDataHeap, postDataHeap.cpuHandle(PostSlots::eImgui), postDataHeap.gpuHandle(PostSlots::eImgui));
+    device.imguiInit(kFrameCount, postHeap, postHeap.cpuHandle(PostSlots::eImgui), postHeap.gpuHandle(PostSlots::eImgui));
 }
 
 void Context::begin() {
@@ -222,14 +222,14 @@ void Context::beginPost() {
     postCommands.beginRecording(postAllocators[frameIndex]);
     postCommands.setPipeline(screenQuad.pso);
 
-    auto kDescriptors = std::to_array({ postDataHeap.get() });
+    auto kDescriptors = std::to_array({ postHeap.get() });
     postCommands.bindDescriptors(kDescriptors);
 
     // transition into rendering to the intermediate
     postCommands.transition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget);
     postCommands.transition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource);
 
-    postCommands.bindTable(0, postDataHeap.gpuHandle(PostSlots::eFrame));
+    postCommands.bindTable(0, postHeap.gpuHandle(PostSlots::eFrame));
     postCommands.setViewAndScissor(postView);
 
     postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), kLetterBox);

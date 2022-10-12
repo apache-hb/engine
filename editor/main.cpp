@@ -60,7 +60,10 @@ namespace editor {
         
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("Open")) {
+                if (ImGui::MenuItem("Import")) {
+                    browser.SetTitle("Import Scene");
+                    browser.SetTypeFilters({ ".gltf", ".glb" });
+
                     browser.Open();
                 }
                 ImGui::MenuItem("Save");
@@ -71,6 +74,12 @@ namespace editor {
         }
 
         ImGui::End();
+
+        browser.Display();
+
+        if (browser.HasSelected()) {
+            filename = browser.GetSelected().string();
+        }
     }
 }
 
@@ -78,7 +87,7 @@ int commonMain() {
     win32::init();  
     logging::init();
 
-    auto world = render::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
+    auto world = assets::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
 
     // make a fullscreen borderless window on the primary monitor
     int width = GetSystemMetrics(SM_CXSCREEN);
@@ -105,7 +114,7 @@ int commonMain() {
 
         // camera.setPosition({ std::sin(total), std::cos(total), 1.f });
 
-        if (state.enableConsole && state.device == input::eMouseAndKeyboard) {
+        if (state.enableConsole && state.device == input::eDesktop) {
             state.rotation = { 0.f, 0.f };
         }
 
@@ -118,12 +127,6 @@ int commonMain() {
         ImGui::NewFrame();
 
         editor::dock();
-
-        browser.Display();
-
-        if (browser.HasSelected()) {
-            filename = browser.GetSelected().string();
-        }
 
         ImGui::ShowDemoWindow();
 

@@ -5,7 +5,7 @@
 #include <vector>
 #include <string_view>
 
-namespace engine::render {
+namespace engine::assets {
     struct Vertex {
         math::float3 position;
         math::float2 uv;
@@ -14,12 +14,10 @@ namespace engine::render {
     struct Node {
         std::string_view name;
 
-        math::float3 translation;
-        math::float3 rotation;
-        math::float3 scale;
+        math::float4x4 transform;
 
         std::vector<size_t> children;
-        size_t mesh;
+        std::vector<size_t> primitives;
     };
 
     struct Scene {
@@ -28,28 +26,27 @@ namespace engine::render {
     };
 
     struct Texture {
-        std::string_view name;
-
         rhi::TextureSize size;
         std::vector<std::byte> data;
     };
 
-    struct Mesh {
+    struct Primitive {
         size_t texture;
+        size_t verts;
+        
         std::vector<uint32_t> indices;
     };
 
-    struct World {
-        size_t primaryScene;
-        std::vector<Scene> scenes;
+    using VertexBuffer = std::vector<Vertex>;
 
+    struct World {
+        size_t root;
         std::vector<Node> nodes;
 
         std::vector<Texture> textures;
+        std::vector<VertexBuffer> verts;
 
-        std::vector<Mesh> meshes;
-
-        std::vector<Vertex> verts;
+        std::vector<Primitive> primitives;
     };
 
     World loadGltf(const char *path);

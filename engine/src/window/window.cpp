@@ -178,7 +178,7 @@ bool Window::poll(input::Input *input) {
     // TODO: we could probably extract out the isDirty logic
     if (info.dirty) {
         info.dirty = false;
-        input->device = input::eMouseAndKeyboard;
+        input->device = input::eDesktop;
 
         // TODO: ugly way of doing defaults
         if (info.toggleConsole != SIZE_MAX) {

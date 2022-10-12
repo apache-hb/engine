@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/base/panic.h"
+
 #include <string>
 #include <string_view>
 #include <sstream>
@@ -55,9 +57,9 @@ namespace engine {
         using Type = T;
     };
 
-    template<typename T, typename Delete> requires (std::is_trivially_copy_constructible<T>::value)
+    template<typename T, T Invalid, typename Delete> requires (std::is_trivially_copy_constructible<T>::value)
     struct UniqueResource {
-        UniqueResource(T object) { 
+        UniqueResource(T object = Invalid) { 
             init(object);
         }
 
@@ -78,96 +80,58 @@ namespace engine {
             destroy();
         }
 
-        T get() { return value(); }
+        bool valid() const { return data != Invalid; }
+
+        T get() { ASSERT(valid()); return data; }
+        const T get() const { ASSERT(valid()); return data; }
+
+        T *ref() { return &data; }
+        const T* ref() const { return &data; }
 
     private:
         void destroy() {
-            if (valid) {
+            if (valid()) {
                 Delete{}(data);
             }
-            valid = false;
+            data = Invalid;
         }
 
         T claim() {
-            valid = false;
-            return value();
-        }
-
-        T value() {
-            return data;
+            T out = data;
+            data = Invalid;
+            return out;
         }
 
         void init(T it) {
             data = it;
-            valid = true;
         }
 
-        T data;
-        bool valid = false;
+        T data = Invalid;
     };
 
     template<typename T, typename Delete = DefaultDelete<T>>
-    struct UniquePtr {
+    struct UniquePtr : public UniqueResource<typename RemoveArray<T>::Type*, nullptr, Delete> {
+        using Super = UniqueResource<typename RemoveArray<T>::Type*, nullptr, Delete>;
+        using Super::Super;
+
         using Type = typename RemoveArray<T>::Type;
 
         UniquePtr(size_t size) requires (std::is_array_v<T>) 
-            : data(new Type[size]) 
+            : Super(new Type[size]) 
         {}
-
-        UniquePtr(Type *data = nullptr) 
-            : data(data) 
-        { }
         
-        ~UniquePtr() {
-            destroy();
-        }
-
-        UniquePtr(UniquePtr &&other) 
-            : data(other.claim()) 
-        { }
-
-        UniquePtr &operator=(UniquePtr &&other) {
-            destroy();
-            data = other.claim();
-            return *this;
-        }
-
-        UniquePtr(const UniquePtr&) = delete;
-        UniquePtr &operator=(const UniquePtr&) = delete;
-
         Type &operator[](size_t index) requires(std::is_array_v<T>) {
-            return data[index];
+            return Super::get()[index];
         }
 
         const Type &operator[](size_t index) const requires(std::is_array_v<T>) {
-            return data[index];
+            return Super::get()[index];
         }
 
-        Type *get() { return data; }
-        const Type *get() const { return data; }
+        Type *operator->() { return Super::get(); }
+        const Type *operator->() const { return Super::get(); }
 
-        Type **ref() { return &data; }
-        const Type **ref() const { return &data; }
-
-        Type *operator->() { return get(); }
-        const Type *operator->() const { return get(); }
-
-        Type **operator&() { return ref(); }
-        const Type**operator&() const { return ref(); }
-
-    private:
-        void destroy() {
-            if (data != nullptr) {
-                Delete{}(data);
-            }
-        }
-
-        Type *claim() {
-            Type *it = data;
-            data = nullptr;
-            return it;
-        }
-
-        Type *data;
+        Type **operator&() { return Super::ref(); }
+        const Type**operator&() const { return Super::ref(); }
     };
 }

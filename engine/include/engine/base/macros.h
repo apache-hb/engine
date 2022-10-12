@@ -56,3 +56,9 @@
 #ifndef FUNCNAME
 #    define FUNCNAME __func__
 #endif
+
+#define BITFLAGS(ID, BASE, ...) \
+    enum ID __VA_ARGS__; \
+    constexpr ID operator|(ID lhs, ID rhs) { return ID(BASE(lhs) | BASE(rhs)); } \
+    constexpr ID operator&(ID lhs, ID rhs) { return ID(BASE(lhs) & BASE(rhs)); }
+    

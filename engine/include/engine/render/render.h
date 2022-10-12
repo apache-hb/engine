@@ -99,7 +99,7 @@ namespace engine::render {
 
         // scene data set
         // contains texture, imgui data, and the camera buffer
-        rhi::DescriptorSet postDataHeap;
+        rhi::DescriptorSet postHeap;
         
         // sync objects
         rhi::Fence fence;

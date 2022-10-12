@@ -3,13 +3,18 @@
 #include "engine/math/math.h"
 
 namespace engine::input {
+    // type of input device
     enum Device {
-        eMouseAndKeyboard,
+        eDesktop,
         eGamepad
     };
 
+    struct Action {
+        enum Kind { eKeyDown, eKeyUp } kind;
+    };
+
     struct Input {
-        Device device = eMouseAndKeyboard;
+        Device device = eDesktop;
 
         bool enableConsole;
         math::float3 movement;

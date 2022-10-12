@@ -68,6 +68,7 @@ void LookAt::setFocus(float3 update) {
     focus = update;
 }
 
+#if 0
 CameraBuffer::CameraBuffer(Camera *camera)
     : camera(camera)
 { }
@@ -87,3 +88,4 @@ void CameraBuffer::update(float aspectRatio) {
     data.mvp = camera->mvp(float4x4::identity(), aspectRatio);
     memcpy(ptr, &data, sizeof(CameraData));
 }
+#endif

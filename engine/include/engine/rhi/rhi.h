@@ -30,7 +30,7 @@ namespace engine::rhi {
         }
     };
 
-    using UniqueHandle = UniqueResource<HANDLE, HandleDeleter>;
+    using UniqueHandle = UniqueResource<HANDLE, INVALID_HANDLE_VALUE, HandleDeleter>;
 
     enum struct CpuHandle : std::size_t {};
     enum struct GpuHandle : std::size_t {};
@@ -87,11 +87,11 @@ namespace engine::rhi {
         Format format;
     };
 
-    enum ShaderVisibility {
+    BITFLAGS(ShaderVisibility, D3D12_SHADER_VISIBILITY, {
         ePixel = D3D12_SHADER_VISIBILITY_PIXEL,
         eVertex = D3D12_SHADER_VISIBILITY_VERTEX,
         eTotal = D3D12_SHADER_VISIBILITY_ALL
-    };
+    })
 
     enum struct BindingMutability {
         eAlwaysStatic = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC,

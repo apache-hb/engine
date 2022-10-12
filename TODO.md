@@ -1,8 +1,12 @@
 # TODO
-* ditch glfw, dear imgui with glfw + d3d12 is weird and unsupported
-* add dear imgui
-* texture loading
-* get gltf loading, try using fastgltf + simdjson
-* get dynamic mesh + buffers working
+* reorg input manager
+    * seperate thread for polling events
+    * push to central queue
+    * multiple listeners on single queue
+* get tinygltf working
+* convert to our own format
+* object culling
+    * mipmaps
+    * lod system
+    * asset streaming
 * basic scene system
-* editor to work with scene system

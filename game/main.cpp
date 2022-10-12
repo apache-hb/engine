@@ -30,7 +30,7 @@ int commonMain() {
 
     UniquePtr<Window> window = ui::init("game", width, height);
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
-    auto world = render::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
+    auto world = assets::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
@@ -47,7 +47,7 @@ int commonMain() {
 
         // camera.setPosition({ std::sin(total), std::cos(total), 1.f });
 
-        if (state.enableConsole && state.device == input::eMouseAndKeyboard) {
+        if (state.enableConsole && state.device == input::eDesktop) {
             state.rotation = { 0.f, 0.f };
         }
 
