@@ -49,9 +49,8 @@ namespace {
         return { .x = float(data[0]), .y = float(data[1]), .z = float(data[2]) };
     }
 
-    math::float3 loadVertex(const double *data) {
-        auto [x, y, z] = loadVec3(data);
-        return { x, z, y };
+    math::float3 loadVertex(const float *data) {
+        return { .x = data[0], .y = data[2], .z = data[1] };
     }
 
     math::float4 loadVec4(std::span<const double> data) {
@@ -111,7 +110,20 @@ namespace {
         const std::byte *data;
         size_t length;
         size_t stride;
+        rhi::Format format;
     };
+
+    rhi::Format formatFromComponent(int component, int type) {
+        if (component == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+            switch (type) {
+            case TINYGLTF_TYPE_VEC2: return rhi::Format::float32x2;
+            case TINYGLTF_TYPE_VEC3: return rhi::Format::float32x3;
+            default: break;
+            }
+        }
+        
+        ASSERTF(false, "unknown format (component: {}, type: {})", component, type);
+    }
 
     AttributeData getAttribute(int index, const gltf::Model& model) {
         if (index == -1) { return { }; }
@@ -126,7 +138,8 @@ namespace {
         return { 
             .data = reinterpret_cast<const std::byte*>(data), 
             .length = accessor.count, 
-            .stride = size_t(stride) 
+            .stride = size_t(stride),
+            .format = formatFromComponent(accessor.componentType, accessor.type)
         };
     }
 
@@ -145,7 +158,10 @@ namespace {
                 auto texture = getTexture(model, primitive);
                 auto position = getAttribute(primitive.attributes.at("POSITION"), model);
                 auto uv = getAttribute(primitive.attributes.at("TEXCOORD_0"), model);
-                
+
+                ASSERT(position.format == rhi::Format::float32x3);                
+                ASSERT(uv.format == rhi::Format::float32x2);
+
                 auto data = getPrimitive(texture, position, uv, primitive.indices);
 
                 result.push_back(addPrimitive(data));
@@ -166,11 +182,12 @@ namespace {
 
             // lol
             ASSERT(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
+            ASSERT(accessor.type == TINYGLTF_TYPE_SCALAR);
 
             // more lol
             assets::IndexBuffer indexBuffer(size);
             for (size_t i = 0; i < size; i++) {
-                indexBuffer[i] = uint32_t(buffer.data[accessor.byteOffset + bufferView.byteOffset + i * stride]);
+                indexBuffer[i] = uint32_t(buffer.data[accessor.byteOffset + bufferView.byteOffset + i * stride]) & USHRT_MAX;
             }
             return indexBuffer;
         }
@@ -182,7 +199,7 @@ namespace {
             assets::IndexBuffer indexBuffer = getIndexBuffer(indices);
 
             for (size_t i = 0; i < position.length; i++) {
-                auto pos = loadVertex((double*)(position.data + i * position.stride));
+                auto pos = loadVertex((float*)(position.data + i * position.stride));
                 auto coords = position.data == nullptr ? math::float2::of(0) : loadVec2((double*)(uv.data + i * uv.stride));
                 assets::Vertex vertex { pos, coords };
 

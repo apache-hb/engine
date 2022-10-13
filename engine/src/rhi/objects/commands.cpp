@@ -32,12 +32,18 @@ void CommandList::endRecording() {
     DX_CHECK(get()->Close());
 }
 
-void CommandList::setRenderTarget(rhi::CpuHandle target, const math::float4 &colour) {
-    const D3D12_CPU_DESCRIPTOR_HANDLE kRtv { size_t(target) };
+void CommandList::setRenderTarget(rhi::CpuHandle rtv, rhi::CpuHandle dsv, const math::float4 &colour) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kRtv { size_t(rtv) };
+    const D3D12_CPU_DESCRIPTOR_HANDLE kDsv { size_t(dsv) };
+    
     const float kClear[] = { colour.x, colour.y, colour.z, colour.w };
 
-    get()->OMSetRenderTargets(1, &kRtv, false, nullptr);
+    get()->OMSetRenderTargets(1, &kRtv, false, dsv == CpuHandle::Invalid ? nullptr : &kDsv);
     get()->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
+    
+    if (dsv != CpuHandle::Invalid) {
+        get()->ClearDepthStencilView(kDsv, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+    }
 }
 
 void CommandList::setViewAndScissor(const rhi::View &view) {

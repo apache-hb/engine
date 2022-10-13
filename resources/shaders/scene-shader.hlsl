@@ -19,7 +19,7 @@ Texture2D gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
 float4 perspective(float3 pos) {
-    return mul(float4(pos, 1.f), camera);
+    return mul(mul(float4(pos, 1.f), transform), camera);
 }
 
 PSInput vsMain(float3 pos : POSITION, float2 uv : TEXCOORD) {

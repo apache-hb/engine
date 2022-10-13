@@ -32,8 +32,8 @@ namespace engine::rhi {
 
     using UniqueHandle = UniqueResource<HANDLE, INVALID_HANDLE_VALUE, HandleDeleter>;
 
-    enum struct CpuHandle : std::size_t {};
-    enum struct GpuHandle : std::size_t {};
+    enum struct CpuHandle : std::size_t { Invalid = SIZE_MAX };
+    enum struct GpuHandle : std::size_t { Invalid = SIZE_MAX };
 
     static_assert(sizeof(CpuHandle) == sizeof(D3D12_CPU_DESCRIPTOR_HANDLE));
     static_assert(sizeof(GpuHandle) == sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
@@ -256,7 +256,8 @@ namespace engine::rhi {
         void beginRecording(Allocator &allocator);
         void endRecording();
 
-        void setRenderTarget(CpuHandle target, const math::float4 &colour);
+        void setRenderTarget(CpuHandle rtv, CpuHandle dsv, const math::float4 &colour);
+
         void setViewAndScissor(const View &view);
         void setPipeline(PipelineState &pipeline);
 
@@ -324,10 +325,13 @@ namespace engine::rhi {
         DescriptorSet newDescriptorSet(size_t count, DescriptorSet::Type type, bool shaderVisible);
 
         void createRenderTargetView(Buffer &buffer, CpuHandle handle);
+        void createDepthStencilView(Buffer &target, CpuHandle dsvHandle);
         void createConstBufferView(Buffer &buffer, size_t size, CpuHandle handle);
         void createTextureBufferView(Buffer &buffer, CpuHandle handle);
 
         Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state);
+        Buffer newDepthStencil(TextureSize size, CpuHandle handle);
+
         TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
         PipelineState newPipelineState(const PipelineBinding& bindings);

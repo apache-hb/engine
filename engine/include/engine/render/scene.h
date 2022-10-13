@@ -72,7 +72,10 @@ namespace engine::render {
 
         rhi::Allocator allocators[kFrameCount];
 
-        rhi::DescriptorSet heap;
+        rhi::DescriptorSet dsvHeap;
+        rhi::Buffer depthBuffer;
+
+        rhi::DescriptorSet cbvHeap;
         rhi::CommandList commands;
 
         std::vector<rhi::Buffer> vertexBuffers;

@@ -47,6 +47,13 @@ namespace {
         };
     }
 
+    namespace DepthSlots {
+        enum Slot : unsigned {
+            eDepthStencil,
+            eTotal
+        };
+    }
+
     constexpr assets::Vertex kCubeVerts[] = {
         { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }, // bottom left
         { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },  // top left
@@ -77,6 +84,8 @@ ObjectBufferHandle::ObjectBufferHandle(rhi::Device& device, rhi::CpuHandle handl
     device.createConstBufferView(buffer, sizeof(ObjectBuffer), handle);
 
     ptr = buffer.map();
+
+    update(float4x4::identity());
 }
 
 void ObjectBufferHandle::update(math::float4x4 transform) {
@@ -108,15 +117,15 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     commands.setPipeline(pso);
 
     commands.setViewAndScissor(view);
-    commands.setRenderTarget(ctx->getRenderTarget(), kClearColour); // render to the intermediate framebuffer
+    commands.setRenderTarget(ctx->getRenderTarget(), dsvHeap.cpuHandle(DepthSlots::eDepthStencil), kClearColour); // render to the intermediate framebuffer
 
-    auto kDescriptors = std::to_array({ heap.get() });
+    auto kDescriptors = std::to_array({ cbvHeap.get() });
     commands.bindDescriptors(kDescriptors);
 
     commands.setVertexBuffers(vertexBufferViews);
 
     // bind data that wont change
-    commands.bindTable(0, heap.gpuHandle(Slots::eSceneBuffer));
+    commands.bindTable(0, cbvHeap.gpuHandle(Slots::eSceneBuffer));
     commands.bindTable(3, getTextureGpuHandle(0));
 
     for (size_t i = 0; i < std::size(world->nodes); i++) {
@@ -127,7 +136,6 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
             const auto& primitive = world->primitives[j];
             commands.bindConst(2, 0, uint32_t(primitive.texture));
             commands.drawMesh(indexBufferViews[primitive.indices]);
-            // TODO: actually draw primitive
         }
     }
 
@@ -143,9 +151,12 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
         allocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
 
-    heap = device.newDescriptorSet(cbvSetSize(), rhi::DescriptorSet::Type::eConstBuffer, true);
+    cbvHeap = device.newDescriptorSet(cbvSetSize(), rhi::DescriptorSet::Type::eConstBuffer, true);
+    dsvHeap = device.newDescriptorSet(DepthSlots::eTotal, rhi::DescriptorSet::Type::eDepthStencil, false);
 
-    sceneData.attach(device, heap.cpuHandle(Slots::eSceneBuffer));
+    depthBuffer = device.newDepthStencil(resolution, dsvHeap.cpuHandle(DepthSlots::eDepthStencil));
+
+    sceneData.attach(device, cbvHeap.cpuHandle(Slots::eSceneBuffer));
 
     commands = device.newCommandList(allocators[ctx->currentFrame()], rhi::CommandList::Type::eDirect);
 
@@ -187,6 +198,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
         vertexBufferViews.push_back(vertexBufferView);
     }
 
+    // upload index buffers
     for (const auto& indices : world->indices) {
         size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
@@ -222,17 +234,17 @@ size_t BasicScene::cbvSetSize() const {
 }
 
 rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
-    return heap.gpuHandle(Slots::eTotal + index);
+    return cbvHeap.gpuHandle(Slots::eTotal + index);
 }
 
 rhi::CpuHandle BasicScene::getObjectBufferCpuHandle(size_t index) {
-    return heap.cpuHandle(Slots::eTotal + index);
+    return cbvHeap.cpuHandle(Slots::eTotal + index);
 }
 
 rhi::GpuHandle BasicScene::getTextureGpuHandle(size_t index) {
-    return heap.gpuHandle(Slots::eTotal + std::size(world->nodes) + index);
+    return cbvHeap.gpuHandle(Slots::eTotal + std::size(world->nodes) + index);
 }
 
 rhi::CpuHandle BasicScene::getTextureCpuHandle(size_t index) {
-    return heap.cpuHandle(Slots::eTotal + std::size(world->nodes) + index);
+    return cbvHeap.cpuHandle(Slots::eTotal + std::size(world->nodes) + index);
 }

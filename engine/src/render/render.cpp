@@ -87,11 +87,10 @@ void Context::create() {
     DX_NAME(postHeap);
 
     for (size_t i = 0; i < kFrameCount; i++) {
-        rhi::Buffer target = swapchain.getBuffer(i);
-        device.createRenderTargetView(target, renderTargetSet.cpuHandle(i));
+        renderTargets[i] = swapchain.getBuffer(i);
+        device.createRenderTargetView(renderTargets[i], renderTargetSet.cpuHandle(i));
 
         // create per frame data
-        renderTargets[i] = std::move(target);
         postAllocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
 
@@ -231,7 +230,7 @@ void Context::beginPost() {
     postCommands.setViewAndScissor(postView);
 
     postCommands.setVertexBuffers(kVerts);
-    postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), kLetterBox);
+    postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), rhi::CpuHandle::Invalid, kLetterBox);
     postCommands.drawMesh(screenQuad.indexBufferView);
 }
 

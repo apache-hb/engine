@@ -10,6 +10,8 @@ namespace {
     constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
     constexpr auto kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
+    constexpr auto kDepthFormat = DXGI_FORMAT_D32_FLOAT;
+
     constexpr const D3D12_HEAP_PROPERTIES *getHeapProps(rhi::DescriptorSet::Visibility visibility) {
         switch (visibility) {
         case rhi::DescriptorSet::Visibility::eDeviceOnly: return &kDefaultProps;
@@ -227,6 +229,11 @@ void Device::createRenderTargetView(rhi::Buffer &target, rhi::CpuHandle rtvHandl
     get()->CreateRenderTargetView(target.get(), nullptr, kHandle);
 }
 
+void Device::createDepthStencilView(rhi::Buffer &target, rhi::CpuHandle dsvHandle) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(dsvHandle) };
+    get()->CreateDepthStencilView(target.get(), nullptr, kHandle);
+}
+
 void Device::createConstBufferView(rhi::Buffer &buffer, size_t size, rhi::CpuHandle srvHandle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(srvHandle) };
     const D3D12_CONSTANT_BUFFER_VIEW_DESC kDesc {
@@ -309,6 +316,50 @@ rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::Descri
     return { rhi::Buffer(resource), requiredSize };
 }
 
+rhi::Buffer Device::newDepthStencil(TextureSize size, CpuHandle handle) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
+
+    const D3D12_DEPTH_STENCIL_VIEW_DESC kDesc {
+        .Format = kDepthFormat,
+        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+        .Flags = D3D12_DSV_FLAG_NONE
+    };
+
+    const D3D12_CLEAR_VALUE kClear {
+        .Format = kDepthFormat,
+        .DepthStencil = {
+            .Depth = 1.f,
+            .Stencil = 0
+        }
+    };
+
+    const CD3DX12_RESOURCE_DESC kDepthTextureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        /* format = */ kDepthFormat,
+        /* width = */ UINT(size.width),
+        /* height = */ UINT(size.height),
+        /* arraySize = */ 1,
+        /* mipLevels = */ 0,
+        /* sampleCount = */ 1,
+        /* sampleQuality = */ 0,
+        /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+    );
+
+    ID3D12Resource *resource;
+
+    DX_CHECK(get()->CreateCommittedResource(
+        &kDefaultProps,
+        D3D12_HEAP_FLAG_NONE,
+        &kDepthTextureDesc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &kClear,
+        IID_PPV_ARGS(&resource)
+    ));
+
+    get()->CreateDepthStencilView(resource, &kDesc, kHandle);
+
+    return resource;
+}
+
 rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings) {
     const auto vs = createShader(bindings.vs);
     const auto ps = createShader(bindings.ps);
@@ -338,10 +389,7 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-        .DepthStencilState = {
-            .DepthEnable = false,
-            .StencilEnable = false
-        },
+        .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
         .InputLayout = {
             .pInputElementDescs = input.data(),
             .NumElements = UINT(input.size())
@@ -349,6 +397,7 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat = DXGI_FORMAT_D32_FLOAT,
         .SampleDesc = {
             .Count = 1
         }
