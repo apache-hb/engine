@@ -38,7 +38,9 @@ int commonMain() {
 
     Timer timer;
     input::Gamepad gamepad { 0 };
-    input::Input state;
+    input::Input state = {
+        .enableConsole = false
+    };
     // float total = 0.f;
 
     while (window->poll(&state)) {

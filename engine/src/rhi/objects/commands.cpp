@@ -81,13 +81,11 @@ void CommandList::setPipeline(rhi::PipelineState &pipeline) {
     get()->SetPipelineState(pipeline.pipeline.get());
 }
 
-void CommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::VertexBufferView &vertexView) {
-    const D3D12_VERTEX_BUFFER_VIEW kVertexBufferView = {
-        .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(vertexView.buffer),
-        .SizeInBytes = UINT(vertexView.size * vertexView.stride),
-        .StrideInBytes = UINT(vertexView.stride)
-    };
-    
+void CommandList::setVertexBuffers(std::span<const rhi::VertexBufferView> buffers) {
+    get()->IASetVertexBuffers(0, UINT(buffers.size()), buffers.data());
+}
+
+void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
     const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(indexView.buffer),
         .SizeInBytes = UINT(indexView.size * getElementSize(indexView.format)),
@@ -95,7 +93,6 @@ void CommandList::drawMesh(const rhi::IndexBufferView &indexView, const rhi::Ver
     };
 
     get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    get()->IASetVertexBuffers(0, 1, &kVertexBufferView);
     get()->IASetIndexBuffer(&kIndexBufferView);
     get()->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
 }

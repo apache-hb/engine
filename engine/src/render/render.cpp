@@ -159,11 +159,7 @@ void Context::create() {
     DX_NAME(postVertexBuffer);
     DX_NAME(postIndexBuffer);
 
-    rhi::VertexBufferView vertexBufferView {
-        postVertexBuffer.gpuAddress(),
-        std::size(kScreenQuad),
-        sizeof(assets::Vertex)
-    };
+    rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(postVertexBuffer.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
 
     rhi::IndexBufferView indexBufferView {
         postIndexBuffer.gpuAddress(),
@@ -219,10 +215,12 @@ void Context::end() {
 
 // draw the intermediate render target to the screen
 void Context::beginPost() {
+    auto kDescriptors = std::to_array({ postHeap.get() });
+    auto kVerts = std::to_array({ screenQuad.vertexBufferView });
+
     postCommands.beginRecording(postAllocators[frameIndex]);
     postCommands.setPipeline(screenQuad.pso);
 
-    auto kDescriptors = std::to_array({ postHeap.get() });
     postCommands.bindDescriptors(kDescriptors);
 
     // transition into rendering to the intermediate
@@ -232,8 +230,9 @@ void Context::beginPost() {
     postCommands.bindTable(0, postHeap.gpuHandle(PostSlots::eFrame));
     postCommands.setViewAndScissor(postView);
 
+    postCommands.setVertexBuffers(kVerts);
     postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), kLetterBox);
-    postCommands.drawMesh(screenQuad.indexBufferView, screenQuad.vertexBufferView);
+    postCommands.drawMesh(screenQuad.indexBufferView);
 }
 
 void Context::endPost() {

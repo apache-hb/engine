@@ -12,9 +12,46 @@ namespace gltf = tinygltf;
 
 using namespace engine;
 
+template<typename T>
+struct std::hash<math::Vec3<T>> {
+    constexpr std::size_t operator()(const math::Vec3<T>& v) const noexcept {
+        return std::hash<T>{}(v.x) ^ std::hash<T>{}(v.y) ^ std::hash<T>{}(v.z);
+    }
+};
+
+template<typename T>
+struct std::hash<math::Vec2<T>> {
+    constexpr std::size_t operator()(const math::Vec2<T>& v) const noexcept {
+        return std::hash<T>{}(v.x) ^ std::hash<T>{}(v.y);
+    }
+};
+
+template<>
+struct std::hash<assets::Vertex> {
+    constexpr std::size_t operator()(const assets::Vertex& v) const noexcept {
+        return std::hash<math::float3>{}(v.position) ^ std::hash<math::float2>{}(v.uv);
+    }
+};
+
+template<>
+struct std::equal_to<assets::Vertex> {
+    constexpr bool operator()(const assets::Vertex& lhs, const assets::Vertex& rhs) const noexcept {
+        return lhs.position == rhs.position && lhs.uv == rhs.uv;
+    }
+};
+
 namespace {
-    math::float3 loadVec3(std::span<const double> data) {
+    math::float2 loadVec2(const double *data) {
+        return { .x = float(data[0]), .y = float(data[1]) };
+    }
+
+    math::float3 loadVec3(const double *data) {
         return { .x = float(data[0]), .y = float(data[1]), .z = float(data[2]) };
+    }
+
+    math::float3 loadVertex(const double *data) {
+        auto [x, y, z] = loadVec3(data);
+        return { x, z, y };
     }
 
     math::float4 loadVec4(std::span<const double> data) {
@@ -35,7 +72,7 @@ namespace {
         auto result = math::float4x4::identity();
 
         if (node.translation.size() == 3) {
-            auto [x, y, z] = loadVec3(node.translation);
+            auto [x, y, z] = loadVec3(node.translation.data());
             result *= math::float4x4::translation(x, y, z);
         }
 
@@ -45,7 +82,7 @@ namespace {
         }
 
         if (node.scale.size() == 3) {
-            auto [x, y, z] = loadVec3(node.scale);
+            auto [x, y, z] = loadVec3(node.scale.data());
             result *= math::float4x4::scaling(x, y, z);
         }
 
@@ -58,7 +95,7 @@ namespace {
         return result;
     }
 
-    size_t getTexture(const gltf::Model& model, const gltf::Primitive& primitive, const gltf::Mesh& mesh) {
+    size_t getTexture(const gltf::Model& model, const gltf::Primitive& primitive) {
         if (primitive.material == -1) { return SIZE_MAX; }
 
         const auto& mat = model.materials[primitive.material];
@@ -94,20 +131,101 @@ namespace {
     }
 
     struct Sink {
-        Sink(const gltf::Model& model)
-            : model(model)
+        Sink(const gltf::Model& model) 
+            : model(model) 
         { }
 
         std::vector<size_t> getPrimitives(int index) {
             if (index == -1) { return { }; }
             const auto& mesh = model.meshes[index];
 
+            std::vector<size_t> result;
+
             for (const auto& primitive : mesh.primitives) {
-                auto texture = getTexture(model, primitive, mesh);
+                auto texture = getTexture(model, primitive);
                 auto position = getAttribute(primitive.attributes.at("POSITION"), model);
                 auto uv = getAttribute(primitive.attributes.at("TEXCOORD_0"), model);
                 
+                auto data = getPrimitive(texture, position, uv, primitive.indices);
+
+                result.push_back(addPrimitive(data));
             }
+
+            return result;
+        }
+
+        assets::IndexBuffer getIndexBuffer(int index) {
+            if (index == -1) { return { }; }
+
+            const auto& accessor = model.accessors[index];
+            const auto& bufferView = model.bufferViews[accessor.bufferView];
+            const auto& buffer = model.buffers[bufferView.buffer];
+
+            const auto stride = accessor.ByteStride(bufferView);
+            const auto size = accessor.count;
+
+            // lol
+            ASSERT(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
+
+            // more lol
+            assets::IndexBuffer indexBuffer(size);
+            for (size_t i = 0; i < size; i++) {
+                indexBuffer[i] = uint32_t(buffer.data[accessor.byteOffset + bufferView.byteOffset + i * stride]);
+            }
+            return indexBuffer;
+        }
+
+        assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices) {
+            std::unordered_map<assets::Vertex, uint32_t> indexCache;
+
+            assets::VertexBuffer vertexBuffer;
+            assets::IndexBuffer indexBuffer = getIndexBuffer(indices);
+
+            for (size_t i = 0; i < position.length; i++) {
+                auto pos = loadVertex((double*)(position.data + i * position.stride));
+                auto coords = position.data == nullptr ? math::float2::of(0) : loadVec2((double*)(uv.data + i * uv.stride));
+                assets::Vertex vertex { pos, coords };
+
+                if (indices == -1) {
+                    if (auto iter = indexCache.find(vertex); iter != indexCache.end()) {
+                        indexBuffer.push_back(iter->second);
+                    } else {
+                        auto index = uint32_t(indexBuffer.size());
+
+                        vertexBuffer.push_back(vertex);
+                        indexBuffer.push_back(index);
+                        indexCache[vertex] = index;
+                    }
+                } else {
+                    vertexBuffer.push_back(vertex);
+                }
+            }
+
+            logging::get(logging::eRender).info("primitive({}, {})", vertexBuffer.size(), indexBuffer.size());
+
+            return { 
+                .texture = texture,
+                .verts = addVertexBuffer(vertexBuffer),
+                .indices = addIndexBuffer(indexBuffer)
+            };
+        }
+
+        size_t addPrimitive(assets::Primitive prim) {
+            size_t i = world.primitives.size();
+            world.primitives.push_back(prim);
+            return i;
+        }
+
+        size_t addVertexBuffer(assets::VertexBuffer buffer) {
+            size_t i = world.verts.size();
+            world.verts.push_back(buffer);
+            return i;
+        }
+
+        size_t addIndexBuffer(assets::IndexBuffer buffer) {
+            size_t i = world.indices.size();
+            world.indices.push_back(buffer);
+            return i;
         }
 
         assets::World world;

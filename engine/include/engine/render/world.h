@@ -11,6 +11,9 @@ namespace engine::assets {
         math::float2 uv;
     };
 
+    using VertexBuffer = std::vector<Vertex>;
+    using IndexBuffer = std::vector<uint32_t>;
+
     struct Node {
         std::string_view name;
 
@@ -33,18 +36,15 @@ namespace engine::assets {
     struct Primitive {
         size_t texture;
         size_t verts;
-        
-        std::vector<uint32_t> indices;
+        size_t indices;
     };
 
-    using VertexBuffer = std::vector<Vertex>;
-
     struct World {
-        size_t root;
         std::vector<Node> nodes;
 
         std::vector<Texture> textures;
         std::vector<VertexBuffer> verts;
+        std::vector<IndexBuffer> indices;
 
         std::vector<Primitive> primitives;
     };

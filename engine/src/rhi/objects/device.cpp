@@ -23,7 +23,16 @@ namespace {
 
         for (size_t i = 0; i < layout.size(); i++) {
             const auto &item = layout[i];
-            D3D12_INPUT_ELEMENT_DESC desc { item.name, 0, getElementFormat(item.format), 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+            auto align = item.offset == SIZE_MAX ? D3D12_APPEND_ALIGNED_ELEMENT : UINT(item.offset);
+            D3D12_INPUT_ELEMENT_DESC desc { 
+                .SemanticName = item.name, 
+                .SemanticIndex = 0, 
+                .Format = getElementFormat(item.format), 
+                .InputSlot = 0, 
+                .AlignedByteOffset = align, 
+                .InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 
+                .InstanceDataStepRate = 0 
+            };
             input[i] = desc;
         }
 
@@ -242,6 +251,8 @@ void Device::createTextureBufferView(Buffer &buffer, CpuHandle handle) {
 }
 
 rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state) {
+    ASSERT(size > 0);
+
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     ID3D12Resource *resource;
@@ -258,6 +269,8 @@ rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibi
 }
 
 rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state, math::float4 clear) {
+    ASSERT(size.width > 0 && size.height > 0);
+
     const D3D12_CLEAR_VALUE kClear { 
         .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
         .Color = { clear.x, clear.y, clear.z, clear.w }

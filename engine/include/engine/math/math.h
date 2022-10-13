@@ -31,11 +31,11 @@ namespace engine::math {
         T x;
         T y;
 
-        constexpr bool operator==(T other) const {
+        constexpr bool operator==(T other) const noexcept {
             return equal(of(other));
         }
 
-        constexpr bool operator==(const Vec2& other) const {
+        constexpr bool operator==(const Vec2& other) const noexcept {
             return equal(other);
         }
 
@@ -69,6 +69,10 @@ namespace engine::math {
         T x;
         T y;
         T z;
+
+        constexpr bool operator==(const Vec3& other) const noexcept {
+            return x == other.x && y == other.y && z == other.z;
+        }
 
         static constexpr Vec3 from(T x, T y, T z) {
             return { x, y, z };

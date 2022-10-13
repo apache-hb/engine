@@ -75,7 +75,14 @@ namespace engine::render {
         rhi::DescriptorSet heap;
         rhi::CommandList commands;
 
+        std::vector<rhi::Buffer> vertexBuffers;
+        std::vector<rhi::Buffer> indexBuffers;
+
+        std::vector<rhi::VertexBufferView> vertexBufferViews;
+        std::vector<rhi::IndexBufferView> indexBufferViews;
+
         std::vector<rhi::Buffer> textures;
-        MeshObject mesh;
+        
+        rhi::PipelineState pso;
     };
 }

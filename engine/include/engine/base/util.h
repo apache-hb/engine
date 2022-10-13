@@ -91,7 +91,7 @@ namespace engine {
     private:
         void destroy() {
             if (valid()) {
-                Delete{}(data);
+                kDelete(data);
             }
             data = Invalid;
         }
@@ -107,6 +107,7 @@ namespace engine {
         }
 
         T data = Invalid;
+        static inline Delete kDelete{};
     };
 
     template<typename T, typename Delete = DefaultDelete<T>>

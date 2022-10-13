@@ -85,6 +85,7 @@ namespace engine::rhi {
     struct InputElement {
         const char *name;
         Format format;
+        size_t offset = SIZE_MAX;
     };
 
     BITFLAGS(ShaderVisibility, D3D12_SHADER_VISIBILITY, {
@@ -190,11 +191,15 @@ namespace engine::rhi {
         Format format;
     };
 
-    struct VertexBufferView {
-        GpuHandle buffer;
-        size_t size;
-        size_t stride;
-    };
+    using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
+
+    constexpr VertexBufferView newVertexBufferView(GpuHandle buffer, size_t size, size_t stride) {
+        return {
+            .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer),
+            .SizeInBytes = UINT(size * stride),
+            .StrideInBytes = UINT(stride)
+        };
+    }
 
     struct Fence final : UniqueComPtr<ID3D12Fence> {
         using Super = UniqueComPtr<ID3D12Fence>;
@@ -263,7 +268,9 @@ namespace engine::rhi {
         void copyBuffer(Buffer &dst, Buffer &src, size_t size);
         void copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size);
 
-        void drawMesh(const IndexBufferView &indexView, const VertexBufferView &vertexView);
+        void setVertexBuffers(std::span<const VertexBufferView> buffers);
+
+        void drawMesh(const IndexBufferView &indexView);
 
         void transition(Buffer &buffer, Buffer::State before, Buffer::State after);
 

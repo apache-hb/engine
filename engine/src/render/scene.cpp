@@ -7,8 +7,8 @@ using namespace engine::render;
 
 namespace {
     constexpr auto kInputLayout = std::to_array<rhi::InputElement>({
-        { "POSITION", rhi::Format::float32x3 },
-        { "TEXCOORD", rhi::Format::float32x2 }
+        { "POSITION", rhi::Format::float32x3, offsetof(assets::Vertex, position) },
+        { "TEXCOORD", rhi::Format::float32x2, offsetof(assets::Vertex, uv) }
     });
 
     constexpr auto kSamplers = std::to_array<rhi::Sampler>({
@@ -96,14 +96,24 @@ BasicScene::BasicScene(Create&& info)
 
 ID3D12CommandList *BasicScene::populate(Context *ctx) {
     sceneData.update(camera, aspectRatio);
-    updateObject(world->root, float4x4::identity());
+    for (size_t i = 0; i < std::size(world->nodes); i++) {
+        const auto& node = world->nodes[i];
+        if (node.children.size()) continue;
+        
+        updateObject(i, float4x4::identity());
+    }
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
-    commands.setPipeline(mesh.pso);
+    commands.setPipeline(pso);
+
+    commands.setViewAndScissor(view);
+    commands.setRenderTarget(ctx->getRenderTarget(), kClearColour); // render to the intermediate framebuffer
 
     auto kDescriptors = std::to_array({ heap.get() });
     commands.bindDescriptors(kDescriptors);
+
+    commands.setVertexBuffers(vertexBufferViews);
 
     // bind data that wont change
     commands.bindTable(0, heap.gpuHandle(Slots::eSceneBuffer));
@@ -112,18 +122,14 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     for (size_t i = 0; i < std::size(world->nodes); i++) {
         const auto& node = world->nodes[i];
         commands.bindTable(1, getObjectBufferGpuHandle(i));
-        
+
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
-            commands.bindConst(2, 0, primitive.texture);
+            commands.bindConst(2, 0, uint32_t(primitive.texture));
+            commands.drawMesh(indexBufferViews[primitive.indices]);
             // TODO: actually draw primitive
         }
     }
-
-    commands.setViewAndScissor(view);
-    commands.setRenderTarget(ctx->getRenderTarget(), kClearColour); // render to the intermediate framebuffer
-
-    commands.drawMesh(mesh.indexBufferView, mesh.vertexBufferView);
 
     commands.endRecording();
 
@@ -146,7 +152,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
     auto ps = loadShader("resources/shaders/scene-shader.ps.pso");
     auto vs = loadShader("resources/shaders/scene-shader.vs.pso");
 
-    auto pipeline = device.newPipelineState({
+    pso = device.newPipelineState({
         .samplers = kSamplers,
         .bindings = kSceneBindings,
         .input = kInputLayout,
@@ -156,6 +162,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
+    // upload all textures
     for (size_t i = 0; i < std::size(world->textures); i++) {
         const auto &image = world->textures[i];
         auto it = ctx->uploadTexture(commands, image.size, image.data);
@@ -163,35 +170,37 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
         textures.push_back(std::move(it));
     }
 
+    // upload all our node data
     for (size_t i = 0; i < std::size(world->nodes); i++) {
-        //const auto &node = world->nodes[i];
         objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
     }
 
-    auto vertexBuffer = ctx->uploadData(kCubeVerts, sizeof(kCubeVerts));
-    auto indexBuffer = ctx->uploadData(kCubeIndices, sizeof(kCubeIndices));
+    // upload all our vertex buffers
+    for (const auto& data : world->verts) {
+        size_t vertexBufferSize = data.size() * sizeof(assets::Vertex);
+        
+        auto vertexBuffer = ctx->uploadData(data.data(), vertexBufferSize);
 
-    rhi::VertexBufferView vertexBufferView {
-        vertexBuffer.gpuAddress(),
-        std::size(kCubeVerts),
-        sizeof(assets::Vertex)
-    };
+        rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(vertexBuffer.gpuAddress(), data.size(), sizeof(assets::Vertex));
 
-    rhi::IndexBufferView indexBufferView {
-        indexBuffer.gpuAddress(),
-        std::size(kCubeIndices),
-        rhi::Format::uint32
-    };
+        vertexBuffers.push_back(std::move(vertexBuffer));
+        vertexBufferViews.push_back(vertexBufferView);
+    }
 
-    mesh = {
-        .pso = std::move(pipeline),
+    for (const auto& indices : world->indices) {
+        size_t indexBufferSize = indices.size() * sizeof(uint32_t);
 
-        .vertexBuffer = std::move(vertexBuffer),
-        .indexBuffer = std::move(indexBuffer),
+        auto indexBuffer = ctx->uploadData(indices.data(), indexBufferSize);
 
-        .vertexBufferView = vertexBufferView,
-        .indexBufferView = indexBufferView
-    };
+        rhi::IndexBufferView indexBufferView {
+            .buffer = indexBuffer.gpuAddress(),
+            .size = indices.size(),
+            .format = rhi::Format::uint32
+        };
+
+        indexBuffers.push_back(std::move(indexBuffer));
+        indexBufferViews.push_back(indexBufferView);
+    }
 
     commands.endRecording();
 
