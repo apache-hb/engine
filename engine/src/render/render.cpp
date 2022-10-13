@@ -216,6 +216,10 @@ void Context::end() {
 void Context::beginPost() {
     auto kDescriptors = std::to_array({ postHeap.get() });
     auto kVerts = std::to_array({ screenQuad.vertexBufferView });
+    auto kTransitions = std::to_array({
+        rhi::newStateTransition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget),
+        rhi::newStateTransition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource)
+    });
 
     postCommands.beginRecording(postAllocators[frameIndex]);
     postCommands.setPipeline(screenQuad.pso);
@@ -223,8 +227,7 @@ void Context::beginPost() {
     postCommands.bindDescriptors(kDescriptors);
 
     // transition into rendering to the intermediate
-    postCommands.transition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget);
-    postCommands.transition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource);
+    postCommands.transition(kTransitions);
 
     postCommands.bindTable(0, postHeap.gpuHandle(PostSlots::eFrame));
     postCommands.setViewAndScissor(postView);
@@ -235,11 +238,15 @@ void Context::beginPost() {
 }
 
 void Context::endPost() {
+    auto kTransitions = std::to_array({
+        rhi::newStateTransition(renderTargets[frameIndex], BufferState::eRenderTarget, BufferState::ePresent),
+        rhi::newStateTransition(intermediateTarget, BufferState::ePixelShaderResource, BufferState::eRenderTarget)
+    });
+
     postCommands.imguiRender();
 
     // now switch back to rendering from intermediate to target
-    postCommands.transition(intermediateTarget, BufferState::ePixelShaderResource, BufferState::eRenderTarget);
-    postCommands.transition(renderTargets[frameIndex], BufferState::eRenderTarget, BufferState::ePresent);
+    postCommands.transition(kTransitions);
 
     postCommands.endRecording();
 }
@@ -259,7 +266,11 @@ rhi::Buffer Context::uploadTexture(rhi::CommandList &commands, rhi::TextureSize 
     auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
     auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
 
-    commands.transition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource);
+    auto kBarrier = std::to_array({
+        rhi::newStateTransition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource)
+    });
+
+    commands.transition(kBarrier);
     copyCommands.copyTexture(result.buffer, upload, data.data(), size);
 
     pendingCopies.push_back(std::move(upload));

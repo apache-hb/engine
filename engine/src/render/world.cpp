@@ -1,5 +1,7 @@
 #include "engine/render/world.h"
 
+#include "engine/math/consts.h"
+
 #include "engine/base/logging.h"
 #include "engine/base/util.h"
 
@@ -11,6 +13,7 @@
 namespace gltf = tinygltf;
 
 using namespace engine;
+using namespace math;
 
 template<typename T>
 struct std::hash<math::Vec3<T>> {
@@ -41,8 +44,8 @@ struct std::equal_to<assets::Vertex> {
 };
 
 namespace {
-    math::float2 loadVec2(const double *data) {
-        return { .x = float(data[0]), .y = float(data[1]) };
+    math::float2 loadVec2(const float *data) {
+        return { .x = data[0], .y = data[1] };
     }
 
     math::float3 loadVec3(const double *data) {
@@ -57,10 +60,14 @@ namespace {
         return { .x = float(data[0]), .y = float(data[1]), .z = float(data[2]), .w = float(data[3]) };
     }
     
-    math::float4x4 createTransform(const gltf::Node& node) {
+    constexpr auto kGltfUp = float3::from(1.f, 0.f, 0.f);
+
+    float4x4 createTransform(const gltf::Node& node) {
+        auto result = float4x4::rotation(-kPiDiv2<float>, kGltfUp);
+
         if (node.matrix.size() == 16) {
             auto &mat = node.matrix;
-            return math::float4x4::from(
+            result *= math::float4x4::from(
                 { float(mat[0]), float(mat[1]), float(mat[2]), float(mat[3]) },
                 { float(mat[4]), float(mat[5]), float(mat[6]), float(mat[7]) },
                 { float(mat[8]), float(mat[9]), float(mat[10]), float(mat[11]) },
@@ -68,16 +75,14 @@ namespace {
             );
         }
 
-        auto result = math::float4x4::identity();
-
         if (node.translation.size() == 3) {
             auto [x, y, z] = loadVec3(node.translation.data());
             result *= math::float4x4::translation(x, y, z);
         }
 
         if (node.rotation.size() == 4) {
-            auto it = loadVec4(node.rotation);
-            result *= math::float4x4::rotation(it.w, it.vec3());
+            auto rot = loadVec4(node.rotation);
+            result *= math::float4x4::rotation(rot.w, rot.vec3());
         }
 
         if (node.scale.size() == 3) {
@@ -200,7 +205,7 @@ namespace {
 
             for (size_t i = 0; i < position.length; i++) {
                 auto pos = loadVertex((float*)(position.data + i * position.stride));
-                auto coords = position.data == nullptr ? math::float2::of(0) : loadVec2((double*)(uv.data + i * uv.stride));
+                auto coords = position.data == nullptr ? math::float2::of(0) : loadVec2((float*)(uv.data + i * uv.stride));
                 assets::Vertex vertex { pos, coords };
 
                 if (indices == -1) {

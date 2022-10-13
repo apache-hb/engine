@@ -65,8 +65,10 @@ void CommandList::copyTexture(Buffer &dst, Buffer &src, const void *ptr, Texture
     UpdateSubresources(get(), dst.get(), src.get(), 0, 0, 1, &kUpdate);
 }
 
-void CommandList::transition(Buffer &buffer, Buffer::State before, rhi::Buffer::State after) {
-    transitionBarrier(buffer.get(), D3D12_RESOURCE_STATES(before), D3D12_RESOURCE_STATES(after));
+void CommandList::transition(std::span<const StateTransition> barriers) {
+    ASSERT(barriers.size() > 0);
+
+    get()->ResourceBarrier(UINT(barriers.size()), barriers.data());
 }
 
 void CommandList::bindDescriptors(std::span<ID3D12DescriptorHeap*> sets) {
@@ -101,12 +103,6 @@ void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
     get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     get()->IASetIndexBuffer(&kIndexBufferView);
     get()->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
-}
-
-void CommandList::transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
-    const auto kBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
-
-    get()->ResourceBarrier(1, &kBarrier);
 }
 
 void CommandList::imguiRender() {

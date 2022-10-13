@@ -192,12 +192,24 @@ namespace engine::rhi {
     };
 
     using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
+    using StateTransition = D3D12_RESOURCE_BARRIER;
 
     constexpr VertexBufferView newVertexBufferView(GpuHandle buffer, size_t size, size_t stride) {
         return {
             .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer),
             .SizeInBytes = UINT(size * stride),
             .StrideInBytes = UINT(stride)
+        };
+    }
+
+    inline StateTransition newStateTransition(Buffer& buffer, Buffer::State before, Buffer::State after) {
+        return {
+            .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            .Transition = {
+                .pResource = buffer.get(),
+                .StateBefore = D3D12_RESOURCE_STATES(before),
+                .StateAfter = D3D12_RESOURCE_STATES(after),
+            }
         };
     }
 
@@ -273,12 +285,9 @@ namespace engine::rhi {
 
         void drawMesh(const IndexBufferView &indexView);
 
-        void transition(Buffer &buffer, Buffer::State before, Buffer::State after);
+        void transition(std::span<const StateTransition> barriers);
 
         void imguiRender();
-
-    private:
-        void transitionBarrier(ID3D12Resource *resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
     };
     
     struct SwapChain final : UniqueComPtr<IDXGISwapChain3> {
