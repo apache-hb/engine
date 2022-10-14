@@ -2,7 +2,7 @@
 #include "engine/base/panic.h"
 #include "engine/base/win32.h"
 
-using namespace engine;
+using namespace simcoe;
 
 struct File : Io {
     File(std::string_view name, Mode mode) : Io(name, mode) {

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <dbghelp.h>
 
-using namespace engine;
+using namespace simcoe;
 
 void win32::init() {
     // enable stackwalker

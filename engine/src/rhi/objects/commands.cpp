@@ -4,8 +4,8 @@
 #include "imgui.h"
 #include "imgui_impl_dx12.h"
 
-using namespace engine;
-using namespace engine::rhi;
+using namespace simcoe;
+using namespace simcoe::rhi;
 
 namespace {
     constexpr size_t getElementSize(rhi::Format format) {

@@ -6,7 +6,7 @@
 #include <string_view>
 #include <format>
 
-namespace engine {
+namespace simcoe {
     struct PanicInfo {
         std::string_view file;
         std::string_view function;
@@ -21,8 +21,8 @@ namespace engine {
     {                                                                                                              \
         if (!(expr))                                                                                               \
         {                                                                                                          \
-            engine::PanicInfo panic { .file = __FILE__, .function = FUNCNAME, .line = __LINE__};                                                        \
-            engine::panic(panic, std::format(__VA_ARGS__));                                                                           \
+            simcoe::PanicInfo panic { .file = __FILE__, .function = FUNCNAME, .line = __LINE__};                                                        \
+            simcoe::panic(panic, std::format(__VA_ARGS__));                                                                           \
         }                                                                                                          \
     } while (0)
 

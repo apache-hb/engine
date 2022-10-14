@@ -4,7 +4,7 @@
 #include <vector>
 #include <span>
 
-namespace engine {
+namespace simcoe {
     struct Io {
         enum Mode {
             eRead = (1 << 0),

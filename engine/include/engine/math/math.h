@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-namespace engine::math {
+namespace simcoe::math {
     template<typename T>
     struct Vec3;
 

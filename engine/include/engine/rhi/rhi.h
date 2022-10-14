@@ -10,7 +10,7 @@
 #include "dx/d3dx12.h"
 #include <dxgi1_6.h>
 
-namespace engine::rhi {
+namespace simcoe::rhi {
     template<typename T>
     concept IsComObject = std::is_base_of_v<IUnknown, T>;
     

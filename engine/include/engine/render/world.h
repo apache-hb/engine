@@ -5,7 +5,7 @@
 #include <vector>
 #include <string_view>
 
-namespace engine::assets {
+namespace simcoe::assets {
     struct Vertex {
         math::float3 position;
         math::float2 uv;

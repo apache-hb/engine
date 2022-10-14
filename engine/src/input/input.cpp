@@ -3,8 +3,8 @@
 #include "engine/base/win32.h"
 #include "xinput.h"
 
-using namespace engine;
-using namespace engine::input;
+using namespace simcoe;
+using namespace simcoe::input;
 
 using namespace math;
 

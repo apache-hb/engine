@@ -2,7 +2,7 @@
 
 #include "engine/math/math.h"
 
-namespace engine::render {
+namespace simcoe::render {
 
     // data that is shared across the entire scene
     struct alignas(256) SceneBuffer {

@@ -1,8 +1,8 @@
 #include "engine/rhi/rhi.h"
 #include "objects/common.h"
 
-using namespace engine;
-using namespace engine::rhi;
+using namespace simcoe;
+using namespace simcoe::rhi;
 
 void Buffer::write(const void *src, size_t size) {
     void *ptr = map();

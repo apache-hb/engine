@@ -2,7 +2,7 @@
 
 #include "engine/math/math.h"
 
-namespace engine::input {
+namespace simcoe::input {
     // type of input device
     enum Device {
         eDesktop,

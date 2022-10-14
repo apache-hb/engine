@@ -1,8 +1,8 @@
 #include "engine/render/render.h"
 #include <array>
 
-using namespace engine;
-using namespace engine::render;
+using namespace simcoe;
+using namespace simcoe::render;
 
 #define DX_NAME(it) it->SetName(L"" #it)
 

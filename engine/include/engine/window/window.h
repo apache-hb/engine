@@ -6,7 +6,7 @@
 
 #include "engine/input/input.h"
 
-namespace engine {
+namespace simcoe {
     struct Window {
         Window(int width, int height, const char *title);
         ~Window();

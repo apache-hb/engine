@@ -2,8 +2,8 @@
 
 #include <array>
 
-using namespace engine;
-using namespace engine::render;
+using namespace simcoe;
+using namespace simcoe::render;
 
 namespace {
     constexpr auto kInputLayout = std::to_array<rhi::InputElement>({

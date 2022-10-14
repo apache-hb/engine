@@ -9,7 +9,7 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-using namespace engine;
+using namespace simcoe;
 
 namespace {
     constexpr auto kClassName = "GameWindowClass";

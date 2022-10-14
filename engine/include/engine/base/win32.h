@@ -5,6 +5,6 @@
 
 #define DLLEXPORT __declspec(dllexport)
 
-namespace engine::win32 {
+namespace simcoe::win32 {
     void init();
 }

@@ -2,7 +2,7 @@
 
 #include "imgui.h"
 
-using namespace engine;
+using namespace simcoe;
 
 Window *ui::init(const ui::Create& info) {
     IMGUI_CHECKVERSION();

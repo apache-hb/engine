@@ -5,8 +5,8 @@
 #include <iostream>
 #include <array>
 
-using namespace engine;
-using namespace engine::logging;
+using namespace simcoe;
+using namespace simcoe::logging;
 
 namespace {
     constexpr std::string_view levelName(Level level) {

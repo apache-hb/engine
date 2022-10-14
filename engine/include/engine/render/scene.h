@@ -6,7 +6,7 @@
 
 #include "engine/base/util.h"
 
-namespace engine::render {
+namespace simcoe::render {
     struct Object {
         std::vector<std::byte> vs;
         std::vector<std::byte> ps;

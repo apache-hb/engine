@@ -6,7 +6,7 @@
 #include "engine/render/world.h"
 #include "engine/render/camera.h"
 
-namespace engine::render {
+namespace simcoe::render {
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
 
     std::vector<std::byte> loadShader(std::string_view path);

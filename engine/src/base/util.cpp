@@ -2,7 +2,7 @@
 
 #include "engine/base/win32.h"
 
-using namespace engine;
+using namespace simcoe;
 
 std::string strings::narrow(std::wstring_view str) {
     std::string result(str.size() + 1, '\0');

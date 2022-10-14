@@ -75,9 +75,9 @@ namespace {
     }
 }
 
-NORETURN engine::panic(const engine::PanicInfo &info, const std::string &msg) {
+NORETURN simcoe::panic(const simcoe::PanicInfo &info, const std::string &msg) {
     ShowCursor(true);
     auto stack = getStackTrace();
-    MessageBox(nullptr, engine::strings::join<std::string>(stack, "\n").c_str(), std::format("error: {} at [{}:{}@{}]", msg, info.file, info.line, info.function).c_str(), MB_ICONSTOP);
+    MessageBox(nullptr, simcoe::strings::join<std::string>(stack, "\n").c_str(), std::format("error: {} at [{}:{}@{}]", msg, info.file, info.line, info.function).c_str(), MB_ICONSTOP);
     std::abort();
 }

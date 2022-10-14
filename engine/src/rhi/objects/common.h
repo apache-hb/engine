@@ -10,7 +10,7 @@
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 
-namespace engine {
+namespace simcoe {
     std::string hrErrorString(HRESULT hr);
 
     extern IDXGIFactory5 *gFactory;
@@ -31,4 +31,4 @@ namespace engine {
     }
 }
 
-#define DX_CHECK(expr) do { HRESULT hr = (expr); ASSERTF(SUCCEEDED(hr), #expr " => {}", engine::hrErrorString(hr)); } while (0)
+#define DX_CHECK(expr) do { HRESULT hr = (expr); ASSERTF(SUCCEEDED(hr), #expr " => {}", simcoe::hrErrorString(hr)); } while (0)

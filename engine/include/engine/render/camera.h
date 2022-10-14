@@ -4,7 +4,7 @@
 
 #include "engine/rhi/rhi.h"
 
-namespace engine::render {
+namespace simcoe::render {
     using namespace math;
 
     struct Camera {

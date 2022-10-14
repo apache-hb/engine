@@ -2,7 +2,7 @@
 
 #include "engine/window/window.h"
 
-namespace engine::ui {
+namespace simcoe::ui {
     struct Create {
         const char *title;
         math::Resolution<int> size;
@@ -10,5 +10,5 @@ namespace engine::ui {
         const char *imgui = "imgui.ini";
     };
 
-    engine::Window *init(const Create& create);
+    simcoe::Window *init(const Create& create);
 }

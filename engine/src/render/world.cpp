@@ -12,7 +12,7 @@
 
 namespace gltf = tinygltf;
 
-using namespace engine;
+using namespace simcoe;
 using namespace math;
 
 template<typename T>

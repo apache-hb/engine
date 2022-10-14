@@ -1,6 +1,6 @@
 #pragma once
 
-namespace engine::math {
+namespace simcoe::math {
     template<typename T>
     constexpr T kPi { T(3.14159265358979323846) };
 

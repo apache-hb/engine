@@ -14,7 +14,7 @@
 
 #include "imgui.h"
 
-using namespace engine;
+using namespace simcoe;
 using namespace math;
 
 constexpr float kMoveSensitivity = 0.001f;

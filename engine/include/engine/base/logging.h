@@ -5,7 +5,7 @@
 #include <format>
 #include <span>
 
-namespace engine::logging {
+namespace simcoe::logging {
     enum Level {
         eDebug,
         eInfo,

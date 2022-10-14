@@ -3,8 +3,8 @@
 
 #include "imgui_impl_dx12.h"
 
-using namespace engine;
-using namespace engine::rhi;
+using namespace simcoe;
+using namespace simcoe::rhi;
 
 namespace {
     constexpr auto kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);

@@ -1,8 +1,8 @@
 #include "engine/rhi/rhi.h"
 #include "objects/common.h"
 
-using namespace engine;
-using namespace rhi;
+using namespace simcoe;
+using namespace simcoe::rhi;
 
 namespace {
     constexpr GUID kShaderModel6 = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
@@ -21,7 +21,7 @@ rhi::Device rhi::getDevice() {
     auto &channel = logging::get(logging::eRender);
 
     if (HRESULT hr = enableSm6(); !SUCCEEDED(hr)) {
-        channel.warn("failed to enable shader model 6_0: {}", engine::hrErrorString(hr));
+        channel.warn("failed to enable shader model 6_0: {}", simcoe::hrErrorString(hr));
     }
 
     DX_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
@@ -32,7 +32,7 @@ rhi::Device rhi::getDevice() {
         gDxDebug->EnableDebugLayer();
         factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
     } else {
-        channel.warn("faield to get d3d12 debug interface: {}", engine::hrErrorString(hr));
+        channel.warn("faield to get d3d12 debug interface: {}", simcoe::hrErrorString(hr));
     }
 
     DX_CHECK(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&gFactory)));

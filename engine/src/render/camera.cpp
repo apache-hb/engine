@@ -7,8 +7,8 @@
 
 #include <DirectXMath.h>
 
-using namespace engine;
-using namespace engine::render;
+using namespace simcoe;
+using namespace simcoe::render;
 
 namespace {
     constexpr auto kUpVector = float3::from(0.f, 0.f, 1.f); // z-up

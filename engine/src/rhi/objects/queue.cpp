@@ -1,8 +1,8 @@
 #include "engine/rhi/rhi.h"
 #include "objects/common.h"
 
-using namespace engine;
-using namespace engine::rhi;
+using namespace simcoe;
+using namespace simcoe::rhi;
 
 rhi::SwapChain CommandQueue::newSwapChain(Window *window, size_t buffers) {
     auto [width, height] = window->size();

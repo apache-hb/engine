@@ -7,7 +7,7 @@
 #include <sstream>
 #include <span>
 
-namespace engine {
+namespace simcoe {
     namespace strings {
         std::string narrow(std::wstring_view str);
         std::wstring widen(std::string_view str);
@@ -135,5 +135,41 @@ namespace engine {
 
         Type **operator&() { return Super::ref(); }
         const Type**operator&() const { return Super::ref(); }
+    };
+
+    struct BitSet {
+        BitSet(size_t size)
+            : size(size)
+            , bits(size / sizeof(uint8_t))
+        {}
+        
+        void set(size_t bit) {
+            get(bit) |= (bit % 8);
+        }
+
+        void clear(size_t bit) {
+            get(bit) &= ~(bit % 8);
+        }
+
+        bool query(size_t bit) const {
+            return get(bit) & (bit % 8);
+        }
+
+        size_t getSize() const {
+            return size;
+        }
+    private:
+        uint8_t &get(size_t cell) {
+            ASSERT(cell <= size);
+            return bits[(cell / sizeof(uint8_t))];
+        }
+
+        uint8_t get(size_t cell) const {
+            ASSERT(cell <= size);
+            return bits[(cell / sizeof(uint8_t))];
+        }
+        
+        size_t size;
+        UniquePtr<uint8_t[]> bits;
     };
 }
