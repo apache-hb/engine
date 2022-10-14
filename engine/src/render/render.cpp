@@ -15,6 +15,10 @@ namespace {
         };
     }
 
+    constexpr size_t totalRenderTargets(size_t frames) {
+        return frames + 1;
+    }
+
     using BufferState = rhi::Buffer::State;
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 
@@ -39,21 +43,21 @@ std::vector<std::byte> render::loadShader(std::string_view path) {
 Context::Context(Create &&info) 
     : window(info.window)
     , scene(info.scene)
+    , frames(info.frames)
     , device(rhi::getDevice()) 
 {
     auto [width, height] = window->size();
-    resolution = { size_t(width), size_t(height) };
-
-    updateViewports();
+    updateViewports({ size_t(width), size_t(height) }, scene->resolution);
     create();
 }
 
-void Context::updateViewports() {
-    auto [windowWidth, windowHeight] = resolution;
-    auto resolution = scene->resolution;
+void Context::updateViewports(rhi::TextureSize post, rhi::TextureSize scene) {
+    resolution = post;
 
-    auto widthRatio = float(resolution.width) / windowWidth;
-    auto heightRatio = float(resolution.height) / windowHeight;
+    auto [width, height] = post;
+
+    auto widthRatio = float(scene.width) / width;
+    auto heightRatio = float(scene.height) / height;
 
     float x = 1.f;
     float y = 1.f;
@@ -64,10 +68,10 @@ void Context::updateViewports() {
         y = heightRatio / widthRatio;
     }
 
-    postView.viewport.TopLeftX = windowWidth * (1.f - x) / 2.f;
-    postView.viewport.TopLeftY = windowHeight * (1.f - y) / 2.f;
-    postView.viewport.Width = x * windowWidth;
-    postView.viewport.Height = y * windowHeight;
+    postView.viewport.TopLeftX = width * (1.f - x) / 2.f;
+    postView.viewport.TopLeftY = height * (1.f - y) / 2.f;
+    postView.viewport.Width = x * width;
+    postView.viewport.Height = y * height;
 
     postView.scissor.left = LONG(postView.viewport.TopLeftX);
     postView.scissor.right = LONG(postView.viewport.TopLeftX + postView.viewport.Width);
@@ -80,16 +84,18 @@ void Context::create() {
     directQueue = device.newQueue(rhi::CommandList::Type::eDirect);
     DX_NAME(directQueue);
 
-    swapchain = directQueue.newSwapChain(window, kFrameCount);
+    swapchain = directQueue.newSwapChain(window, frames);
     frameIndex = swapchain.currentBackBuffer();
 
-    renderTargetSet = device.newDescriptorSet(kRenderTargets, rhi::DescriptorSet::Type::eRenderTarget, false);
+    renderTargetSet = device.newDescriptorSet(totalRenderTargets(frames), rhi::DescriptorSet::Type::eRenderTarget, false);
 
     postHeap = device.newDescriptorSet(PostSlots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
 
     DX_NAME(postHeap);
 
-    for (size_t i = 0; i < kFrameCount; i++) {
+    // TODO: iterators again
+    postAllocators = {frames};
+    for (size_t i = 0; i < frames; i++) {
         // create per frame data
         postAllocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
@@ -100,7 +106,7 @@ void Context::create() {
     auto result = device.newTexture(scene->resolution, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eRenderTarget, kClearColour);
     intermediateTarget = std::move(result.buffer);
 
-    device.createRenderTargetView(intermediateTarget, renderTargetSet.cpuHandle(kFrameCount));
+    device.createRenderTargetView(intermediateTarget, renderTargetSet.cpuHandle(frames));
     device.createTextureBufferView(intermediateTarget, postHeap.cpuHandle(PostSlots::eFrame));
 
     DX_NAME(intermediateTarget);
@@ -193,7 +199,7 @@ void Context::create() {
 
     // release copy resources that are no longer needed
     pendingCopies.resize(0);
-    device.imguiInit(kFrameCount, postHeap, postHeap.cpuHandle(PostSlots::eImgui), postHeap.gpuHandle(PostSlots::eImgui));
+    device.imguiInit(frames, postHeap, postHeap.cpuHandle(PostSlots::eImgui), postHeap.gpuHandle(PostSlots::eImgui));
 }
 
 void Context::begin() {
@@ -220,20 +226,22 @@ void Context::resizeScene(rhi::TextureSize) {
 
 void Context::resizeOutput(rhi::TextureSize size) {
     // release all back buffers to make sure we can recreate them
-    for (auto& buffer : renderTargets) {
-        buffer.release();
+    // TODO: we should add range iterators to unique ptr arrays
+    for (size_t i = 0; i < frames; i++) {
+        renderTargets[i].release();
     }
 
-    resolution = size;
-    updateViewports();
-    swapchain.resize(size, kFrameCount);
+    updateViewports(size, scene->resolution);
+    swapchain.resize(size, frames);
     frameIndex = swapchain.currentBackBuffer();
 
     createRenderTargets();
 }
 
 void Context::createRenderTargets() {
-    for (size_t i = 0; i < kFrameCount; i++) {
+    renderTargets = {frames};
+    
+    for (size_t i = 0; i < frames; i++) {
         renderTargets[i] = swapchain.getBuffer(i);
         device.createRenderTargetView(renderTargets[i], renderTargetSet.cpuHandle(i));
     }

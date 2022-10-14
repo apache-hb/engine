@@ -70,7 +70,7 @@ namespace engine::render {
 
         std::vector<ObjectBufferHandle> objectData;
 
-        rhi::Allocator allocators[kFrameCount];
+        UniquePtr<rhi::Allocator[]> allocators;
 
         rhi::DescriptorSet dsvHeap;
         rhi::Buffer depthBuffer;

@@ -7,9 +7,6 @@
 #include "engine/render/camera.h"
 
 namespace engine::render {
-    constexpr auto kFrameCount = 2;
-    constexpr auto kRenderTargets = kFrameCount + 1; // +1 for intermediate target
-
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
 
     std::vector<std::byte> loadShader(std::string_view path);
@@ -40,6 +37,7 @@ namespace engine::render {
         struct Create {
             Window *window; // window to attach to
             RenderScene *scene; // scene to display
+            size_t frames = 2;
         };
 
         Context(Create &&info);
@@ -53,16 +51,18 @@ namespace engine::render {
 
         // accessors
         size_t currentFrame() const { return frameIndex; }
+        size_t frameCount() const { return frames; }
         rhi::Device &getDevice() { return device; }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
         rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
 
-        rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(kFrameCount); }
+        rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(frames); }
 
     private:
         Window *window;
         RenderScene *scene;
+        size_t frames;
 
         // output resolution
         rhi::TextureSize resolution;
@@ -70,7 +70,7 @@ namespace engine::render {
         void create();
         void createRenderTargets();
 
-        void updateViewports();
+        void updateViewports(rhi::TextureSize post, rhi::TextureSize scene);
 
         void waitForFrame();
         void waitOnQueue(rhi::CommandQueue &queue, size_t value);
@@ -88,9 +88,9 @@ namespace engine::render {
         rhi::SwapChain swapchain;
 
         rhi::DescriptorSet renderTargetSet;
-        rhi::Buffer renderTargets[kFrameCount];
+        UniquePtr<rhi::Buffer[]> renderTargets;
 
-        rhi::Allocator postAllocators[kFrameCount];
+        UniquePtr<rhi::Allocator[]> postAllocators;
 
         rhi::CommandList postCommands;
         rhi::View postView;

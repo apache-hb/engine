@@ -150,7 +150,8 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
 ID3D12CommandList *BasicScene::attach(Context *ctx) {
     auto &device = ctx->getDevice();
 
-    for (size_t i = 0; i < kFrameCount; i++) {
+    allocators = {ctx->frameCount()};
+    for (size_t i = 0; i < ctx->frameCount(); i++) {
         allocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
 
