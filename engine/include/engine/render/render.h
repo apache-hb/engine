@@ -11,16 +11,6 @@ namespace engine::render {
 
     std::vector<std::byte> loadShader(std::string_view path);
 
-    struct MeshObject {
-        rhi::PipelineState pso;
-
-        rhi::Buffer vertexBuffer;
-        rhi::Buffer indexBuffer;
-
-        rhi::VertexBufferView vertexBufferView;
-        rhi::IndexBufferView indexBufferView;
-    };
-
     struct Context;
 
     struct RenderScene {
@@ -94,7 +84,13 @@ namespace engine::render {
 
         rhi::CommandList postCommands;
         rhi::View postView;
-        MeshObject screenQuad;
+
+        // fullscreen quad
+        rhi::PipelineState pso;
+        rhi::Buffer vertexBuffer;
+        rhi::Buffer indexBuffer;
+        rhi::VertexBufferView vertexBufferView;
+        rhi::IndexBufferView indexBufferView;
 
         rhi::Buffer intermediateTarget;
 

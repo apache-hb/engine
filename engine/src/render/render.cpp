@@ -33,6 +33,23 @@ namespace {
         0, 1, 2,
         1, 3, 2
     };
+
+    constexpr auto kInput = std::to_array<rhi::InputElement>({
+        { "POSITION", rhi::Format::float32x3 },
+        { "TEXCOORD", rhi::Format::float32x2 }
+    });
+
+    constexpr auto kSamplers = std::to_array<rhi::Sampler>({
+        { rhi::ShaderVisibility::ePixel }
+    });
+
+    constexpr auto kRanges = std::to_array<rhi::BindingRange>({
+        { 0, rhi::Object::eTexture, rhi::BindingMutability::eStaticAtExecute }
+    });
+
+    constexpr auto kBindings = std::to_array<rhi::Binding>({
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, kRanges)
+    });
 }
 
 std::vector<std::byte> render::loadShader(std::string_view path) {
@@ -124,64 +141,37 @@ void Context::create() {
 
     fence = device.newFence();
 
-    auto input = std::to_array<rhi::InputElement>({
-        { "POSITION", rhi::Format::float32x3 },
-        { "TEXCOORD", rhi::Format::float32x2 }
-    });
-
     auto postPs = loadShader("resources/shaders/post-shader.ps.pso");
     auto postVs = loadShader("resources/shaders/post-shader.vs.pso");
 
-    auto samplers = std::to_array<rhi::Sampler>({
-        { rhi::ShaderVisibility::ePixel }
-    });
-
-    auto postRanges = std::to_array<rhi::BindingRange>({
-        { 0, rhi::Object::eTexture, rhi::BindingMutability::eStaticAtExecute }
-    });
-
-    auto postBindings = std::to_array<rhi::Binding>({
-        rhi::bindTable(rhi::ShaderVisibility::ePixel, postRanges)
-    });
-
-    auto postPipeline = device.newPipelineState({
-        .samplers = samplers,
-        .bindings = postBindings,
-        .input = input,
+    pso = device.newPipelineState({
+        .samplers = kSamplers,
+        .bindings = kBindings,
+        .input = kInput,
         .ps = postPs,
         .vs = postVs
     });
 
-    DX_NAME(postPipeline.pipeline);
-    DX_NAME(postPipeline.signature);
+    DX_NAME(pso.pipeline);
+    DX_NAME(pso.signature);
 
     // upload our data to the gpu
 
     beginCopy();
 
     // upload fullscreen quad
-    auto postVertexBuffer = uploadData(kScreenQuad, sizeof(kScreenQuad));
-    auto postIndexBuffer = uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
+    vertexBuffer = uploadData(kScreenQuad, sizeof(kScreenQuad));
+    indexBuffer = uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
 
-    DX_NAME(postVertexBuffer);
-    DX_NAME(postIndexBuffer);
+    DX_NAME(vertexBuffer);
+    DX_NAME(indexBuffer);
 
-    rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(postVertexBuffer.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
+    vertexBufferView = rhi::newVertexBufferView(vertexBuffer.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
 
-    rhi::IndexBufferView indexBufferView {
-        postIndexBuffer.gpuAddress(),
+    indexBufferView = {
+        indexBuffer.gpuAddress(),
         std::size(kScreenQuadIndices),
         rhi::Format::uint32
-    };
-
-    screenQuad = MeshObject {
-        .pso = std::move(postPipeline),
-
-        .vertexBuffer = std::move(postVertexBuffer),
-        .indexBuffer = std::move(postIndexBuffer),
-
-        .vertexBufferView = vertexBufferView,
-        .indexBufferView = indexBufferView
     };
 
     ID3D12CommandList *sceneCommands = scene->attach(this);
@@ -250,14 +240,14 @@ void Context::createRenderTargets() {
 // draw the intermediate render target to the screen
 void Context::beginPost() {
     auto kDescriptors = std::to_array({ postHeap.get() });
-    auto kVerts = std::to_array({ screenQuad.vertexBufferView });
+    auto kVerts = std::to_array({ vertexBufferView });
     auto kTransitions = std::to_array({
         rhi::newStateTransition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget),
         rhi::newStateTransition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource)
     });
 
     postCommands.beginRecording(postAllocators[frameIndex]);
-    postCommands.setPipeline(screenQuad.pso);
+    postCommands.setPipeline(pso);
 
     postCommands.bindDescriptors(kDescriptors);
 
@@ -269,7 +259,7 @@ void Context::beginPost() {
 
     postCommands.setVertexBuffers(kVerts);
     postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), rhi::CpuHandle::Invalid, kLetterBox);
-    postCommands.drawMesh(screenQuad.indexBufferView);
+    postCommands.drawMesh(indexBufferView);
 }
 
 void Context::endPost() {
