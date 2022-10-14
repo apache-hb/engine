@@ -93,7 +93,11 @@ int commonMain() {
     int width = GetSystemMetrics(SM_CXSCREEN);
     int height = GetSystemMetrics(SM_CYSCREEN);
 
-    UniquePtr<Window> window = ui::init("game", width, height);
+    UniquePtr<Window> window = ui::init({
+        .title = "editor",
+        .size = { width, height },
+        .imgui = "editor.ini"
+    });
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
 
     render::BasicScene scene { { &camera, &world } };

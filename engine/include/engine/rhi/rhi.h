@@ -22,7 +22,14 @@ namespace engine::rhi {
     };
 
     template<IsComObject T>
-    using UniqueComPtr = UniquePtr<T, ComDeleter<T>>;
+    struct UniqueComPtr : UniquePtr<T, ComDeleter<T>> {
+        using Super = UniquePtr<T, ComDeleter<T>>;
+        using Super::Super;
+
+        void release() {
+            Super::destroy();
+        }
+    };
 
     struct HandleDeleter {
         void operator()(HANDLE handle) {
@@ -298,11 +305,13 @@ namespace engine::rhi {
 
         void present();
         Buffer getBuffer(size_t index);
+        void resize(TextureSize resolution, size_t frames);
 
         size_t currentBackBuffer();
 
     private:
         UINT flags;
+        UINT presentFlags;
     };
 
     struct CommandQueue final : UniqueComPtr<ID3D12CommandQueue> {
@@ -310,6 +319,7 @@ namespace engine::rhi {
         using Super::Super;
 
         SwapChain newSwapChain(Window *window, size_t buffers);
+
         void signal(Fence &fence, size_t value);
         void execute(std::span<ID3D12CommandList*> lists);
     };
@@ -343,7 +353,7 @@ namespace engine::rhi {
 
         TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
-        PipelineState newPipelineState(const PipelineBinding& bindings);
+        PipelineState newPipelineState(const PipelineBinding& bindings, bool depth = false);
 
         void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle);
         void imguiNewFrame();
@@ -351,7 +361,7 @@ namespace engine::rhi {
     private:
         ID3D12RootSignature *createRootSignature(ID3DBlob *signature);
 
-        ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input);
+        ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input, bool depth);
 
         D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };

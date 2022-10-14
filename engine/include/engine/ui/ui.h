@@ -3,5 +3,12 @@
 #include "engine/window/window.h"
 
 namespace engine::ui {
-    engine::Window *init(const char *title, int width, int height);
+    struct Create {
+        const char *title;
+        math::Resolution<int> size;
+
+        const char *imgui = "imgui.ini";
+    };
+
+    engine::Window *init(const Create& create);
 }

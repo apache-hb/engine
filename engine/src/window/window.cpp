@@ -105,7 +105,7 @@ Window::Window(int width, int height, const char *title) {
     hwnd = CreateWindowA(
         /* lpClassName = */ kClassName,
         /* lpWindowName = */ title,
-        /* dxStyle = */ WS_POPUP,
+        /* dxStyle = */ WS_EX_OVERLAPPEDWINDOW,
         /* x = */ 0,
         /* y = */ 0,
         /* nWidth = */ width,
@@ -153,7 +153,7 @@ math::Vec2<int> Window::center() {
 }
 
 bool Window::poll(input::Input *input) {
-    ShowCursor(input->enableConsole);
+    // ShowCursor(input->enableConsole);
     
     MSG msg { };
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
@@ -169,10 +169,13 @@ bool Window::poll(input::Input *input) {
 
     auto [x, y] = center();
 
+    // TODO: ew
+#if 0
     if (!input->enableConsole) {
         SetCursorPos(x, y);
     }
-    
+#endif
+
     auto delta = lastMouseEvent.tick();
 
     // TODO: we could probably extract out the isDirty logic

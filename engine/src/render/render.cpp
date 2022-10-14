@@ -41,12 +41,15 @@ Context::Context(Create &&info)
     , scene(info.scene)
     , device(rhi::getDevice()) 
 {
+    auto [width, height] = window->size();
+    resolution = { size_t(width), size_t(height) };
+
     updateViewports();
     create();
 }
 
 void Context::updateViewports() {
-    auto [windowWidth, windowHeight] = window->size();
+    auto [windowWidth, windowHeight] = resolution;
     auto resolution = scene->resolution;
 
     auto widthRatio = float(resolution.width) / windowWidth;
@@ -87,12 +90,11 @@ void Context::create() {
     DX_NAME(postHeap);
 
     for (size_t i = 0; i < kFrameCount; i++) {
-        renderTargets[i] = swapchain.getBuffer(i);
-        device.createRenderTargetView(renderTargets[i], renderTargetSet.cpuHandle(i));
-
         // create per frame data
         postAllocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
     }
+
+    createRenderTargets();
 
     // create our intermediate render target
     auto result = device.newTexture(scene->resolution, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eRenderTarget, kClearColour);
@@ -210,6 +212,31 @@ void Context::end() {
     swapchain.present();
 
     waitForFrame();
+}
+
+void Context::resizeScene(rhi::TextureSize) {
+    
+}
+
+void Context::resizeOutput(rhi::TextureSize size) {
+    // release all back buffers to make sure we can recreate them
+    for (auto& buffer : renderTargets) {
+        buffer.release();
+    }
+
+    resolution = size;
+    updateViewports();
+    swapchain.resize(size, kFrameCount);
+    frameIndex = swapchain.currentBackBuffer();
+
+    createRenderTargets();
+}
+
+void Context::createRenderTargets() {
+    for (size_t i = 0; i < kFrameCount; i++) {
+        renderTargets[i] = swapchain.getBuffer(i);
+        device.createRenderTargetView(renderTargets[i], renderTargetSet.cpuHandle(i));
+    }
 }
 
 // draw the intermediate render target to the screen

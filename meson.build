@@ -5,6 +5,7 @@ project('engine', [ 'cpp', 'c' ],
         'cpp_std=c++20',
         'cpp_rtti=false',
         'cpp_eh=none',
+        'b_ndebug=if-release',
         'warning_level=3',
         'werror=true',
         'b_vscrt=static_from_buildtype',
@@ -21,6 +22,7 @@ args = [
 
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('tinygltf').get_variable('gltf')
+toml = subproject('toml').get_variable('toml')
 
 subdir('engine')
 

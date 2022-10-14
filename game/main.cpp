@@ -25,10 +25,15 @@ int commonMain() {
     logging::init();
 
     // make a fullscreen borderless window on the primary monitor
-    int width = GetSystemMetrics(SM_CXSCREEN);
-    int height = GetSystemMetrics(SM_CYSCREEN);
+    UNUSED int width = GetSystemMetrics(SM_CXSCREEN);
+    UNUSED int height = GetSystemMetrics(SM_CYSCREEN);
 
-    UniquePtr<Window> window = ui::init("game", width, height);
+    UniquePtr<Window> window = ui::init({
+        .title = "game",
+        .size = { 800, 600 },
+        .imgui = "game.ini"
+    });
+    
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
     auto world = assets::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
 

@@ -48,9 +48,9 @@ namespace {
     constexpr D3D12_STATIC_SAMPLER_DESC createSampler(rhi::Sampler sampler, size_t index) {
         return D3D12_STATIC_SAMPLER_DESC {
             .Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
-            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+            .AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+            .AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP,
             .ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER,
             .BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
             .MinLOD = 0.0f,
@@ -360,7 +360,7 @@ rhi::Buffer Device::newDepthStencil(TextureSize size, CpuHandle handle) {
     return resource;
 }
 
-rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings) {
+rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings, bool depth) {
     const auto vs = createShader(bindings.vs);
     const auto ps = createShader(bindings.ps);
 
@@ -369,7 +369,7 @@ rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings
     auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
-    ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input);
+    ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input, depth);
     return rhi::PipelineState(root, pipeline);
 }
 
@@ -381,7 +381,7 @@ ID3D12RootSignature *Device::createRootSignature(ID3DBlob *signature) {
     return root;
 }
 
-ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input) {
+ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input, bool depth) {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC kDesc = {
         .pRootSignature = root,
         .VS = vertex,
@@ -397,7 +397,7 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
-        .DSVFormat = DXGI_FORMAT_D32_FLOAT,
+        .DSVFormat = depth ? DXGI_FORMAT_D32_FLOAT : DXGI_FORMAT_UNKNOWN,
         .SampleDesc = {
             .Count = 1
         }

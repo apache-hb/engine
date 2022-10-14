@@ -44,8 +44,12 @@ namespace engine::render {
 
         Context(Create &&info);
 
+        // end api
         void begin();
         void end();
+
+        void resizeScene(rhi::TextureSize size);
+        void resizeOutput(rhi::TextureSize size);
 
         // accessors
         size_t currentFrame() const { return frameIndex; }
@@ -60,7 +64,11 @@ namespace engine::render {
         Window *window;
         RenderScene *scene;
 
+        // output resolution
+        rhi::TextureSize resolution;
+
         void create();
+        void createRenderTargets();
 
         void updateViewports();
 

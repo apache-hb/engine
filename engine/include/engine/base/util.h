@@ -88,7 +88,7 @@ namespace engine {
         T *ref() { return &data; }
         const T* ref() const { return &data; }
 
-    private:
+    protected:
         void destroy() {
             if (valid()) {
                 kDelete(data);
@@ -96,6 +96,7 @@ namespace engine {
             data = Invalid;
         }
 
+    private:
         T claim() {
             T out = data;
             data = Invalid;

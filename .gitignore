@@ -1,5 +1,5 @@
 build*/
-imgui.ini
+*.ini
 .vscode/settings.json
 .vscode/c_cpp_properties.json
 .cache/*

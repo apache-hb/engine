@@ -122,7 +122,7 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     auto kDescriptors = std::to_array({ cbvHeap.get() });
     commands.bindDescriptors(kDescriptors);
 
-    commands.setVertexBuffers(vertexBufferViews);
+    //commands.setVertexBuffers(vertexBufferViews);
 
     // bind data that wont change
     commands.bindTable(0, cbvHeap.gpuHandle(Slots::eSceneBuffer));
@@ -135,6 +135,9 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
             commands.bindConst(2, 0, uint32_t(primitive.texture));
+
+            auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
+            commands.setVertexBuffers(kBuffer);
             commands.drawMesh(indexBufferViews[primitive.indices]);
         }
     }
