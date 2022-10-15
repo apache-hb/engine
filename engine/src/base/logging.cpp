@@ -68,6 +68,8 @@ void Channel::process(Level reportLevel, std::string_view message) {
     if (level > reportLevel) { return; }
 
     for (const auto part : std::views::split(message, "\n")) {
+        if (part.size() == 0) continue;
+        
         send(reportLevel, std::string_view(part.begin(), part.end()));
     }
 }

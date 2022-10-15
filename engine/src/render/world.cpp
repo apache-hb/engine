@@ -266,11 +266,11 @@ assets::World assets::loadGltf(const char *path) {
 
     auto result = loader.LoadASCIIFromFile(&model, &err, &warn, path);
     if (!warn.empty()) {
-        channel.warn("warnings: {}", warn);
+        channel.warn("{}", warn);
     }
 
     if (!err.empty()) {
-        channel.fatal("errors: {}", err);
+        channel.fatal("{}", err);
     }
 
     if (!result) {

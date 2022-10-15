@@ -35,7 +35,7 @@ int commonMain() {
     });
     
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
-    auto world = assets::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
+    auto world = assets::loadGltf("D:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 

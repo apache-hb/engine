@@ -1,28 +1,12 @@
 #include "engine/rhi/rhi.h"
+#include "dx/d3d12.h"
 #include "objects/common.h"
 
 using namespace simcoe;
 using namespace simcoe::rhi;
 
-namespace {
-    constexpr GUID kShaderModel6 = { /* 76f5573e-f13a-40f5-b297-81ce9e18933f */
-        0x76f5573e,
-        0xf13a,
-        0x40f5,
-        { 0xb2, 0x97, 0x81, 0xce, 0x9e, 0x18, 0x93, 0x3f }
-    };
-
-    HRESULT enableSm6() {
-        return D3D12EnableExperimentalFeatures(1, &kShaderModel6, nullptr, nullptr);
-    }
-}
-
 rhi::Device rhi::getDevice() {
     auto &channel = logging::get(logging::eRender);
-
-    if (HRESULT hr = enableSm6(); !SUCCEEDED(hr)) {
-        channel.warn("failed to enable shader model 6_0: {}", simcoe::hrErrorString(hr));
-    }
 
     DX_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
 
@@ -50,5 +34,10 @@ rhi::Device rhi::getDevice() {
     ID3D12Device *device;
     DX_CHECK(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
-    return rhi::Device(device);
+    D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_0 };
+    if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(D3D12_FEATURE_DATA_SHADER_MODEL))) || shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_0) {
+        channel.warn("device does not support shader model 6.0");
+    }
+
+    return device;
 }
