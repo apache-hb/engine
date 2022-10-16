@@ -24,12 +24,11 @@ d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('tinygltf').get_variable('gltf')
 toml = subproject('toml').get_variable('toml')
 
-subdir('engine')
+# compile libraries that are shared between game and editor
+subdir('common')
 
-executable('game', 'game/main.cpp',
-    dependencies : [ input, render, ui ],
-    cpp_args : args,
-    win_subsystem : 'console'
-)
+# compile game specific libraries
+subdir('game')
 
+# compile editor specific libraries
 subdir('editor')
