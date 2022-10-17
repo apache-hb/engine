@@ -357,7 +357,7 @@ namespace simcoe::rhi {
         PipelineState newPipelineState(const PipelineBinding& bindings, bool depth = false);
 
         void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle);
-        void imguiNewFrame();
+        void imgui();
 
     private:
         ID3D12RootSignature *createRootSignature(ID3DBlob *signature);

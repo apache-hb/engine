@@ -94,8 +94,11 @@ namespace simcoe::input {
 
         bool poll(State* pState) override;
 
-        void update();
+        void update(bool *pKeys);
+
     private:
+        bool keys[256] = { };
+        bool dirty = false;
     };
 
     struct Gamepad final : Source {

@@ -170,7 +170,7 @@ int commonMain() {
     });
 
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Duck\\glTF\\Duck.gltf");
+    auto world = assets::loadGltf("D:\\assets\\amongus\\amongus\\amongus.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
@@ -183,11 +183,11 @@ int commonMain() {
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 
-    while (window->poll()) {
+    while (window->poll(&keyboard)) {
         manager.poll();
 
         render.begin();
-        window->imguiNewFrame();
+        window->imgui();
 
         ImGui::NewFrame();
 

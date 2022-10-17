@@ -20,7 +20,33 @@ namespace {
             return true;
         }
 
+        Window *pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+
+        logging::get(logging::eInput).info("Window message: {}", msg);
+
         switch (msg) {
+        case WM_CREATE: {
+            auto *pCreateStruct = reinterpret_cast<CREATESTRUCT*>(lparam);
+            SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+            break;
+        }
+
+        case WM_NCHITTEST: 
+            return HTCLIENT;
+
+        case WM_KEYDOWN:
+            pWindow->keys[wparam] = true;
+            break;
+        case WM_KEYUP:
+            pWindow->keys[wparam] = false;
+            break;
+        case WM_SYSKEYDOWN:
+            pWindow->keys[wparam] = true;
+            break;
+        case WM_SYSKEYUP: 
+            pWindow->keys[wparam] = false;
+            break;
+
         case WM_CLOSE:
             DestroyWindow(hwnd);
             return 0;
@@ -54,7 +80,7 @@ Window::Window(int width, int height, const char *title) {
         /* hWndParent = */ nullptr,
         /* hMenu = */ nullptr,
         /* hInstance = */ instance,
-        /* lpParam = */ nullptr
+        /* lpParam = */ this
     );
 
     ShowWindow(hwnd, SW_SHOW);
@@ -83,7 +109,7 @@ HWND Window::handle() {
     return hwnd;
 }
 
-void Window::imguiNewFrame() {
+void Window::imgui() {
     ImGui_ImplWin32_NewFrame();
 }
 
@@ -93,18 +119,22 @@ math::Vec2<int> Window::center() {
     return { (client.right - client.left) / 2, (client.bottom - client.top) / 2 };
 }
 
-bool Window::poll() {
+bool Window::poll(input::Keyboard *pKeyboard) {
     MSG msg { };
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
         if (msg.message == WM_QUIT) {
             return false;
         }
 
-        if (msg.message != WM_PAINT) { 
-            TranslateMessage(&msg);
-            DispatchMessageA(&msg);
+        if (msg.message == WM_PAINT) {
+            continue;
         }
+
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
     }
+
+    pKeyboard->update(keys);
 
     return true;
 }

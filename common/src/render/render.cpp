@@ -193,7 +193,7 @@ void Context::create() {
 }
 
 void Context::begin() {
-    device.imguiNewFrame();
+    device.imgui();
 
     beginPost();
 }

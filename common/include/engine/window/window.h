@@ -19,13 +19,15 @@ namespace simcoe {
 
         size_t dpi() const;
 
-        bool poll();
+        bool poll(input::Keyboard *pKeyboard);
 
-        void imguiNewFrame();
+        void imgui();
+
+        bool keys[256] = { };
     private:
         math::Vec2<int> center();
 
         // actual window handle
-        HWND hwnd;
+        HWND hwnd = nullptr;
     };
 }

@@ -29,6 +29,8 @@ namespace simcoe::assets {
     };
 
     struct Texture {
+        std::string name;
+        
         rhi::TextureSize size;
         std::vector<std::byte> data;
     };

@@ -106,7 +106,8 @@ BasicScene::BasicScene(Create&& info)
 
 ID3D12CommandList *BasicScene::populate(Context *ctx) {
     if (ImGui::Begin("World")) {
-        if (ImGui::BeginTable("World", 2)) {
+        ImGui::Text("Nodes");
+        if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Value");
             ImGui::TableHeadersRow();
@@ -121,6 +122,23 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
                 if (ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f)) {
                     node.transform *= math::float4x4::scaling(x, y, z);
                 }
+            }
+            ImGui::EndTable();
+        }
+
+        ImGui::Text("Textures");
+        if (ImGui::BeginTable("Textures", 2, ImGuiTableFlags_Borders)) {
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            for (size_t i = 0; i < world->textures.size(); ++i) {
+                auto& texture = world->textures[i];
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", texture.name.c_str());
+                ImGui::TableNextColumn();
+                //ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
             }
             ImGui::EndTable();
         }

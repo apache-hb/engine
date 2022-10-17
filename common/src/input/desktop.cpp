@@ -74,9 +74,23 @@ Keyboard::Keyboard()
 { }
 
 bool Keyboard::poll(UNUSED State *pState) {
-    return false;
+    if (!dirty) { return false; }
+    dirty = false;
+
+    for (const auto& key : kDesktopKeys) {
+        pState->key[key.slot] = keys[key.vk];
+    }
+
+    return true;
 }
 
-void Keyboard::update() {
+void Keyboard::update(bool *pKeys) {
+    if (simcoe::eq(pKeys, keys, Key::eTotal)) {
+        return;
+    }
 
+    logging::get(logging::eInput).info("update keyboard");
+
+    memcpy(keys, pKeys, sizeof(keys));
+    dirty = true;
 }

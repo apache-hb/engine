@@ -23,17 +23,18 @@ constexpr float kMoveSensitivity = 0.001f;
 constexpr float kLookSensitivity = 0.001f;
 
 struct CameraListener final : input::Listener {
-    CameraListener(render::Perspective &camera)
-        : camera(camera)
-    { }
+    float speedMultiplier { 1.f };
+    CameraListener(render::Perspective &camera) : camera(camera) { 
+
+    }
 
     bool update(const input::State& input) override {
         state = input;
 
         math::float3 offset = {
-            .x = state.axis[input::Axis::padLeftStickHorizontal] * kMoveSensitivity,
-            .y = state.axis[input::Axis::padLeftStickVertical] * kMoveSensitivity,
-            .z = (state.axis[input::Axis::padRightTrigger] - state.axis[input::Axis::padLeftTrigger]) * kMoveSensitivity
+            .x = state.axis[input::Axis::padLeftStickHorizontal] * kMoveSensitivity * speedMultiplier,
+            .y = state.axis[input::Axis::padLeftStickVertical] * kMoveSensitivity * speedMultiplier,
+            .z = (state.axis[input::Axis::padRightTrigger] - state.axis[input::Axis::padLeftTrigger]) * kMoveSensitivity * speedMultiplier
         };
 
         float yaw = state.axis[input::Axis::padRightStickHorizontal] * kLookSensitivity;
@@ -53,6 +54,8 @@ struct CameraListener final : input::Listener {
             ImGui::Text("Device: %s", locale::get(state.source).data());
             ImGui::Text("Position: %f, %f, %f", x, y, z);
             ImGui::Text("Rotation: %f, %f, %f", yaw, pitch, roll);
+
+            ImGui::SliderFloat("Speed", &speedMultiplier, 0.1f, 10.f);
 
             if (ImGui::BeginTable("Input state", 2, ImGuiTableFlags_Borders)) {
                 ImGui::TableSetupColumn("Key");
@@ -107,8 +110,8 @@ int commonMain() {
         .imgui = "game.ini"
     });
     
-    render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Duck\\glTF\\Duck.gltf");
+    render::Perspective camera { { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, 110.f };
+    auto world = assets::loadGltf("D:\\assets\\amongus\\amongus\\amongus.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
@@ -121,11 +124,11 @@ int commonMain() {
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 
-    while (window->poll()) {
+    while (window->poll(&keyboard)) {
         manager.poll();
 
         render.begin();
-        window->imguiNewFrame();
+        window->imgui();
 
         ImGui::NewFrame();
         ImGui::ShowDemoWindow();

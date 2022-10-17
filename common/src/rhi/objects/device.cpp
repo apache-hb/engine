@@ -416,6 +416,6 @@ void Device::imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle c
     ImGui_ImplDX12_Init(get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
 }
 
-void Device::imguiNewFrame() {
+void Device::imgui() {
     ImGui_ImplDX12_NewFrame();
 }

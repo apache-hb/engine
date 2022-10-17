@@ -22,7 +22,9 @@ Perspective::Perspective(float3 position, float3 direction, float fov)
     , pitch(0.f)
     , yaw(0.f)
     , fov(fov)
-{ }
+{ 
+    rotate(0.f, 0.f);
+}
 
 void Perspective::move(float3 offset) {
     float x = position.x - (std::cos(yaw) * offset.x) + (std::sin(yaw) * offset.y);

@@ -304,6 +304,7 @@ assets::World assets::loadGltf(const char *path) {
 
     for (const auto& image : model.images) {
         Texture it = {
+            .name = image.name,
             .size = { size_t(image.width), size_t(image.height) }
         };
 
@@ -314,6 +315,7 @@ assets::World assets::loadGltf(const char *path) {
     }
 
     Texture defaultTexture = {
+        .name = "default",
         .size = { 2, 2 },
         .data = { (std::byte*)kDefaultImage, (std::byte*)kDefaultImage + sizeof(kDefaultImage) }
     };
