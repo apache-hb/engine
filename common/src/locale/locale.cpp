@@ -74,8 +74,6 @@ Locale *locale::load(Lang lang, std::string_view path) {
         trim(key);
         trim(val);
 
-        channel.info("adding key `{}` with value `{}`", key, val);
-
         it->keys[key] = val;
     }
 

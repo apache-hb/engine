@@ -63,11 +63,11 @@ namespace {
     constexpr auto kGltfUp = float3::from(1.f, 0.f, 0.f);
 
     float4x4 createTransform(const gltf::Node& node) {
-        auto result = float4x4::rotation(-kPiDiv2<float>, kGltfUp);
+        auto result = float4x4::identity(); // float4x4::rotation(-kPiDiv2<float>, kGltfUp);
 
         if (node.matrix.size() == 16) {
             auto &mat = node.matrix;
-            result *= math::float4x4::from(
+            result = math::float4x4::from(
                 { float(mat[0]), float(mat[1]), float(mat[2]), float(mat[3]) },
                 { float(mat[4]), float(mat[5]), float(mat[6]), float(mat[7]) },
                 { float(mat[8]), float(mat[9]), float(mat[10]), float(mat[11]) },
@@ -148,6 +148,25 @@ namespace {
         };
     }
 
+    constexpr uint32_t getComponentMask(int componentType) {
+        switch (componentType) {
+        case TINYGLTF_COMPONENT_TYPE_BYTE: return 0xff;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return 0xff;
+        case TINYGLTF_COMPONENT_TYPE_SHORT: return 0xffff;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return 0xffff;
+        case TINYGLTF_COMPONENT_TYPE_INT: return 0xffffffff;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return 0xffffffff;
+        default: ASSERTF(false, "unknown component type: {}", componentType);
+        }
+    }
+
+    constexpr uint8_t kDefaultImage[] = {
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    };
+
     struct Sink {
         Sink(const gltf::Model& model) 
             : model(model) 
@@ -186,18 +205,22 @@ namespace {
             const auto size = accessor.count;
 
             // lol
-            ASSERT(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
             ASSERT(accessor.type == TINYGLTF_TYPE_SCALAR);
+
+            auto mask = getComponentMask(accessor.componentType);
 
             // more lol
             assets::IndexBuffer indexBuffer(size);
             for (size_t i = 0; i < size; i++) {
-                indexBuffer[i] = uint32_t(buffer.data[accessor.byteOffset + bufferView.byteOffset + i * stride]) & USHRT_MAX;
+                auto offset = accessor.byteOffset + bufferView.byteOffset + i * stride;
+                auto data = reinterpret_cast<const std::byte*>(buffer.data.data() + offset);
+                indexBuffer[i] = *reinterpret_cast<const uint32_t*>(data) & mask;
             }
             return indexBuffer;
         }
 
         assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices) {
+            ASSERT(position.format == rhi::Format::float32x3);
             std::unordered_map<assets::Vertex, uint32_t> indexCache;
 
             assets::VertexBuffer vertexBuffer;
@@ -226,7 +249,7 @@ namespace {
             logging::get(logging::eRender).info("primitive({}, {})", vertexBuffer.size(), indexBuffer.size());
 
             return { 
-                .texture = texture,
+                .texture = texture == SIZE_MAX ? world.textures.size() - 1 : texture,
                 .verts = addVertexBuffer(vertexBuffer),
                 .indices = addIndexBuffer(indexBuffer)
             };
@@ -289,6 +312,12 @@ assets::World assets::loadGltf(const char *path) {
 
         sink.world.textures.push_back(it);
     }
+
+    Texture defaultTexture = {
+        .size = { 2, 2 },
+        .data = { (std::byte*)kDefaultImage, (std::byte*)kDefaultImage + sizeof(kDefaultImage) }
+    };
+    sink.world.textures.push_back(defaultTexture);
 
     for (const auto& node : model.nodes) {
         Node it = {

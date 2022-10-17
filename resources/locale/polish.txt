@@ -1,4 +1,6 @@
-locale: Polski
+locale.english: English
+locale.polish: Polski
+
 input.device.desktop: Klawiatura i mysz
 input.device.gamepad: Kontroler gier
 

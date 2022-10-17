@@ -175,6 +175,18 @@ namespace simcoe::math {
             return this->*components[index];
         }
 
+        constexpr const T& operator[](size_t index) const {
+            return at(index);
+        }
+
+        constexpr Vec4 add(const Vec4& other) const {
+            return from(x + other.x, y + other.y, z + other.z, w + other.w);
+        }
+
+        constexpr Vec4 operator+(const Vec4& other) const {
+            return add(other);
+        }
+
     private:
         static constexpr T Vec4::*components[] { &Vec4::x, &Vec4::y, &Vec4::z, &Vec4::w };
     };
@@ -214,7 +226,7 @@ namespace simcoe::math {
             return Vec4<T>::from(at(column, 0), at(column, 1), at(column, 2), at(column, 3));
         }
 
-        constexpr Row& operator[](size_t row) const {
+        constexpr const Row& operator[](size_t row) const {
             return rows[row];
         }
 
@@ -278,12 +290,29 @@ namespace simcoe::math {
             return Mat4x4::from(out0, out1, out2, out3);
         }
 
+        constexpr Mat4x4 add(const Mat4x4& other) const {
+            return Mat4x4::from(
+                row(0).add(other.row(0)),
+                row(1).add(other.row(1)),
+                row(2).add(other.row(2)),
+                row(3).add(other.row(3))
+            );
+        }
+
         constexpr Mat4x4 operator*(const Mat4x4& other) const {
             return mul(other);
         }
 
         constexpr Mat4x4 operator*=(const Mat4x4& other) {
             return *this = *this * other;
+        }
+
+        constexpr Mat4x4 operator+(const Mat4x4& other) const {
+            return add(other);
+        }
+
+        constexpr Mat4x4 operator+=(const Mat4x4& other) {
+            return *this = *this + other;
         }
 
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {
@@ -300,6 +329,10 @@ namespace simcoe::math {
             auto row2 = Row::from(0, 0, z, 0);
             auto row3 = Row::from(0, 0, 0, 1);
             return from(row0, row1, row2, row3);
+        }
+
+        constexpr Vec3<T> scale() const {
+            return Vec3<T>::from(at(0, 0), at(1, 1), at(2, 2));
         }
 
         static constexpr Mat4x4 translation(T x, T y, T z) {

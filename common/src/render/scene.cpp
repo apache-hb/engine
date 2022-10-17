@@ -1,4 +1,5 @@
 #include "engine/render/scene.h"
+#include "imgui.h"
 
 #include <array>
 
@@ -104,13 +105,30 @@ BasicScene::BasicScene(Create&& info)
 }
 
 ID3D12CommandList *BasicScene::populate(Context *ctx) {
-    sceneData.update(camera, aspectRatio);
-    for (size_t i = 0; i < std::size(world->nodes); i++) {
-        const auto& node = world->nodes[i];
-        if (node.children.size()) continue;
-        
-        updateObject(i, float4x4::identity());
+    if (ImGui::Begin("World")) {
+        if (ImGui::BeginTable("World", 2)) {
+            ImGui::TableSetupColumn("Name");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            for (auto& node : world->nodes) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", node.name.c_str());
+                ImGui::TableNextColumn();
+                auto [x, y, z] = node.transform.scale();
+                float scale[3] = { x, y, z };
+                if (ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f)) {
+                    node.transform *= math::float4x4::scaling(x, y, z);
+                }
+            }
+            ImGui::EndTable();
+        }
     }
+    ImGui::End();
+
+    sceneData.update(camera, aspectRatio);
+    updateObject(0, float4x4::identity());
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 

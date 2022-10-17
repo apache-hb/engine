@@ -22,9 +22,6 @@ namespace simcoe {
         bool poll();
 
         void imguiNewFrame();
-
-        friend LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-
     private:
         math::Vec2<int> center();
 

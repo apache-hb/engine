@@ -15,7 +15,7 @@ namespace simcoe::assets {
     using IndexBuffer = std::vector<uint32_t>;
 
     struct Node {
-        std::string_view name;
+        std::string name;
 
         math::float4x4 transform;
 

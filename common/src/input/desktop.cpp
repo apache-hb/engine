@@ -1,3 +1,4 @@
+#include "engine/base/logging.h"
 #include "engine/input/input.h"
 
 using namespace simcoe;
@@ -72,31 +73,10 @@ Keyboard::Keyboard()
     : Source(Device::eDesktop) 
 { }
 
-bool Keyboard::poll(State *pState) {
-    BYTE keyState[256];
-    POINT cursorPos;
+bool Keyboard::poll(UNUSED State *pState) {
+    return false;
+}
 
-    if (!GetKeyboardState(keyState)) {
-        return false;
-    }
+void Keyboard::update() {
 
-    if (!GetCursorPos(&cursorPos)) {
-        return false;
-    }
-
-    if (simcoe::eq(keyState, lastKeyState) && simcoe::eq(&cursorPos, &lastCursorPos)) {
-        return false;
-    }
-
-    memcpy(lastKeyState, keyState, sizeof(keyState));
-    lastCursorPos = cursorPos;
-
-    for (const auto& [slot, vk] : kDesktopKeys) {
-        pState->key[slot] = (keyState[vk] & 0x80) != 0;
-    }
-
-    pState->axis[Axis::mouseHorizontal] = float(cursorPos.x - lastCursorPos.x);
-    pState->axis[Axis::mouseVertical] = float(cursorPos.y - lastCursorPos.y);
-
-    return true;
 }

@@ -1,4 +1,5 @@
 #include "engine/render/render.h"
+#include "imgui/imgui.h"
 #include <array>
 
 using namespace simcoe;
@@ -182,7 +183,6 @@ void Context::create() {
     copyQueue.execute(copyCommandList);
     waitOnQueue(copyQueue, signal);
 
-
     ID3D12CommandList* directCommandList[] = { sceneCommands, postCommands.get() };
     directQueue.execute(directCommandList);
     waitForFrame();
@@ -199,9 +199,9 @@ void Context::begin() {
 }
 
 void Context::end() {
-    endPost();
-
     ID3D12CommandList *sceneCommands = scene->populate(this);
+
+    endPost();
 
     ID3D12CommandList* commands[] = { sceneCommands, postCommands.get() };
     directQueue.execute(commands);

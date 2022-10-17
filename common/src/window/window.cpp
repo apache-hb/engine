@@ -46,7 +46,7 @@ Window::Window(int width, int height, const char *title) {
     hwnd = CreateWindowA(
         /* lpClassName = */ kClassName,
         /* lpWindowName = */ title,
-        /* dxStyle = */ WS_EX_OVERLAPPEDWINDOW,
+        /* dxStyle = */ WS_POPUP,
         /* x = */ 0,
         /* y = */ 0,
         /* nWidth = */ width,

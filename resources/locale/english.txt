@@ -1,4 +1,6 @@
-locale: English
+locale.english: English
+locale.polish: Polish
+
 input.device.desktop: Keyboard & Mouse
 input.device.gamepad: Gamepad (Xinput)
 

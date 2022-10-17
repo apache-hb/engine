@@ -4,10 +4,10 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
-#include "engine/container/unique.h"
-
 #include "engine/input/input.h"
 
+#include "engine/locale/locale.h"
+#include "engine/render/camera.h"
 #include "engine/render/render.h"
 #include "engine/render/scene.h"
 #include "engine/render/world.h"
@@ -84,30 +84,80 @@ namespace editor {
         }
     }
 }
-
 struct CameraListener final : input::Listener {
-    bool update(const input::State& state) override {
-        device = state.source;
+    CameraListener(render::Perspective &camera)
+        : camera(camera)
+    { }
+
+    bool update(const input::State& input) override {
+        state = input;
+
+        math::float3 offset = {
+            .x = state.axis[input::Axis::padLeftStickHorizontal] * kMoveSensitivity,
+            .y = state.axis[input::Axis::padLeftStickVertical] * kMoveSensitivity,
+            .z = (state.axis[input::Axis::padRightTrigger] - state.axis[input::Axis::padLeftTrigger]) * kMoveSensitivity
+        };
+
+        float yaw = state.axis[input::Axis::padRightStickHorizontal] * kLookSensitivity;
+        float pitch = state.axis[input::Axis::padRightStickVertical] * kLookSensitivity;
+
+        camera.rotate(yaw, pitch);
+        camera.move(offset);
+        
         return true;
     }
 
-    bool enableConsole() const {
-        return false;
-    }
+    void imgui() {
+        if (ImGui::Begin("Input")) {
+            auto [x, y, z] = camera.getPosition();
+            auto [yaw, pitch, roll] = camera.getDirection();
 
-    input::Device getDevice() const {
-        return device;
+            ImGui::Text("Device: %s", locale::get(state.source).data());
+            ImGui::Text("Position: %f, %f, %f", x, y, z);
+            ImGui::Text("Rotation: %f, %f, %f", yaw, pitch, roll);
+
+            if (ImGui::BeginTable("Input state", 2, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Key");
+                ImGui::TableSetupColumn("State");
+                ImGui::TableHeadersRow();
+
+                for (size_t id = 0; id < input::Key::eTotal; id++) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", locale::get(input::Key::Slot(id)).data());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", state.key[id] ? "pressed" : "released");
+                }
+
+                for (size_t id = 0; id < input::Axis::eTotal; id++) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", locale::get(input::Axis::Slot(id)).data());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%f", state.axis[id]);
+                }
+
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
     }
 
 private:
-    input::Device device = input::Device::eDesktop;
+    Timer timer;
+    render::Perspective& camera;
+
+    input::State state { };
 };
 
 int commonMain() {
     win32::init();  
     logging::init();
 
-    auto world = assets::loadGltf("B:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
+    locale::Locale *english = locale::load(locale::eEnglish, ".\\resources\\locale\\english.txt");
+    locale::Locale *polish = locale::load(locale::ePolish, ".\\resources\\locale\\polish.txt");
+
+    locale::Locale *locales[] = { english, polish };
 
     // make a fullscreen borderless window on the primary monitor
     int width = GetSystemMetrics(SM_CXSCREEN);
@@ -118,17 +168,18 @@ int commonMain() {
         .size = { width, height },
         .imgui = "editor.ini"
     });
-    render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 0.f }, 110.f };
+
+    render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
+    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Duck\\glTF\\Duck.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
     render::Context render { { window.get(), &scene } };
 
-    Timer timer;
     input::Keyboard keyboard { };
     input::Gamepad gamepad { 0 };
 
-    CameraListener state { };
+    CameraListener state { camera };
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 
@@ -139,13 +190,12 @@ int commonMain() {
         window->imguiNewFrame();
 
         ImGui::NewFrame();
+
+        editor::dock();
+
         ImGui::ShowDemoWindow();
 
-        if (ImGui::Begin("Input")) {
-            ImGui::Text("Method: %s", state.getDevice() == input::Device::eGamepad ? "Controller" : "Mouse & Keyboard");
-        }
-        ImGui::End();
-
+        state.imgui();
         if (ImGui::Begin("Camera")) {
             auto mvp = camera.mvp(float4x4::identity(), window->size().aspectRatio<float>());
             ImGui::Text("%f %f %f %f", mvp.at(0, 0), mvp.at(0, 1), mvp.at(0, 2), mvp.at(0, 3));
@@ -155,7 +205,30 @@ int commonMain() {
         }
         ImGui::End();
 
-        ImGui::Render();
+        if (ImGui::Begin("Locale")) {
+            static int locale = 0;
+            const char *localeNames[] = { locale::get("locale.english").data(), locale::get("locale.polish").data() };
+            if (ImGui::Combo("Locale", &locale, localeNames, IM_ARRAYSIZE(localeNames))) {
+                locale::set(locales[locale]);
+            }
+            ImGui::Text("It: %s %d", localeNames[locale], locale);
+            
+            if (ImGui::BeginTable("Translations", 2, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Key");
+                ImGui::TableSetupColumn("Text");
+                ImGui::TableHeadersRow();
+
+                for (const auto& [key, text] : locales[locale]->keys) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", key.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", text.c_str());
+                }
+            }
+            ImGui::EndTable();
+        }
+        ImGui::End();
 
         render.end();
     }

@@ -106,5 +106,6 @@ void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
 }
 
 void CommandList::imguiRender() {
+    ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), get());
 }

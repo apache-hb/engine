@@ -98,17 +98,17 @@ int commonMain() {
     locale::Locale *locales[] = { english, polish };
 
     // make a fullscreen borderless window on the primary monitor
-    UNUSED int width = GetSystemMetrics(SM_CXSCREEN);
-    UNUSED int height = GetSystemMetrics(SM_CYSCREEN);
+    int width = GetSystemMetrics(SM_CXSCREEN);
+    int height = GetSystemMetrics(SM_CYSCREEN);
 
     UniquePtr<Window> window = ui::init({
         .title = "game",
-        .size = { 800, 600 },
+        .size = { width, height },
         .imgui = "game.ini"
     });
     
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\deccer-cubes-main\\SM_Deccer_Cubes_Textured.gltf");
+    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Duck\\glTF\\Duck.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
@@ -143,7 +143,7 @@ int commonMain() {
 
         if (ImGui::Begin("Locale")) {
             static int locale = 0;
-            const char *localeNames[] = { "English", "Polish" };
+            const char *localeNames[] = { locale::get("locale.english").data(), locale::get("locale.polish").data() };
             if (ImGui::Combo("Locale", &locale, localeNames, IM_ARRAYSIZE(localeNames))) {
                 locale::set(locales[locale]);
             }
@@ -165,8 +165,6 @@ int commonMain() {
             ImGui::EndTable();
         }
         ImGui::End();
-
-        ImGui::Render();
 
         render.end();
     }

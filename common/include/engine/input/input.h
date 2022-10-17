@@ -31,6 +31,8 @@ namespace simcoe::input {
     enum struct Device {
 #define DEVICE(id, name) id,
 #include "engine/input/input.inl"
+
+        eTotal
     };
 
     struct State {
@@ -92,9 +94,8 @@ namespace simcoe::input {
 
         bool poll(State* pState) override;
 
+        void update();
     private:
-        BYTE lastKeyState[256];
-        POINT lastCursorPos;
     };
 
     struct Gamepad final : Source {

@@ -66,7 +66,6 @@ KEY(keyTilde, "input.key.tilde")
 KEY(keyEsc, "input.key.esc")
 
 // gamepad input
-
 KEY(padDirectionLeft, "input.button.left")
 KEY(padDirectionRight, "input.button.right")
 KEY(padDirectionUp, "input.button.up")
