@@ -22,7 +22,6 @@ args = [
 
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('tinygltf').get_variable('gltf')
-toml = subproject('toml').get_variable('toml')
 
 # compile libraries that are shared between game and editor
 subdir('common')

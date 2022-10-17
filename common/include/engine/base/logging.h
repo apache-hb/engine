@@ -55,6 +55,7 @@ namespace simcoe::logging {
         eGeneral,
         eInput,
         eRender,
+        eLocale,
 
         eTotal
     };

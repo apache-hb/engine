@@ -1,0 +1,89 @@
+locale: English
+input.device.desktop: Keyboard & Mouse
+input.device.gamepad: Gamepad (Xinput)
+
+input.key.a: a
+input.key.b: b
+input.key.c: c
+input.key.d: d
+input.key.e: e
+input.key.f: f
+input.key.g: g
+input.key.h: h
+input.key.i: i
+input.key.j: j
+input.key.k: k
+input.key.l: l
+input.key.m: m
+input.key.n: n
+input.key.o: o
+input.key.p: p
+input.key.q: q
+input.key.r: r
+input.key.s: s
+input.key.t: t
+input.key.u: u
+input.key.v: v
+input.key.w: w
+input.key.x: x
+input.key.y: y
+input.key.z: z
+
+input.key.1: 1
+input.key.2: 2
+input.key.3: 3
+input.key.4: 4
+input.key.5: 5
+input.key.6: 6
+input.key.7: 7
+input.key.8: 8
+input.key.9: 9
+input.key.0: 0
+
+input.key.up: Up arrow
+input.key.down: Down arrow
+input.key.left: Left arrow
+input.key.right: Right arrow
+
+input.key.space: Space
+input.key.tilde: Tilde
+input.key.esc: Escape
+
+input.key.left-shift: Left shift
+input.key.right-shift: Right shift
+input.key.left-ctrl: Left control
+input.key.right-ctrl: Right control
+input.key.left-alt: Left alt
+input.key.right-alt: Right alt
+
+input.button.left: Dpad left
+input.button.right: Dpad right
+input.button.up: Dpad up
+input.button.down: Dpad down
+
+input.button.left: X
+input.button.right: B
+input.button.up: Y
+input.button.down: A
+
+input.button.back: Back
+input.button.start: Start
+input.button.guide: Guide / Home
+
+input.button.left-bumper: Left bumper
+input.button.right-bumper: Right bumper
+
+input.button.left-thumb: Left thumbstick
+input.button.right-thumb: Right thumbstick
+
+input.axis.left-trigger: Left trigger
+input.axis.right-trigger: Right trigger
+
+input.axis.mouse.horizontal: Mouse X
+input.axis.mouse.vertical: Mouse Y
+
+input.axis.left-stick.horizontal: Left stick horizontal
+input.axis.left-stick.vertical: Left stick vertical
+
+input.axis.right-stick.horizontal: Right stick horizontal
+input.axis.right-stick.vertical: Right stick vertical

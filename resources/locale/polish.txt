@@ -1,0 +1,89 @@
+locale: Polski
+input.device.desktop: Klawiatura i mysz
+input.device.gamepad: Kontroler gier
+
+input.key.a: a
+input.key.b: b
+input.key.c: c
+input.key.d: d
+input.key.e: e
+input.key.f: f
+input.key.g: g
+input.key.h: h
+input.key.i: i
+input.key.j: j
+input.key.k: k
+input.key.l: l
+input.key.m: m
+input.key.n: n
+input.key.o: o
+input.key.p: p
+input.key.q: q
+input.key.r: r
+input.key.s: s
+input.key.t: t
+input.key.u: u
+input.key.v: v
+input.key.w: w
+input.key.x: x
+input.key.y: y
+input.key.z: z
+
+input.key.1: 1
+input.key.2: 2
+input.key.3: 3
+input.key.4: 4
+input.key.5: 5
+input.key.6: 6
+input.key.7: 7
+input.key.8: 8
+input.key.9: 9
+input.key.0: 0
+
+input.key.up: Strzałka w górę
+input.key.down: Strzałka w dół
+input.key.left: Strzałka w lewo
+input.key.right: Strzałka w prawo
+
+input.key.space: Spacja
+input.key.tilde: Tylda
+input.key.esc: Ucieczka
+
+input.key.left-shift: Przesunięcie w lewo
+input.key.right-shift: Przesunięcie w prawo
+input.key.left-ctrl: Lewa kontrolka
+input.key.right-ctrl: Prawa kontrola
+input.key.left-alt: Lewy alt
+input.key.right-alt: Prawy alt
+
+input.button.left: Pad kierunkowy w lewo
+input.button.right: Pad kierunkowy w prawo
+input.button.up: Pad kierunkowy w górę
+input.button.down: Pad kierunkowy w dół
+
+input.button.left: X
+input.button.right: B
+input.button.up: Y
+input.button.down: A
+
+input.button.back: Wstecz
+input.button.start: Przycisk Start
+input.button.guide: Przewodnik / Strona główna
+
+input.button.left-bumper: Lewy zderzak
+input.button.right-bumper: Prawy zderzak
+
+input.button.left-thumb: Lewy paluch
+input.button.right-thumb: Prawy paluch
+
+input.axis.left-trigger: Lewy wyzwalacz
+input.axis.right-trigger: Prawy wyzwalacz
+
+input.axis.mouse.horizontal: Mysz X
+input.axis.mouse.vertical: Mysz Y
+
+input.axis.left-stick.horizontal: Lewy drążek w poziomie
+input.axis.left-stick.vertical: Lewy drążek w pionie
+
+input.axis.right-stick.horizontal: Prawy drążek w poziomie
+input.axis.right-stick.vertical: Prawy drążek w pionie

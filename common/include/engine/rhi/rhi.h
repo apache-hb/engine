@@ -3,6 +3,7 @@
 #include "engine/window/window.h"
 #include "engine/base/util.h"
 #include "engine/base/logging.h"
+#include "engine/container/unique.h"
 
 #include <span>
 #include <string_view>

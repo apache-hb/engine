@@ -10,11 +10,19 @@ console = { toggle = true, key = "~", button = "back" }
 
 sprint = { key = "lshift", button = "dpad-up" }
 
-[axis]
 # we operate off ship motion names for movement
+[axis]
+# up down rotation
 pitch = { -1 = { key = "down", mouse = "down", stick = "rstick-up" }, 1 = { key = "up", mouse = "up", stick = "rstick-down" } }
+
+# left right rotation
 yaw = { -1 = { key = "left", mouse = "left", stick = "rstick-left" }, 1 = { key = "right", mouse = "right", stick = "rstick-right" } }
 
+# forwards backwards movement
 surge = { -1 = { key = "w", stick = "lstick-up" }, 1 = { key = "s", stick = "lstick-down" } }
+
+# left right movement
 sway = { -1 = { key = "a", stick = "lstick-left" }, 1 = { key = "d", stick = "lstick-right" } }
+
+# up down movement
 heave = { -1 = { key = "q", button = "lbumper" }, 1 = { key = "e", button = "rbumper" } }

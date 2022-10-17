@@ -1,36 +1,121 @@
 #pragma once
 
+#include "engine/base/macros.h"
+#include "engine/base/util.h"
 #include "engine/math/math.h"
+#include "engine/base/win32.h"
+
+#include <xinput.h>
+
+#include <vector>
 
 namespace simcoe::input {
-    // type of input device
-    enum Device {
-        eDesktop,
-        eGamepad
+    namespace Key {
+        enum Slot : unsigned {
+#define KEY(id, name) id,
+#include "engine/input/input.inl"
+
+            eTotal
+        };
+    }
+
+    namespace Axis {
+        enum Slot : unsigned {
+#define AXIS(id, name) id,
+#include "engine/input/input.inl"
+
+            eTotal
+        };
+    }
+
+    enum struct Device {
+#define DEVICE(id, name) id,
+#include "engine/input/input.inl"
     };
 
-    struct Action {
-        enum Kind { eKeyDown, eKeyUp } kind;
+    struct State {
+        Device source { Device::eDesktop };
+        bool key[Key::eTotal] { };
+        float axis[Axis::eTotal] { };
     };
 
-    struct Input {
-        Device device = eDesktop;
+    // an input event source
+    struct Source {
+        Source(Device kind) : kind(kind) { }
 
-        bool enableConsole;
-        math::float3 movement;
-        math::float2 rotation;
+        virtual ~Source() = default;
+        virtual bool poll(State* pState) = 0;
+
+        const Device kind;
     };
 
-    struct Gamepad {
-        Gamepad(size_t index = 0);
+    // an input event listener
+    struct Listener {
+        virtual ~Listener() = default;
+        virtual bool update(const State& state) = 0;
+    };
 
-        bool poll(Input *input);
+    using ListenerVec = std::vector<Listener*>;
+    using SourceVec = std::vector<Source*>;
+
+    /**
+     * input system lifecycle
+     *
+     * 1. create input manager
+     *    - add input listeners
+     *    - add input sources
+     * 2. poll on input manager in new thread
+     *    - input manager polls sources and pumps events to listeners
+     */
+
+    // input event manager
+    struct Manager {
+        Manager(SourceVec sources, ListenerVec listeners)
+            : sources(sources)
+            , listeners(listeners)
+        { }
+
+        void poll();
+
+        void addListener(Listener *pListener);
+        void addSource(Source *pSource);
+    private:
+        SourceVec sources;
+        ListenerVec listeners;
+        State prevState;
+    };
+
+    // input sources
+
+    struct Keyboard final : Source {
+        Keyboard();
+
+        bool poll(State* pState) override;
 
     private:
-        bool shouldSendPacket(size_t packet) const;
-        void updatePacket(size_t newPacket);
-
-        size_t index;
-        size_t lastPacket = 0;
+        BYTE lastKeyState[256];
+        POINT lastCursorPos;
     };
+
+    struct Gamepad final : Source {
+        Gamepad(DWORD dwIndex);
+        
+        bool poll(State* pState) override;
+
+    private:
+        // controller index
+        DWORD dwIndex;
+    };
+
+    // input listeners
+
+    struct DebugListener final : Listener {
+        bool update(const State& state) override;
+    };
+}
+
+namespace simcoe::locale {
+    std::string_view get(input::Device device);
+    std::string_view get(input::Key::Slot key);
+    std::string_view get(input::Axis::Slot axis);
 }

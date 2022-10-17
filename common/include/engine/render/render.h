@@ -1,5 +1,7 @@
 #pragma once
 
+#include "engine/container/unique.h"
+
 #include "engine/base/logging.h"
 #include "engine/window/window.h"
 

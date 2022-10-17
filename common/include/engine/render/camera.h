@@ -20,6 +20,9 @@ namespace simcoe::render {
         void move(float3 offset);
         void rotate(float yawUpdate, float pitchUpdate);
 
+        const float3 getPosition() const { return position; }
+        const float3 getDirection() const { return direction; }
+
     private:
         float3 position;
         float3 direction;

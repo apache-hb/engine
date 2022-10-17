@@ -1,5 +1,6 @@
 #include "engine/base/logging.h"
-#include "engine/base/util.h"
+#include "engine/base/io.h"
+#include "engine/container/unique.h"
 
 #include <ranges>
 #include <iostream>
@@ -94,6 +95,7 @@ void logging::init() {
     kSinks[eGeneral] = addChannel(new MultiChannel<2>("general", std::to_array(generalChannels)));
     kSinks[eInput] = kSinks[eGeneral];
     kSinks[eRender] = kSinks[eGeneral];
+    kSinks[eLocale] = kSinks[eGeneral];
 }
 
 Channel &logging::get(Sink sink) {

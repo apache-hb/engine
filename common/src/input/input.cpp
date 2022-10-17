@@ -1,80 +1,64 @@
 #include "engine/input/input.h"
 
-#include "engine/base/win32.h"
-#include "xinput.h"
+#include "engine/locale/locale.h"
 
 using namespace simcoe;
 using namespace simcoe::input;
 
-using namespace math;
-
 namespace {
-    constexpr UINT kLeftDeadzone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
-    constexpr UINT kRightDeadzone = XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE;
-    constexpr float kTriggerDeadzone = XINPUT_GAMEPAD_TRIGGER_THRESHOLD;
-
-    float2 stickRatio(float x, float y, float deadzone) {
-        float magnitude = sqrt((x * x) + (y * y));
-
-        if (magnitude > deadzone) {
-            return float2 { x / SHRT_MAX, y / SHRT_MAX };
-        } else {
-            return float2::of(0.f);
+    std::string_view id(Device device) {
+        switch (device) {
+#define DEVICE(id, name) case Device::id: return name;
+#include "engine/input/input.inl"
+        default: return "input.device.unknown";
         }
     }
 
-    constexpr float triggerRatio(float it, float deadzone) {
-        if (it > deadzone) {
-            return it / 255.f;
+    std::string_view id(Key::Slot key) {
+        switch (key) {
+#define KEY(id, name) case Key::id: return name;
+#include "engine/input/input.inl"
+        default: return "input.key.unknown";
         }
+    }
 
-        return 0.f;
+    std::string_view id(Axis::Slot axis) {
+        switch (axis) {
+#define AXIS(id, name) case Axis::id: return name;
+#include "engine/input/input.inl"
+        default: return "input.axis.unknown";
+        }
     }
 }
 
-Gamepad::Gamepad(size_t index) 
-    : index(index) 
-{ }
-
-bool Gamepad::poll(Input *input) {
-    XINPUT_STATE state;
-    // controller not connected, nothing to update
-    if (DWORD result = XInputGetState(DWORD(index), &state); result != ERROR_SUCCESS) {
-        return false;
+void Manager::poll() {
+    bool update = false;
+    State state = prevState;
+    for (auto *pSource : sources) {
+        if (pSource->poll(&state)) {
+            state.source = pSource->kind;
+            update = true;
+        }
     }
 
-    // no new packet, nothing to update
-    if (!shouldSendPacket(state.dwPacketNumber)) {
-        return false;
+    // nothing to update
+    if (!update) { return; }
+
+    for (auto *pListener : listeners) {
+        pListener->update(state);
     }
 
-    updatePacket(state.dwPacketNumber);
-
-    float vertical = triggerRatio(state.Gamepad.bLeftTrigger, kTriggerDeadzone) - triggerRatio(state.Gamepad.bRightTrigger, kTriggerDeadzone);
-
-    float2 movement = stickRatio(state.Gamepad.sThumbLX, state.Gamepad.sThumbLY, kLeftDeadzone);
-    float2 rotation = stickRatio(state.Gamepad.sThumbRX, state.Gamepad.sThumbRY, kRightDeadzone);
-
-    // no actual data to send
-    if (vertical == 0.f && movement == 0.f && rotation == 0.f) {
-        return false;
-    }
-
-    input->device = eGamepad;
-    input->movement = movement.vec3(vertical);
-    input->rotation = rotation;
-
-    return true;
+    state = prevState;
 }
 
-bool Gamepad::shouldSendPacket(size_t packet) const {
-    if (packet >= lastPacket) {
-        return true;
-    }
-
-    return false;
+std::string_view locale::get(Device device) {
+    return locale::get(id(device));
 }
 
-void Gamepad::updatePacket(size_t newPacket) {
-    lastPacket = newPacket;
+std::string_view locale::get(Key::Slot key) {
+    return locale::get(id(key));
+}
+
+std::string_view locale::get(Axis::Slot axis) {
+    return locale::get(id(axis));
 }

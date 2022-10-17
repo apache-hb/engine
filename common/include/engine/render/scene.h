@@ -4,7 +4,7 @@
 #include "engine/render/world.h"
 #include "engine/render/data.h"
 
-#include "engine/base/util.h"
+#include "engine/container/unique.h"
 
 namespace simcoe::render {
     struct Object {

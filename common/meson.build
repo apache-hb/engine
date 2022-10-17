@@ -20,12 +20,26 @@ base = declare_dependency(
 
 subdir('vendor')
 
-src = [ 'src/input/input.cpp' ]
+src = [ 'src/locale/locale.cpp' ]
+
+liblocale = library('locale', src,
+    cpp_args : args,
+    dependencies : base,
+    include_directories : 'include'
+)
+
+locale = declare_dependency(
+    link_with : liblocale,
+    dependencies : base,
+    include_directories : 'include'
+)
+
+src = [ 'src/input/input.cpp', 'src/input/gamepad.cpp', 'src/input/desktop.cpp' ]
 
 libinput = library('input', src,
     cpp_args : args,
     link_args : [ 'xinput.lib' ],
-    dependencies : base,
+    dependencies : [ base, locale ],
     include_directories : 'include'
 )
 

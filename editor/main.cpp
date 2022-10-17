@@ -4,6 +4,8 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
+#include "engine/container/unique.h"
+
 #include "engine/input/input.h"
 
 #include "engine/render/render.h"
@@ -83,6 +85,24 @@ namespace editor {
     }
 }
 
+struct CameraListener final : input::Listener {
+    bool update(const input::State& state) override {
+        device = state.source;
+        return true;
+    }
+
+    bool enableConsole() const {
+        return false;
+    }
+
+    input::Device getDevice() const {
+        return device;
+    }
+
+private:
+    input::Device device = input::Device::eDesktop;
+};
+
 int commonMain() {
     win32::init();  
     logging::init();
@@ -105,42 +125,40 @@ int commonMain() {
     render::Context render { { window.get(), &scene } };
 
     Timer timer;
+    input::Keyboard keyboard { };
     input::Gamepad gamepad { 0 };
-    input::Input state = {
-        .enableConsole = true
-    };
-    // float total = 0.f;
 
-    while (window->poll(&state)) {
-        gamepad.poll(&state);
+    CameraListener state { };
 
-        // total += float(timer.tick());
+    input::Manager manager { { &keyboard, &gamepad }, { &state } };
 
-        // camera.setPosition({ std::sin(total), std::cos(total), 1.f });
-
-        if (state.enableConsole && state.device == input::eDesktop) {
-            state.rotation = { 0.f, 0.f };
-        }
-
-        camera.move(state.movement * kMoveSensitivity);
-        camera.rotate(state.rotation.x * kLookSensitivity, state.rotation.y * kLookSensitivity);
+    while (window->poll()) {
+        manager.poll();
 
         render.begin();
         window->imguiNewFrame();
 
         ImGui::NewFrame();
-
-        editor::dock();
-
         ImGui::ShowDemoWindow();
+
+        if (ImGui::Begin("Input")) {
+            ImGui::Text("Method: %s", state.getDevice() == input::Device::eGamepad ? "Controller" : "Mouse & Keyboard");
+        }
+        ImGui::End();
+
+        if (ImGui::Begin("Camera")) {
+            auto mvp = camera.mvp(float4x4::identity(), window->size().aspectRatio<float>());
+            ImGui::Text("%f %f %f %f", mvp.at(0, 0), mvp.at(0, 1), mvp.at(0, 2), mvp.at(0, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(1, 0), mvp.at(1, 1), mvp.at(1, 2), mvp.at(1, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(2, 0), mvp.at(2, 1), mvp.at(2, 2), mvp.at(2, 3));
+            ImGui::Text("%f %f %f %f", mvp.at(3, 0), mvp.at(3, 1), mvp.at(3, 2), mvp.at(3, 3));
+        }
+        ImGui::End();
 
         ImGui::Render();
 
         render.end();
     }
-
-    logging::get(logging::eGeneral).info("clean exit");
-
     return 0;
 }
 
