@@ -107,20 +107,30 @@ BasicScene::BasicScene(Create&& info)
 ID3D12CommandList *BasicScene::populate(Context *ctx) {
     if (ImGui::Begin("World")) {
         ImGui::Text("Nodes");
-        if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
+        if (ImGui::BeginTable("Nodes", 3, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Value");
+            ImGui::TableSetupColumn("Properties");
             ImGui::TableHeadersRow();
 
             for (auto& node : world->nodes) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::Text("%s", node.name.c_str());
+
                 ImGui::TableNextColumn();
-                auto [x, y, z] = node.transform.scale();
-                float scale[3] = { x, y, z };
-                if (ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f)) {
-                    node.transform *= math::float4x4::scaling(x, y, z);
+
+                {
+                    auto [x, y, z] = node.transform.scale();
+                    float scale[3] = { x, y, z };
+                    ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f);
+                    node.transform.setScale({ scale[0], scale[1], scale[2] });
+                }
+
+                {
+                    auto [x, y, z] = node.transform.translation();
+                    float translation[3] = { x, y, z };
+                    ImGui::SliderFloat3("Translation", translation, -1.0f, 1.0f);
+                    node.transform.setTranslation({ translation[0], translation[1], translation[2] });
                 }
             }
             ImGui::EndTable();

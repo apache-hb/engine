@@ -171,13 +171,11 @@ namespace simcoe::math {
             return Vec3<T>::from(x, y, z);
         }
 
-        constexpr const T& at(size_t index) const { 
-            return this->*components[index];
-        }
+        constexpr const T& at(size_t index) const { return this->*components[index];}
+        constexpr T& at(size_t index) { return this->*components[index]; }
 
-        constexpr const T& operator[](size_t index) const {
-            return at(index);
-        }
+        constexpr const T& operator[](size_t index) const { return at(index); }
+        constexpr T& operator[](size_t index) { return at(index); }
 
         constexpr Vec4 add(const Vec4& other) const {
             return from(x + other.x, y + other.y, z + other.z, w + other.w);
@@ -218,23 +216,20 @@ namespace simcoe::math {
         using RowSelect = typename Row::Select;
         Row rows[4];
 
-        constexpr const Row &row(size_t row) const {
-            return rows[row];
-        }
-
         constexpr const Vec4<T> column(size_t column) const {
             return Vec4<T>::from(at(column, 0), at(column, 1), at(column, 2), at(column, 3));
         }
 
-        constexpr const Row& operator[](size_t row) const {
-            return rows[row];
-        }
+        constexpr const Row& at(size_t it) const { return rows[it]; }
+        constexpr Row& at(size_t it) { return rows[it]; }
 
-        constexpr T at(size_t it, size_t col) const {
-            return row(it).at(col);
-        }
+        constexpr const Row& operator[](size_t row) const { return rows[row];}
+        constexpr Row& operator[](size_t row) { return rows[row]; }
 
-        constexpr Row mul(Row other) const {
+        constexpr const T &at(size_t it, size_t col) const { return at(it).at(col); }
+        constexpr T &at(size_t it, size_t col) { return at(it).at(col); }
+
+        constexpr Row mul(const Row& other) const {
             auto row0 = at(0);
             auto row1 = at(1);
             auto row2 = at(2);
@@ -249,15 +244,15 @@ namespace simcoe::math {
         }
 
         constexpr Mat4x4 mul(const Mat4x4& other) const {
-            auto row0 = row(0);
-            auto row1 = row(1);
-            auto row2 = row(2);
-            auto row3 = row(3);
+            auto row0 = at(0);
+            auto row1 = at(1);
+            auto row2 = at(2);
+            auto row3 = at(3);
 
-            auto other0 = other.row(0);
-            auto other1 = other.row(1);
-            auto other2 = other.row(2);
-            auto other3 = other.row(3);
+            auto other0 = other.at(0);
+            auto other1 = other.at(1);
+            auto other2 = other.at(2);
+            auto other3 = other.at(3);
 
             auto out0 = Row::from(
                 (other0.x * row0.x) + (other1.x * row0.y) + (other2.x * row0.z) + (other3.x * row0.w),
@@ -292,10 +287,10 @@ namespace simcoe::math {
 
         constexpr Mat4x4 add(const Mat4x4& other) const {
             return Mat4x4::from(
-                row(0).add(other.row(0)),
-                row(1).add(other.row(1)),
-                row(2).add(other.row(2)),
-                row(3).add(other.row(3))
+                at(0).add(other.at(0)),
+                at(1).add(other.at(1)),
+                at(2).add(other.at(2)),
+                at(3).add(other.at(3))
             );
         }
 
@@ -323,6 +318,10 @@ namespace simcoe::math {
             return from(Row::of(it), Row::of(it), Row::of(it), Row::of(it));
         }
 
+        ///
+        /// scaling related functions
+        ///
+
         static constexpr Mat4x4 scaling(T x, T y, T z) {
             auto row0 = Row::from(x, 0, 0, 0);
             auto row1 = Row::from(0, y, 0, 0);
@@ -335,12 +334,32 @@ namespace simcoe::math {
             return Vec3<T>::from(at(0, 0), at(1, 1), at(2, 2));
         }
 
+        constexpr void setScale(const Vec3<T>& scale) {
+            at(0, 0) = scale.x;
+            at(1, 1) = scale.y;
+            at(2, 2) = scale.z;
+        }
+
+        /// 
+        /// translation related functions
+        ///
+
         static constexpr Mat4x4 translation(T x, T y, T z) {
             auto row0 = Row::from(1, 0, 0, x);
             auto row1 = Row::from(0, 1, 0, y);
             auto row2 = Row::from(0, 0, 1, z);
             auto row3 = Row::from(0, 0, 0, 1);
             return from(row0, row1, row2, row3);
+        }
+
+        constexpr Vec3<T> translation() const {
+            return Vec3<T>::from(at(0, 3), at(1, 3), at(2, 3));
+        }
+
+        constexpr void setTranslation(const Vec3<T>& translation) {
+            at(0, 3) = translation.x;
+            at(1, 3) = translation.y;
+            at(2, 3) = translation.z;
         }
 
         static constexpr Mat4x4 rotation(T angle, Vec3<T> axis) {
