@@ -25,12 +25,27 @@ constexpr float kLookSensitivity = 0.001f;
 
 struct CameraListener final : input::Listener {
     float speedMultiplier { 1.f };
-    CameraListener(render::Perspective &camera) : camera(camera) { 
-
-    }
+    CameraListener(render::Perspective& camera, Keyboard& keyboard) 
+        : camera(camera) 
+        , keyboard(keyboard)
+    { }
 
     bool update(const input::State& input) override {
         state = input;
+
+        if (console.update(input.key[Key::keyTilde])) {
+            logging::get(logging::eInput).info("console: {}", console.get());
+
+            keyboard.captureInput(!console.get());
+        }
+
+        // imgui should capture input if the console is open
+        ImGui::SetNextFrameWantCaptureKeyboard(console.get());
+        ImGui::SetNextFrameWantCaptureMouse(console.get());
+        
+        if (console.get()) {
+            return true;
+        }
 
         float x = getAxis(input, Key::keyA, Key::keyD);
         float y = getAxis(input, Key::keyS, Key::keyW);
@@ -42,8 +57,8 @@ struct CameraListener final : input::Listener {
             .z = (z + (state.axis[Axis::padRightTrigger] - state.axis[Axis::padLeftTrigger])) * kMoveSensitivity * speedMultiplier
         };
 
-        float yaw = state.axis[Axis::padRightStickHorizontal] * kLookSensitivity;
-        float pitch = state.axis[Axis::padRightStickVertical] * kLookSensitivity;
+        float yaw = (state.axis[Axis::mouseHorizontal] + state.axis[Axis::padRightStickHorizontal]) * kLookSensitivity;
+        float pitch = (state.axis[Axis::mouseVertical] + state.axis[Axis::padRightStickVertical]) * kLookSensitivity;
 
         camera.rotate(yaw, pitch);
         camera.move(offset);
@@ -98,8 +113,11 @@ private:
         return (input.key[negative] > input.key[positive]) ? -1.f : 1.f;
     }
 
+    Toggle console { false };
     Timer timer;
+
     render::Perspective& camera;
+    input::Keyboard &keyboard;
 
     input::State state { };
 };
@@ -133,7 +151,7 @@ int commonMain() {
     input::Keyboard keyboard { };
     input::Gamepad gamepad { 0 };
 
-    CameraListener state { camera };
+    CameraListener state { camera, keyboard };
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 

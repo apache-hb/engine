@@ -1,5 +1,6 @@
 #include "engine/base/logging.h"
 #include "engine/input/input.h"
+#include <winuser.h>
 
 using namespace simcoe;
 using namespace simcoe::input;
@@ -9,6 +10,23 @@ using namespace simcoe::input;
 ///
 
 namespace {
+    POINT windowCenter(HWND hwnd) {
+        RECT rect;
+        GetWindowRect(hwnd, &rect);
+
+        POINT center;
+        center.x = (rect.left + rect.right) / 2;
+        center.y = (rect.top + rect.bottom) / 2;
+
+        return center;
+    }
+
+    POINT cursorPos() {
+        POINT pos;
+        GetCursorPos(&pos);
+        return pos;
+    }
+
     struct DesktopKeyMapping {
         Key::Slot slot;
         int vk;
@@ -66,32 +84,46 @@ namespace {
         { Key::keyLeftAlt, VK_LMENU },
         { Key::keyRightAlt, VK_RMENU },
         { Key::keySpace, VK_SPACE },
+
+        { Key::keyTilde, VK_OEM_3 },
+
+        { Key::keyLeftMouse, VK_LBUTTON },
+        { Key::keyRightMouse, VK_RBUTTON },
+        { Key::keyMiddleMouse, VK_MBUTTON },
     };
 }
 
-Keyboard::Keyboard() 
-    : Source(Device::eDesktop) 
-{ }
+Keyboard::Keyboard() : Source(Device::eDesktop) {
+    captureInput(true); 
+}
 
-bool Keyboard::poll(UNUSED State *pState) {
+bool Keyboard::poll(State *pState) {
     for (const auto& key : kDesktopKeys) {
-        // if the key is already set then we dont need to update our index
-        if (pState->key[key.slot]) {
-            pState->key[key.slot] = keys[key.vk];
-            continue;
-        }
-
-        // otherwise we need to update our index
-        pState->key[key.slot] = keys[key.vk] ? index++ : 0;
+        pState->key[key.slot] = keys[key.vk];
     }
+
+    if (!enabled) { return true; }
+
+    pState->axis[Axis::mouseHorizontal] = cursor.x;
+    pState->axis[Axis::mouseVertical] = cursor.y;
 
     return true;
 }
 
-void Keyboard::update(const std::bitset<256>& newKeys) {
-    if (keys == newKeys) {
-        return;
+void Keyboard::captureInput(bool capture) {
+    enabled = capture;
+    ShowCursor(!capture);
+}
+
+void Keyboard::update(HWND hwnd, const KeyState newKeys) {
+    if (enabled) {
+        auto [x, y] = cursorPos();
+        auto [cx, cy] = windowCenter(hwnd);
+        SetCursorPos(cx, cy);
+        cursor = { float(x - cx), float(cy - y) };
+    } else {
+        cursor = { 0, 0 };
     }
 
-    keys = newKeys;
+    memcpy(keys, newKeys, sizeof(KeyState));
 }

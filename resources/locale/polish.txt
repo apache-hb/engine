@@ -47,6 +47,10 @@ input.key.down: Strzałka w dół
 input.key.left: Strzałka w lewo
 input.key.right: Strzałka w prawo
 
+input.key.left-mouse: Lewy przycisk myszy
+input.key.right-mouse: Prawy przycisk myszy
+input.key.middle-mouse: Środkowy przycisk myszy
+
 input.key.space: Spacja
 input.key.tilde: Tylda
 input.key.esc: Ucieczka

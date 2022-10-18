@@ -47,6 +47,10 @@ input.key.down: Down arrow
 input.key.left: Left arrow
 input.key.right: Right arrow
 
+input.key.left-mouse: Left mouse button
+input.key.right-mouse: Right mouse button
+input.key.middle-mouse: Middle mouse button
+
 input.key.space: Space
 input.key.tilde: Tilde
 input.key.esc: Escape

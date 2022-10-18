@@ -64,7 +64,7 @@ namespace {
         auto result = float4x4::identity();
 
         if (node.matrix.size() == 16) {
-            auto &mat = node.matrix;
+            const auto &mat = node.matrix;
             result = math::float4x4::from(
                 { float(mat[0]), float(mat[1]), float(mat[2]), float(mat[3]) },
                 { float(mat[4]), float(mat[5]), float(mat[6]), float(mat[7]) },

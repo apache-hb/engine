@@ -3,6 +3,7 @@
 #include "engine/base/logging.h"
 
 #include <windowsx.h>
+#include <winuser.h>
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -15,9 +16,25 @@ namespace {
     constexpr auto kClassName = "GameWindowClass";
     auto instance = GetModuleHandleA(nullptr);
 
-    LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-        ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
+    // handling keyboard accuratley is more tricky than it first seems
+    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
+    WORD mapKeyCode(WPARAM wparam, LPARAM lparam) {
+        WORD vkCode = LOWORD(wparam);
+        WORD keyFlags = HIWORD(lparam);
+        WORD scanCode = LOBYTE(keyFlags);
 
+        if ((keyFlags & KF_EXTENDED) == KF_EXTENDED) {
+            scanCode = MAKEWORD(scanCode, 0xE0);
+        }
+
+        if (vkCode == VK_SHIFT || vkCode == VK_CONTROL || vkCode == VK_MENU) {
+            vkCode = LOWORD(MapVirtualKeyA(scanCode, MAPVK_VSC_TO_VK_EX));
+        }
+
+        return vkCode;
+    }
+
+    LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
         Window *pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
         switch (msg) {
@@ -28,16 +45,37 @@ namespace {
         }
 
         case WM_KEYDOWN:
-            pWindow->keys[wparam] = true;
+            pWindow->keys[mapKeyCode(wparam, lparam)] = pWindow->index++;
             break;
         case WM_KEYUP:
-            pWindow->keys[wparam] = false;
+            pWindow->keys[mapKeyCode(wparam, lparam)] = 0;
             break;
         case WM_SYSKEYDOWN:
-            pWindow->keys[wparam] = true;
+            pWindow->keys[mapKeyCode(wparam, lparam)] = pWindow->index++;
             break;
         case WM_SYSKEYUP: 
-            pWindow->keys[wparam] = false;
+            pWindow->keys[mapKeyCode(wparam, lparam)] = 0;
+            break;
+
+        case WM_RBUTTONDOWN:
+            pWindow->keys[VK_RBUTTON] = pWindow->index++;
+            break;
+        case WM_RBUTTONUP:
+            pWindow->keys[VK_RBUTTON] = 0;
+            break;
+
+        case WM_LBUTTONDOWN:
+            pWindow->keys[VK_LBUTTON] = pWindow->index++;
+            break;
+        case WM_LBUTTONUP:
+            pWindow->keys[VK_LBUTTON] = 0;
+            break;
+
+        case WM_MBUTTONDOWN:
+            pWindow->keys[VK_MBUTTON] = pWindow->index++;
+            break;
+        case WM_MBUTTONUP:
+            pWindow->keys[VK_MBUTTON] = 0;
             break;
 
         case WM_CLOSE:
@@ -46,6 +84,10 @@ namespace {
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
+        }
+
+        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
+            return true;
         }
 
         return DefWindowProcA(hwnd, msg, wparam, lparam);
@@ -107,12 +149,6 @@ void Window::imgui() {
     ImGui_ImplWin32_NewFrame();
 }
 
-math::Vec2<int> Window::center() {
-    RECT client;
-    GetClientRect(hwnd, &client);
-    return { (client.right - client.left) / 2, (client.bottom - client.top) / 2 };
-}
-
 bool Window::poll(input::Keyboard *pKeyboard) {
     MSG msg { };
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
@@ -128,7 +164,7 @@ bool Window::poll(input::Keyboard *pKeyboard) {
         DispatchMessageA(&msg);
     }
 
-    pKeyboard->update(keys);
+    pKeyboard->update(hwnd, keys);
 
     return true;
 }

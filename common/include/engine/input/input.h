@@ -1,5 +1,6 @@
 #pragma once
 
+#include "engine/base/logging.h"
 #include "engine/base/macros.h"
 #include "engine/base/util.h"
 #include "engine/math/math.h"
@@ -34,6 +35,31 @@ namespace simcoe::input {
 #include "engine/input/input.inl"
 
         eTotal
+    };
+
+    struct Toggle {
+        Toggle(bool initial)
+            : enabled(initial)
+        { }
+
+        bool update(size_t key) {
+            if (key > last) {
+                last = key;
+                enabled = !enabled;
+                return true;
+            }
+
+            return false;
+        }
+
+        bool get() const { return enabled; }
+        void set(bool value) { 
+            last = 0;
+            enabled = value; 
+        }
+    private:
+        size_t last = 0;
+        bool enabled;
     };
 
     struct State {
@@ -91,15 +117,20 @@ namespace simcoe::input {
     // input sources
 
     struct Keyboard final : Source {
+        using KeyState = size_t[256];
         Keyboard();
 
         bool poll(State* pState) override;
 
-        void update(const std::bitset<256>& state);
+        void captureInput(bool capture);
+        void update(HWND hwnd, const KeyState state);
+        bool isEnabled() const { return enabled; }
 
     private:
-        size_t index = 1;
-        std::bitset<256> keys;
+        bool enabled = true;
+
+        KeyState keys;
+        math::float2 cursor;
     };
 
     struct Gamepad final : Source {

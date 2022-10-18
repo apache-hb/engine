@@ -268,7 +268,7 @@ void Context::endPost() {
         rhi::newStateTransition(intermediateTarget, BufferState::ePixelShaderResource, BufferState::eRenderTarget)
     });
 
-    postCommands.imguiRender();
+    postCommands.imgui();
 
     // now switch back to rendering from intermediate to target
     postCommands.transition(kTransitions);

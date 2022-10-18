@@ -295,7 +295,7 @@ namespace simcoe::rhi {
 
         void transition(std::span<const StateTransition> barriers);
 
-        void imguiRender();
+        void imgui();
     };
     
     struct SwapChain final : UniqueComPtr<IDXGISwapChain3> {

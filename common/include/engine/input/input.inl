@@ -54,6 +54,10 @@ KEY(keyRight, "input.key.right")
 KEY(keyUp, "input.key.up")
 KEY(keyDown, "input.key.down")
 
+KEY(keyLeftMouse, "input.key.left-mouse")
+KEY(keyRightMouse, "input.key.right-mouse")
+KEY(keyMiddleMouse, "input.key.middle-mouse")
+
 KEY(keyLeftShift, "input.key.left-shift")
 KEY(keyRightShift, "input.key.right-shift")
 KEY(keyLeftControl, "input.key.left-ctrl")

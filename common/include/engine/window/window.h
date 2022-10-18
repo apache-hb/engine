@@ -23,10 +23,9 @@ namespace simcoe {
 
         void imgui();
 
-        std::bitset<256> keys;
+        size_t index = 1;
+        input::Keyboard::KeyState keys { };
     private:
-        math::Vec2<int> center();
-
         // actual window handle
         HWND hwnd = nullptr;
     };
