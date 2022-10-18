@@ -18,6 +18,7 @@
 
 using namespace simcoe;
 using namespace simcoe::math;
+using namespace simcoe::input;
 
 constexpr float kMoveSensitivity = 0.001f;
 constexpr float kLookSensitivity = 0.001f;
@@ -31,14 +32,18 @@ struct CameraListener final : input::Listener {
     bool update(const input::State& input) override {
         state = input;
 
+        float x = getAxis(input, Key::keyA, Key::keyD);
+        float y = getAxis(input, Key::keyS, Key::keyW);
+        float z = getAxis(input, Key::keyQ, Key::keyE);
+
         math::float3 offset = {
-            .x = state.axis[input::Axis::padLeftStickHorizontal] * kMoveSensitivity * speedMultiplier,
-            .y = state.axis[input::Axis::padLeftStickVertical] * kMoveSensitivity * speedMultiplier,
-            .z = (state.axis[input::Axis::padRightTrigger] - state.axis[input::Axis::padLeftTrigger]) * kMoveSensitivity * speedMultiplier
+            .x = (x + state.axis[Axis::padLeftStickHorizontal]) * kMoveSensitivity * speedMultiplier,
+            .y = (y + state.axis[Axis::padLeftStickVertical]) * kMoveSensitivity * speedMultiplier,
+            .z = (z + (state.axis[Axis::padRightTrigger] - state.axis[Axis::padLeftTrigger])) * kMoveSensitivity * speedMultiplier
         };
 
-        float yaw = state.axis[input::Axis::padRightStickHorizontal] * kLookSensitivity;
-        float pitch = state.axis[input::Axis::padRightStickVertical] * kLookSensitivity;
+        float yaw = state.axis[Axis::padRightStickHorizontal] * kLookSensitivity;
+        float pitch = state.axis[Axis::padRightStickVertical] * kLookSensitivity;
 
         camera.rotate(yaw, pitch);
         camera.move(offset);
@@ -85,6 +90,14 @@ struct CameraListener final : input::Listener {
     }
 
 private:
+    float getAxis(const input::State& input, Key::Slot negative, Key::Slot positive) {
+        if (!input.key[negative] && !input.key[positive]) {
+            return 0.f;
+        }
+
+        return (input.key[negative] > input.key[positive]) ? -1.f : 1.f;
+    }
+
     Timer timer;
     render::Perspective& camera;
 

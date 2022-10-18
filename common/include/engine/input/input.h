@@ -5,6 +5,7 @@
 #include "engine/math/math.h"
 #include "engine/base/win32.h"
 
+#include <bitset>
 #include <xinput.h>
 
 #include <vector>
@@ -37,7 +38,7 @@ namespace simcoe::input {
 
     struct State {
         Device source { Device::eDesktop };
-        bool key[Key::eTotal] { };
+        size_t key[Key::eTotal] { };
         float axis[Axis::eTotal] { };
     };
 
@@ -94,11 +95,11 @@ namespace simcoe::input {
 
         bool poll(State* pState) override;
 
-        void update(bool *pKeys);
+        void update(const std::bitset<256>& state);
 
     private:
-        bool keys[256] = { };
-        bool dirty = false;
+        size_t index = 1;
+        std::bitset<256> keys;
     };
 
     struct Gamepad final : Source {

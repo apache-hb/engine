@@ -74,23 +74,24 @@ Keyboard::Keyboard()
 { }
 
 bool Keyboard::poll(UNUSED State *pState) {
-    if (!dirty) { return false; }
-    dirty = false;
-
     for (const auto& key : kDesktopKeys) {
-        pState->key[key.slot] = keys[key.vk];
+        // if the key is already set then we dont need to update our index
+        if (pState->key[key.slot]) {
+            pState->key[key.slot] = keys[key.vk];
+            continue;
+        }
+
+        // otherwise we need to update our index
+        pState->key[key.slot] = keys[key.vk] ? index++ : 0;
     }
 
     return true;
 }
 
-void Keyboard::update(bool *pKeys) {
-    if (simcoe::eq(pKeys, keys, Key::eTotal)) {
+void Keyboard::update(const std::bitset<256>& newKeys) {
+    if (keys == newKeys) {
         return;
     }
 
-    logging::get(logging::eInput).info("update keyboard");
-
-    memcpy(keys, pKeys, sizeof(keys));
-    dirty = true;
+    keys = newKeys;
 }

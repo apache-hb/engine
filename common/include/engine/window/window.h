@@ -23,7 +23,7 @@ namespace simcoe {
 
         void imgui();
 
-        bool keys[256] = { };
+        std::bitset<256> keys;
     private:
         math::Vec2<int> center();
 

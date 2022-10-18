@@ -16,13 +16,9 @@ namespace {
     auto instance = GetModuleHandleA(nullptr);
 
     LRESULT CALLBACK windowCallback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-        if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
-            return true;
-        }
+        ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
 
         Window *pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-
-        logging::get(logging::eInput).info("Window message: {}", msg);
 
         switch (msg) {
         case WM_CREATE: {
@@ -30,9 +26,6 @@ namespace {
             SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
             break;
         }
-
-        case WM_NCHITTEST: 
-            return HTCLIENT;
 
         case WM_KEYDOWN:
             pWindow->keys[wparam] = true;
@@ -54,6 +47,7 @@ namespace {
             PostQuitMessage(0);
             return 0;
         }
+
         return DefWindowProcA(hwnd, msg, wparam, lparam);
     }
 }
