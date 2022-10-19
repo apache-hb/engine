@@ -99,7 +99,7 @@ namespace simcoe::rhi {
     BITFLAGS(ShaderVisibility, D3D12_SHADER_VISIBILITY, {
         ePixel = D3D12_SHADER_VISIBILITY_PIXEL,
         eVertex = D3D12_SHADER_VISIBILITY_VERTEX,
-        eTotal = D3D12_SHADER_VISIBILITY_ALL
+        eAll = D3D12_SHADER_VISIBILITY_ALL
     })
 
     enum struct BindingMutability {
@@ -158,6 +158,8 @@ namespace simcoe::rhi {
 
         std::span<std::byte> ps;
         std::span<std::byte> vs;
+
+        bool depth = false;
     };
 
     struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
@@ -354,7 +356,7 @@ namespace simcoe::rhi {
 
         TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
-        PipelineState newPipelineState(const PipelineBinding& bindings, bool depth = false);
+        PipelineState newPipelineState(const PipelineBinding& bindings);
 
         void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle);
         void imgui();

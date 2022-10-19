@@ -81,6 +81,9 @@ NORETURN simcoe::panic(const simcoe::PanicInfo &info, const std::string &msg) {
     auto stack = getStackTrace();
     auto formatted = std::format("error: {} at [{}:{}@{}]", msg, info.file, info.line, info.function);
     logging::get(logging::eGeneral).fatal("{}", formatted);
+    for (const auto &frame : stack) {
+        logging::get(logging::eGeneral).fatal("- {}", frame);
+    }
     MessageBoxA(nullptr, simcoe::strings::join<std::string>(stack, "\n").c_str(), formatted.c_str(), MB_ICONSTOP);
     
     std::abort();

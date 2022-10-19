@@ -84,6 +84,8 @@ namespace simcoe::render {
         std::vector<rhi::VertexBufferView> vertexBufferViews;
         std::vector<rhi::IndexBufferView> indexBufferViews;
 
+        float3 light = { 0.f, 0.f, 0.f };
+
         std::vector<rhi::Buffer> textures;
         
         rhi::PipelineState pso;

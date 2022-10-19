@@ -44,16 +44,12 @@ namespace {
             break;
         }
 
+        case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
             pWindow->keys[mapKeyCode(wparam, lparam)] = pWindow->index++;
             break;
-        case WM_KEYUP:
-            pWindow->keys[mapKeyCode(wparam, lparam)] = 0;
-            break;
-        case WM_SYSKEYDOWN:
-            pWindow->keys[mapKeyCode(wparam, lparam)] = pWindow->index++;
-            break;
         case WM_SYSKEYUP: 
+        case WM_KEYUP:
             pWindow->keys[mapKeyCode(wparam, lparam)] = 0;
             break;
 

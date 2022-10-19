@@ -32,14 +32,14 @@ struct std::hash<math::Vec2<T>> {
 template<>
 struct std::hash<assets::Vertex> {
     constexpr std::size_t operator()(const assets::Vertex& v) const noexcept {
-        return std::hash<math::float3>{}(v.position) ^ std::hash<math::float2>{}(v.uv);
+        return std::hash<math::float3>{}(v.position) ^ std::hash<math::float3>{}(v.normal) ^ std::hash<math::float2>{}(v.uv);
     }
 };
 
 template<>
 struct std::equal_to<assets::Vertex> {
     constexpr bool operator()(const assets::Vertex& lhs, const assets::Vertex& rhs) const noexcept {
-        return lhs.position == rhs.position && lhs.uv == rhs.uv;
+        return lhs.position == rhs.position && lhs.normal == rhs.normal && lhs.uv == rhs.uv;
     }
 };
 
@@ -148,12 +148,12 @@ namespace {
 
     constexpr uint32_t getComponentMask(int componentType) {
         switch (componentType) {
-        case TINYGLTF_COMPONENT_TYPE_BYTE: return 0xff;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return 0xff;
-        case TINYGLTF_COMPONENT_TYPE_SHORT: return 0xffff;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return 0xffff;
-        case TINYGLTF_COMPONENT_TYPE_INT: return 0xffffffff;
-        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return 0xffffffff;
+        case TINYGLTF_COMPONENT_TYPE_BYTE: return 0xFF;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE: return 0xFF;
+        case TINYGLTF_COMPONENT_TYPE_SHORT: return 0xFFFF;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: return 0xFFFF;
+        case TINYGLTF_COMPONENT_TYPE_INT: return 0xFFFFFFFF;
+        case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: return 0xFFFFFFFF;
         default: ASSERTF(false, "unknown component type: {}", componentType);
         }
     }
@@ -178,13 +178,15 @@ namespace {
 
             for (const auto& primitive : mesh.primitives) {
                 auto texture = getTexture(model, primitive);
+
                 auto position = getAttribute(primitive.attributes.at("POSITION"), model);
                 auto uv = getAttribute(primitive.attributes.at("TEXCOORD_0"), model);
+                auto normal = getAttribute(primitive.attributes.at("NORMAL"), model);
 
                 ASSERT(position.format == rhi::Format::float32x3);                
                 ASSERT(uv.format == rhi::Format::float32x2);
 
-                auto data = getPrimitive(texture, position, uv, primitive.indices);
+                auto data = getPrimitive(texture, position, uv, primitive.indices, normal);
 
                 result.push_back(addPrimitive(data));
             }
@@ -217,8 +219,7 @@ namespace {
             return indexBuffer;
         }
 
-        assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices) {
-            ASSERT(position.format == rhi::Format::float32x3);
+        assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices, const AttributeData& normal) {
             std::unordered_map<assets::Vertex, uint32_t> indexCache;
 
             assets::VertexBuffer vertexBuffer;
@@ -227,7 +228,9 @@ namespace {
             for (size_t i = 0; i < position.length; i++) {
                 auto pos = loadVertex((float*)(position.data + i * position.stride));
                 auto coords = position.data == nullptr ? math::float2::of(0) : loadVec2((float*)(uv.data + i * uv.stride));
-                assets::Vertex vertex { pos, coords };
+                auto nrm = normal.data == nullptr ? math::float3::of(0) : loadVertex((float*)(normal.data + i * normal.stride));
+
+                assets::Vertex vertex { pos, nrm, coords };
 
                 if (indices == -1) {
                     if (auto iter = indexCache.find(vertex); iter != indexCache.end()) {
@@ -241,6 +244,20 @@ namespace {
                     }
                 } else {
                     vertexBuffer.push_back(vertex);
+                }
+            }
+
+            if (normal.data == nullptr) {
+                for (size_t i = 0; i < indexBuffer.size(); i += 3) {
+                    auto a = vertexBuffer[indexBuffer[i + 0]].position;
+                    auto b = vertexBuffer[indexBuffer[i + 1]].position;
+                    auto c = vertexBuffer[indexBuffer[i + 2]].position;
+
+                    auto n = float3::cross(b - a, c - a).normal();
+
+                    vertexBuffer[indexBuffer[i + 0]].normal = n;
+                    vertexBuffer[indexBuffer[i + 1]].normal = n;
+                    vertexBuffer[indexBuffer[i + 2]].normal = n;
                 }
             }
 

@@ -8,6 +8,7 @@
 namespace simcoe::assets {
     struct Vertex {
         math::float3 position;
+        math::float3 normal;
         math::float2 uv;
     };
 

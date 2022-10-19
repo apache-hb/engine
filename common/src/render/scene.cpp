@@ -9,6 +9,7 @@ using namespace simcoe::render;
 namespace {
     constexpr auto kInputLayout = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3, offsetof(assets::Vertex, position) },
+        { "NORMAL", rhi::Format::float32x3, offsetof(assets::Vertex, normal) },
         { "TEXCOORD", rhi::Format::float32x2, offsetof(assets::Vertex, uv) }
     });
 
@@ -29,7 +30,7 @@ namespace {
     });
 
     constexpr auto kSceneBindings = std::to_array<rhi::Binding>({
-        rhi::bindTable(rhi::ShaderVisibility::eVertex, kSceneBufferBindings), // register(b0) is per scene data
+        rhi::bindTable(rhi::ShaderVisibility::eAll, kSceneBufferBindings), // register(b0) is per scene data
         rhi::bindTable(rhi::ShaderVisibility::eVertex, kObjectBufferBindings), // register(b1) is per object data
         rhi::bindConst(rhi::ShaderVisibility::ePixel, 2, 1), // register(b2) is per primitive data
         rhi::bindTable(rhi::ShaderVisibility::ePixel, kSceneTextureBindings) // register(t0...) are all the textures
@@ -106,8 +107,12 @@ BasicScene::BasicScene(Create&& info)
 
 ID3D12CommandList *BasicScene::populate(Context *ctx) {
     if (ImGui::Begin("World")) {
+        float data[] = { light.x, light.y, light.z };
+        ImGui::SliderFloat3("Light", data, -5.f, 5.f);
+        light = { data[0], data[1], data[2] };
+
         ImGui::Text("Nodes");
-        if (ImGui::BeginTable("Nodes", 3, ImGuiTableFlags_Borders)) {
+        if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("Name");
             ImGui::TableSetupColumn("Properties");
             ImGui::TableHeadersRow();
@@ -155,7 +160,11 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     }
     ImGui::End();
 
+    // update light position
+    sceneData.data.light = light;
     sceneData.update(camera, aspectRatio);
+
+    // update object data
     updateObject(0, float4x4::identity());
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
@@ -218,7 +227,8 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
         .bindings = kSceneBindings,
         .input = kInputLayout,
         .ps = ps,
-        .vs = vs
+        .vs = vs,
+        .depth = true
     });
 
     commands.beginRecording(allocators[ctx->currentFrame()]);

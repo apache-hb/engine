@@ -360,7 +360,7 @@ rhi::Buffer Device::newDepthStencil(TextureSize size, CpuHandle handle) {
     return resource;
 }
 
-rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings, bool depth) {
+rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings) {
     const auto vs = createShader(bindings.vs);
     const auto ps = createShader(bindings.ps);
 
@@ -369,7 +369,7 @@ rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings
     auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
-    ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input, depth);
+    ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input, bindings.depth);
     return rhi::PipelineState(root, pipeline);
 }
 
@@ -389,7 +389,7 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-        .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
+        .DepthStencilState = depth ? CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT) : CD3DX12_DEPTH_STENCIL_DESC(),
         .InputLayout = {
             .pInputElementDescs = input.data(),
             .NumElements = UINT(input.size())
