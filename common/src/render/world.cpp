@@ -220,6 +220,8 @@ namespace {
         }
 
         assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices, const AttributeData& normal) {
+            log.info("primitive: texture: {}, position: {}, uv: {}, indices: {}, normal: {}", texture, position.length, uv.length, indices, normal.length);
+            
             std::unordered_map<assets::Vertex, uint32_t> indexCache;
 
             assets::VertexBuffer vertexBuffer;
@@ -248,7 +250,7 @@ namespace {
             }
 
             if (normal.data == nullptr) {
-                log.info("computing normals");
+                log.info("no vertex normals, computing normals");
                 // find all verticies that are part of the same face
                 std::unordered_map<uint32_t, std::vector<size_t>> connectedVertices;
                 std::unordered_map<size_t, math::float3> faceNormals;

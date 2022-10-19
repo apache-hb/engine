@@ -16,7 +16,7 @@ using namespace editor;
 
 namespace {
     com::UniqueComPtr<IDxcUtils> gUtils;
-    com::UniqueComPtr<IDxcCompiler> gCompiler;
+    com::UniqueComPtr<IDxcCompiler3> gCompiler;
 
     LPCWSTR getTargetEntry(shaders::Target target) {
         switch (target) {
@@ -38,7 +38,6 @@ namespace {
 void shaders::init() {
     DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&gUtils));
     DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&gCompiler));
-
 }
 
 std::vector<std::byte> shaders::compile(const std::string& text, shaders::Target target, bool debug) {

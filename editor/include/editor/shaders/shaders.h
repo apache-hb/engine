@@ -9,5 +9,7 @@ namespace editor::shaders {
         ePixelShader
     };
 
+    void init();
+
     std::vector<std::byte> compile(const std::string& source, Target target, bool debug);
 }
