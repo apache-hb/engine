@@ -24,10 +24,10 @@ namespace {
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 
     constexpr assets::Vertex kScreenQuad[] = {
-        { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }, // bottom left
-        { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },  // top left
-        { { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },  // bottom right
-        { { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } } // top right
+        { .position = { -1.0f, -1.0f, 0.0f }, .uv = { 0.0f, 1.0f } }, // bottom left
+        { .position = { -1.0f, 1.0f, 0.0f },  .uv = { 0.0f, 0.0f } },  // top left
+        { .position = { 1.0f,  -1.0f, 0.0f }, .uv = { 1.0f, 1.0f } },  // bottom right
+        { .position = { 1.0f,  1.0f, 0.0f },  .uv = { 1.0f, 0.0f } } // top right
     };
 
     constexpr uint32_t kScreenQuadIndices[] = {
@@ -36,8 +36,8 @@ namespace {
     };
 
     constexpr auto kInput = std::to_array<rhi::InputElement>({
-        { "POSITION", rhi::Format::float32x3 },
-        { "TEXCOORD", rhi::Format::float32x2 }
+        { "POSITION", rhi::Format::float32x3, offsetof(assets::Vertex, position) },
+        { "TEXCOORD", rhi::Format::float32x2 , offsetof(assets::Vertex, uv) }
     });
 
     constexpr auto kSamplers = std::to_array<rhi::Sampler>({

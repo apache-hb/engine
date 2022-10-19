@@ -248,20 +248,53 @@ namespace {
             }
 
             if (normal.data == nullptr) {
+                log.info("computing normals");
+                // find all verticies that are part of the same face
+                std::unordered_map<uint32_t, std::vector<size_t>> connectedVertices;
+                std::unordered_map<size_t, math::float3> faceNormals;
+
+                // find all joined verticies
                 for (size_t i = 0; i < indexBuffer.size(); i += 3) {
-                    auto a = vertexBuffer[indexBuffer[i + 0]].position;
-                    auto b = vertexBuffer[indexBuffer[i + 1]].position;
-                    auto c = vertexBuffer[indexBuffer[i + 2]].position;
+                    auto a = indexBuffer[i + 0];
+                    auto b = indexBuffer[i + 1];
+                    auto c = indexBuffer[i + 2];
 
-                    auto n = float3::cross(b - a, c - a).normal();
+                    auto faceNormal = float3::cross(vertexBuffer[b].position - vertexBuffer[a].position, vertexBuffer[c].position - vertexBuffer[a].position);
+                    faceNormals[i] = faceNormal;
 
-                    vertexBuffer[indexBuffer[i + 0]].normal = n;
-                    vertexBuffer[indexBuffer[i + 1]].normal = n;
-                    vertexBuffer[indexBuffer[i + 2]].normal = n;
+                    connectedVertices[a].push_back(i);
+                    connectedVertices[b].push_back(i);
+                    connectedVertices[c].push_back(i);
+                }
+
+                // compute the normal for each face
+                for (size_t i = 0; i < indexBuffer.size(); i += 3) {
+                    auto a = indexBuffer[i + 0];
+                    auto b = indexBuffer[i + 1];
+                    auto c = indexBuffer[i + 2];
+
+                    auto v1 = vertexBuffer[a].position;
+                    auto v2 = vertexBuffer[b].position;
+                    auto v3 = vertexBuffer[c].position;
+
+                    auto normal = float3::cross(v2 - v1, v3 - v1).normal();
+
+                    faceNormals[i + 0] = normal;
+                    faceNormals[i + 1] = normal;
+                    faceNormals[i + 2] = normal;
+                }
+
+                // compute the normal for each vertex
+                for (auto& [index, connected] : connectedVertices) {
+                    auto normal = math::float3::of(0);
+
+                    for (auto face : connected) {
+                        normal += faceNormals[face];
+                    }
+
+                    vertexBuffer[index].normal = normal.normal();
                 }
             }
-
-            logging::get(logging::eRender).info("primitive({}, {})", vertexBuffer.size(), indexBuffer.size());
 
             return { 
                 .texture = texture == SIZE_MAX ? world.textures.size() - 1 : texture,
@@ -290,6 +323,7 @@ namespace {
 
         assets::World world;
         const gltf::Model& model;
+        logging::Channel& log = logging::get(logging::eRender);
     };
 }
 

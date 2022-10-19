@@ -1,3 +1,11 @@
+#if DEBUG
+#   define DEBUG_NORMALS (1 << 0)
+#   define DEBUG_UVS (1 << 1)
+cbuffer DebugBuffer : register(b0, space1) {
+    uint debugFlags;
+};
+#endif
+
 cbuffer SceneBuffer : register(b0) {
     float4x4 camera; // camera matrix, column major
     float3 light; // light position
@@ -33,6 +41,14 @@ PSInput vsMain(float3 pos : POSITION, float3 normal : NORMAL, float2 uv : TEXCOO
 }
 
 float4 psMain(PSInput input) : SV_TARGET {
+#if DEBUG
+    if (debugFlags & DEBUG_NORMALS) {
+        return float4(input.normal.xyz, 1.f);
+    } else if (debugFlags & DEBUG_UVS) {
+        return float4(input.uv, 0.f, 1.f);
+    }
+#endif
+
     // diffuse lighting
     float3 lightDir = normalize(light - input.pos.xyz);
     float diffuse = max(0.f, dot(input.normal.xyz, lightDir));

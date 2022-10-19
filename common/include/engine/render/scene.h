@@ -15,26 +15,51 @@ namespace simcoe::render {
         std::vector<uint32_t> inidices;
     };
 
-    struct SceneBufferHandle {
-        void update(Camera *camera, float aspectRatio);
+    template<typename T>
+    struct ConstBuffer {
+        ConstBuffer() = default;
 
-        void attach(rhi::Device& device, rhi::CpuHandle handle);
+        ConstBuffer(rhi::Device& device, rhi::CpuHandle handle) {
+            attach(device, handle);
+        }
 
+        void attach(rhi::Device& device, rhi::CpuHandle handle) {
+            buffer = device.newBuffer(sizeof(T), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::eUpload);
+            device.createConstBufferView(buffer, sizeof(T), handle);
+            ptr = buffer.map();
+        }
+
+        void update(const T& in) {
+            data = in;
+            memcpy(ptr, &data, sizeof(T));
+        }
+
+        T& get() { return data; }
+        const T& get() const { return data; }
+
+    protected:
+        T data;
+
+    private:
         rhi::Buffer buffer;
         void *ptr;
-
-        SceneBuffer data;
     };
 
-    struct ObjectBufferHandle {
-        ObjectBufferHandle(rhi::Device& device, rhi::CpuHandle handle);
-        
-        void update(math::float4x4 transform);
+    struct DebugBufferHandle : ConstBuffer<DebugBuffer> {
+        using Super = ConstBuffer<DebugBuffer>;
+        using Super::Super;
+    };
 
-        rhi::Buffer buffer;
-        void *ptr;
+    struct SceneBufferHandle : ConstBuffer<SceneBuffer> {
+        using Super = ConstBuffer<SceneBuffer>;
+        using Super::Super;
 
-        ObjectBuffer data;
+        void update(Camera *camera, float aspectRatio, float3 light);
+    };
+
+    struct ObjectBufferHandle : ConstBuffer<ObjectBuffer> {
+        using Super = ConstBuffer<ObjectBuffer>;
+        using Super::Super;
     };
 
     struct BasicScene : RenderScene {
@@ -66,6 +91,7 @@ namespace simcoe::render {
         rhi::View view;
         float aspectRatio;
 
+        DebugBufferHandle debugData;
         SceneBufferHandle sceneData;
 
         std::vector<ObjectBufferHandle> objectData;

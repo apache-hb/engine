@@ -27,6 +27,7 @@ namespace simcoe {
             destroy();
         }
 
+        operator bool() const { return valid(); }
         bool valid() const { return data != Invalid; }
 
         T get() { ASSERT(valid()); return data; }

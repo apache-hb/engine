@@ -22,7 +22,7 @@ for target in targets.split(','):
     output_name = output + '.' + target + '.pso'
     args = [dxc, '-T' + target_model, '-E' + entry, '-Fo' + output_name, '-WX']
     if debug:
-        args += [ '-Zi' ]
+        args += [ '-Zi', '-DDEBUG=1', '-Qembed_debug' ]
     args += [ file ]
     
     print(' '.join(args))

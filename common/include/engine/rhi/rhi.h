@@ -4,6 +4,7 @@
 #include "engine/base/util.h"
 #include "engine/base/logging.h"
 #include "engine/container/unique.h"
+#include "engine/container/com/com.h"
 
 #include <span>
 #include <string_view>
@@ -13,25 +14,8 @@
 
 namespace simcoe::rhi {
     template<typename T>
-    concept IsComObject = std::is_base_of_v<IUnknown, T>;
+    using UniqueComPtr = com::UniqueComPtr<T>;
     
-    template<IsComObject T>
-    struct ComDeleter {
-        void operator()(T *ptr) {
-            ptr->Release();
-        }
-    };
-
-    template<IsComObject T>
-    struct UniqueComPtr : UniquePtr<T, ComDeleter<T>> {
-        using Super = UniquePtr<T, ComDeleter<T>>;
-        using Super::Super;
-
-        void release() {
-            Super::destroy();
-        }
-    };
-
     struct HandleDeleter {
         void operator()(HANDLE handle) {
             CloseHandle(handle);
@@ -116,6 +100,7 @@ namespace simcoe::rhi {
         Object::Type type;
         BindingMutability mutability;
         size_t count = 1;
+        size_t space = 0;
     };
 
     using BindingSpan = std::span<const BindingRange>;

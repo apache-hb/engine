@@ -80,7 +80,7 @@ namespace {
             .RangeType = D3D12_DESCRIPTOR_RANGE_TYPE(binding.type),
             .NumDescriptors = (binding.count == SIZE_MAX) ? UINT_MAX : UINT(binding.count),
             .BaseShaderRegister = UINT(binding.base),
-            .RegisterSpace = 0,
+            .RegisterSpace = UINT(binding.space),
             .Flags = D3D12_DESCRIPTOR_RANGE_FLAGS(binding.mutability),
             .OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
         };

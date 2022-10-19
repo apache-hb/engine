@@ -126,6 +126,18 @@ namespace simcoe::math {
         constexpr Vec3 operator*(T it) const {
             return from(x * it, y * it, z * it);
         }
+
+        constexpr Vec3 operator*=(T it) {
+            return *this = *this * it;
+        }
+
+        constexpr Vec3 operator+(const Vec3& it) const {
+            return from(x + it.x, y + it.y, z + it.z);
+        }
+
+        constexpr Vec3 operator+=(const Vec3& it) {
+            return *this = *this + it;
+        }
     };
 
     template<typename T>

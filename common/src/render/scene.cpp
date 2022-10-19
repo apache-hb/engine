@@ -1,4 +1,6 @@
 #include "engine/render/scene.h"
+#include "engine/render/data.h"
+#include "engine/rhi/rhi.h"
 #include "imgui.h"
 
 #include <array>
@@ -17,6 +19,10 @@ namespace {
         { rhi::ShaderVisibility::ePixel }
     });
 
+    constexpr auto kDebugBindings = std::to_array<rhi::BindingRange>({
+        { .base = 0, .type = rhi::Object::eConstBuffer, .mutability = rhi::BindingMutability::eAlwaysStatic, .space = 1 }
+    });
+
     constexpr auto kSceneBufferBindings = std::to_array<rhi::BindingRange>({
         { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }
     });
@@ -30,6 +36,8 @@ namespace {
     });
 
     constexpr auto kSceneBindings = std::to_array<rhi::Binding>({
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, kDebugBindings), // register(b0, space1) is debug data
+
         rhi::bindTable(rhi::ShaderVisibility::eAll, kSceneBufferBindings), // register(b0) is per scene data
         rhi::bindTable(rhi::ShaderVisibility::eVertex, kObjectBufferBindings), // register(b1) is per object data
         rhi::bindConst(rhi::ShaderVisibility::ePixel, 2, 1), // register(b2) is per primitive data
@@ -44,6 +52,7 @@ namespace {
      */
     namespace Slots {
         enum Slot : unsigned {
+            eDebugBuffer, // debug data
             eSceneBuffer, // camera matrix
             eTotal
         };
@@ -69,30 +78,11 @@ namespace {
     };
 }
 
-void SceneBufferHandle::attach(rhi::Device& device, rhi::CpuHandle handle) {
-    buffer = device.newBuffer(sizeof(SceneBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::eUpload);
-    device.createConstBufferView(buffer, sizeof(SceneBuffer), handle);    
-    
-    ptr = buffer.map();
-}
-
-void SceneBufferHandle::update(Camera *camera, float aspectRatio) {
-    data.camera = camera->mvp(float4x4::identity(), aspectRatio);
-    memcpy(ptr, &data, sizeof(SceneBuffer));
-}
-
-ObjectBufferHandle::ObjectBufferHandle(rhi::Device& device, rhi::CpuHandle handle) {
-    buffer = device.newBuffer(sizeof(SceneBuffer), rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::eUpload);
-    device.createConstBufferView(buffer, sizeof(ObjectBuffer), handle);
-
-    ptr = buffer.map();
-
-    update(float4x4::identity());
-}
-
-void ObjectBufferHandle::update(math::float4x4 transform) {
-    data = { .transform = transform, .texture = 0 };
-    memcpy(ptr, &data, sizeof(ObjectBuffer));
+void SceneBufferHandle::update(Camera *camera, float aspectRatio, float3 light) {
+    Super::update({
+        .camera = camera->mvp(float4x4::identity(), aspectRatio),
+        .light = light
+    });
 }
 
 BasicScene::BasicScene(Create&& info) 
@@ -110,6 +100,19 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
         float data[] = { light.x, light.y, light.z };
         ImGui::SliderFloat3("Light", data, -5.f, 5.f);
         light = { data[0], data[1], data[2] };
+
+        {
+            auto& dbg = debugData.get();
+            bool bNormalDebug = dbg.debugFlags & kDebugNormals;
+            bool bTexcoordDebug = dbg.debugFlags & kDebugUVs;
+
+            ImGui::Checkbox("Debug Normals", &bNormalDebug);
+            ImGui::Checkbox("Debug UVs", &bTexcoordDebug);
+
+            debugData.update({
+                .debugFlags = (bNormalDebug ? kDebugNormals : 0) | (bTexcoordDebug ? kDebugUVs : 0)
+            });
+        }
 
         ImGui::Text("Nodes");
         if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
@@ -161,8 +164,7 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     ImGui::End();
 
     // update light position
-    sceneData.data.light = light;
-    sceneData.update(camera, aspectRatio);
+    sceneData.update(camera, aspectRatio, light);
 
     // update object data
     updateObject(0, float4x4::identity());
@@ -177,19 +179,18 @@ ID3D12CommandList *BasicScene::populate(Context *ctx) {
     auto kDescriptors = std::to_array({ cbvHeap.get() });
     commands.bindDescriptors(kDescriptors);
 
-    //commands.setVertexBuffers(vertexBufferViews);
-
     // bind data that wont change
-    commands.bindTable(0, cbvHeap.gpuHandle(Slots::eSceneBuffer));
-    commands.bindTable(3, getTextureGpuHandle(0));
+    commands.bindTable(0, cbvHeap.gpuHandle(Slots::eDebugBuffer));
+    commands.bindTable(1, cbvHeap.gpuHandle(Slots::eSceneBuffer));
+    commands.bindTable(4, getTextureGpuHandle(0));
 
     for (size_t i = 0; i < std::size(world->nodes); i++) {
         const auto& node = world->nodes[i];
-        commands.bindTable(1, getObjectBufferGpuHandle(i));
+        commands.bindTable(2, getObjectBufferGpuHandle(i));
 
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
-            commands.bindConst(2, 0, uint32_t(primitive.texture));
+            commands.bindConst(3, 0, uint32_t(primitive.texture));
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
@@ -215,6 +216,7 @@ ID3D12CommandList *BasicScene::attach(Context *ctx) {
 
     depthBuffer = device.newDepthStencil(resolution, dsvHeap.cpuHandle(DepthSlots::eDepthStencil));
 
+    debugData.attach(device, cbvHeap.cpuHandle(Slots::eDebugBuffer));
     sceneData.attach(device, cbvHeap.cpuHandle(Slots::eSceneBuffer));
 
     commands = device.newCommandList(allocators[ctx->currentFrame()], rhi::CommandList::Type::eDirect);
@@ -283,7 +285,7 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
     const auto &node = world->nodes[index];
     
     auto transform = parent * world->nodes[index].transform;
-    objectData[index].update(transform);
+    objectData[index].update({ .transform = transform, .texture = 0 });
     for (size_t child : node.children) {
         updateObject(child, transform);
     }
