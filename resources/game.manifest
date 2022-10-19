@@ -2,8 +2,10 @@
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity type="win32" name="game" version="6.0.0.0"/>
   <application>
+    <supportedOS>{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}</supportedOS> <!-- we only support windows 10 and up -->
     <windowsSettings>
-      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+      <dpiAware>true/pm</dpiAware> <!-- we are per monitor dpi aware -->
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage> <!-- we want utf8 A suffix apis -->
     </windowsSettings>
   </application>
 </assembly>

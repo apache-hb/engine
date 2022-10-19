@@ -5,35 +5,16 @@
 
 namespace simcoe::memory {
     struct BitMap {
-        BitMap(size_t size)
-            : size(size)
-            , bits(new uint64_t[size / 64 + 1])
-        { }
+        BitMap(size_t size);
 
-        size_t alloc(size_t count = 1) {
-            for (size_t i = 0; i < size; i += 64) {
-                if (isRangeFree(i, count)) {
-                    setRange(i, count);
-                    return i;
-                }
-            }
-            return SIZE_MAX;
-        }
+        size_t alloc(size_t count = 1);
+
     private:
-        bool isRangeFree(size_t start, size_t length) const {
-            for (size_t i = start; i < start + length; ++i) {
-                if (bits[i / 64] & (1 << (i % 64))) {
-                    return false;
-                }
-            }
-            return true;
-        }
+        bool isRangeFree(size_t start, size_t length) const;
+        void setRange(size_t start, size_t length);
 
-        void setRange(size_t start, size_t length) {
-            for (size_t i = start; i < start + length; ++i) {
-                bits[i / 64] |= (1 << (i % 64));
-            }
-        }
+        bool isSet(size_t bit) const;
+        void setBit(size_t bit);
 
         size_t size;
         UniquePtr<uint64_t[]> bits;

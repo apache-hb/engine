@@ -118,7 +118,7 @@ namespace simcoe::input {
 
     struct Keyboard final : Source {
         using KeyState = size_t[256];
-        Keyboard();
+        Keyboard(bool capture = false);
 
         bool poll(State* pState) override;
 

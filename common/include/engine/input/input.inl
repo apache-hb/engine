@@ -70,10 +70,10 @@ KEY(keyTilde, "input.key.tilde")
 KEY(keyEsc, "input.key.esc")
 
 // gamepad input
-KEY(padDirectionLeft, "input.button.left")
-KEY(padDirectionRight, "input.button.right")
-KEY(padDirectionUp, "input.button.up")
-KEY(padDirectionDown, "input.button.down")
+KEY(padDirectionLeft, "input.pad.left")
+KEY(padDirectionRight, "input.pad.right")
+KEY(padDirectionUp, "input.pad.up")
+KEY(padDirectionDown, "input.pad.down")
 
 // letter keys on xbox, shape keys on ps4
 KEY(padButtonLeft, "input.button.left")

@@ -18,6 +18,22 @@ base = declare_dependency(
     include_directories : 'include'
 )
 
+src = [
+    'src/memory/bitmap.cpp'
+]
+
+libmemory = library('memory', src,
+    cpp_args : args,
+    include_directories : 'include',
+    dependencies : base
+)
+
+memory = declare_dependency(
+    link_with : libmemory,
+    include_directories : 'include',
+    dependencies : base
+)
+
 subdir('vendor')
 
 src = [ 'src/locale/locale.cpp' ]
@@ -119,12 +135,12 @@ src = [
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, window, gltf ],
+    dependencies : [ base, rhi, window, memory, gltf ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, window ],
+    dependencies : [ base, rhi, window, memory ],
     include_directories : 'include'
 )

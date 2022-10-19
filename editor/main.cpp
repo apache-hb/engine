@@ -21,7 +21,8 @@
 #include <fstream>
 
 using namespace simcoe;
-using namespace math;
+using namespace simcoe::math;
+using namespace simcoe::input;
 
 constexpr float kMoveSensitivity = 0.001f;
 constexpr float kLookSensitivity = 0.001f;
@@ -84,22 +85,44 @@ namespace editor {
         }
     }
 }
+
 struct CameraListener final : input::Listener {
-    CameraListener(render::Perspective &camera)
-        : camera(camera)
+    float speedMultiplier { 1.f };
+    CameraListener(render::Perspective& camera, Keyboard& keyboard) 
+        : camera(camera) 
+        , console(!keyboard.isEnabled())
+        , keyboard(keyboard)
     { }
 
     bool update(const input::State& input) override {
         state = input;
 
+        if (console.update(input.key[Key::keyTilde])) {
+            logging::get(logging::eInput).info("console: {}", console.get());
+
+            keyboard.captureInput(!console.get());
+        }
+
+        // imgui should capture input if the console is open
+        ImGui::SetNextFrameWantCaptureKeyboard(console.get());
+        ImGui::SetNextFrameWantCaptureMouse(console.get());
+        
+        if (console.get()) {
+            return true;
+        }
+
+        float x = getAxis(input, Key::keyA, Key::keyD);
+        float y = getAxis(input, Key::keyS, Key::keyW);
+        float z = getAxis(input, Key::keyQ, Key::keyE);
+
         math::float3 offset = {
-            .x = state.axis[input::Axis::padLeftStickHorizontal] * kMoveSensitivity,
-            .y = state.axis[input::Axis::padLeftStickVertical] * kMoveSensitivity,
-            .z = (state.axis[input::Axis::padRightTrigger] - state.axis[input::Axis::padLeftTrigger]) * kMoveSensitivity
+            .x = (x + state.axis[Axis::padLeftStickHorizontal]) * kMoveSensitivity * speedMultiplier,
+            .y = (y + state.axis[Axis::padLeftStickVertical]) * kMoveSensitivity * speedMultiplier,
+            .z = (z + (state.axis[Axis::padRightTrigger] - state.axis[Axis::padLeftTrigger])) * kMoveSensitivity * speedMultiplier
         };
 
-        float yaw = state.axis[input::Axis::padRightStickHorizontal] * kLookSensitivity;
-        float pitch = state.axis[input::Axis::padRightStickVertical] * kLookSensitivity;
+        float yaw = (state.axis[Axis::mouseHorizontal] + state.axis[Axis::padRightStickHorizontal]) * kLookSensitivity;
+        float pitch = (state.axis[Axis::mouseVertical] + state.axis[Axis::padRightStickVertical]) * kLookSensitivity;
 
         camera.rotate(yaw, pitch);
         camera.move(offset);
@@ -115,6 +138,8 @@ struct CameraListener final : input::Listener {
             ImGui::Text("Device: %s", locale::get(state.source).data());
             ImGui::Text("Position: %f, %f, %f", x, y, z);
             ImGui::Text("Rotation: %f, %f, %f", yaw, pitch, roll);
+
+            ImGui::SliderFloat("Speed", &speedMultiplier, 0.1f, 10.f);
 
             if (ImGui::BeginTable("Input state", 2, ImGuiTableFlags_Borders)) {
                 ImGui::TableSetupColumn("Key");
@@ -144,8 +169,20 @@ struct CameraListener final : input::Listener {
     }
 
 private:
+    float getAxis(const input::State& input, Key::Slot negative, Key::Slot positive) {
+        if (!input.key[negative] && !input.key[positive]) {
+            return 0.f;
+        }
+
+        return (input.key[negative] > input.key[positive]) ? -1.f : 1.f;
+    }
+
     Timer timer;
+
     render::Perspective& camera;
+    Toggle console { true };
+    
+    input::Keyboard &keyboard;
 
     input::State state { };
 };
@@ -170,7 +207,7 @@ int commonMain() {
     });
 
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\BoomBoxWithAxes\\glTF\\BoomBoxWithAxes.gltf");
+    auto world = assets::loadGltf("D:\\assets\\amongus\\amongus\\amongus.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
@@ -179,7 +216,7 @@ int commonMain() {
     input::Keyboard keyboard { };
     input::Gamepad gamepad { 0 };
 
-    CameraListener state { camera };
+    CameraListener state { camera, keyboard };
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 

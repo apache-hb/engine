@@ -2,7 +2,10 @@
 
 #include "engine/container/unique.h"
 
+#include "engine/memory/bitmap.h"
+
 #include "engine/base/logging.h"
+#include "engine/rhi/rhi.h"
 #include "engine/window/window.h"
 
 #include "engine/render/world.h"
@@ -10,6 +13,7 @@
 
 namespace simcoe::render {
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
+    constexpr size_t kHeapSize = 1024;
 
     std::vector<std::byte> loadShader(std::string_view path);
 
@@ -18,7 +22,7 @@ namespace simcoe::render {
     struct RenderScene {
         RenderScene(rhi::TextureSize resolution) : resolution(resolution) { }
 
-        virtual ID3D12CommandList *populate(Context *ctx) = 0;
+        virtual ID3D12CommandList *populate() = 0;
         virtual ID3D12CommandList *attach(Context *ctx) = 0;
         virtual ~RenderScene() = default;
 
@@ -50,6 +54,12 @@ namespace simcoe::render {
         rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
 
         rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(frames); }
+
+        rhi::CpuHandle getCbvCpuHandle(size_t offset) { return cbvHeap.cpuHandle(offset); }
+        rhi::GpuHandle getCbvGpuHandle(size_t offset) { return cbvHeap.gpuHandle(offset); }
+
+        memory::BitMap& getAlloc() { return cbvAlloc; }
+        rhi::DescriptorSet &getHeap() { return cbvHeap; }
 
     private:
         Window *window;
@@ -105,11 +115,15 @@ namespace simcoe::render {
 
         // scene data set
         // contains texture, imgui data, and the camera buffer
-        rhi::DescriptorSet postHeap;
-        
+        rhi::DescriptorSet cbvHeap;
+        memory::BitMap cbvAlloc;
+
         // sync objects
         rhi::Fence fence;
         size_t fenceValue = 0;
         size_t frameIndex;
+
+        size_t intermediateHeapOffset;
+        size_t imguiHeapOffset;
     };
 }

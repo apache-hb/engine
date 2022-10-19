@@ -62,10 +62,10 @@ input.key.right-ctrl: Right control
 input.key.left-alt: Left alt
 input.key.right-alt: Right alt
 
-input.button.left: Dpad left
-input.button.right: Dpad right
-input.button.up: Dpad up
-input.button.down: Dpad down
+input.pad.left: Dpad left
+input.pad.right: Dpad right
+input.pad.up: Dpad up
+input.pad.down: Dpad down
 
 input.button.left: X
 input.button.right: B

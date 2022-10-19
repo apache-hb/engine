@@ -71,10 +71,11 @@ namespace simcoe::render {
 
         BasicScene(Create&& info);
 
-        ID3D12CommandList *populate(Context *ctx) override;
+        ID3D12CommandList *populate() override;
         ID3D12CommandList *attach(Context *ctx) override;
 
     private:
+        Context *ctx;
         Camera *camera;
         assets::World *world;
 
@@ -91,6 +92,9 @@ namespace simcoe::render {
         rhi::View view;
         float aspectRatio;
 
+        size_t debugBufferOffset;
+        size_t sceneBufferOffset;
+        
         DebugBufferHandle debugData;
         SceneBufferHandle sceneData;
 
@@ -101,7 +105,9 @@ namespace simcoe::render {
         rhi::DescriptorSet dsvHeap;
         rhi::Buffer depthBuffer;
 
-        rhi::DescriptorSet cbvHeap;
+        size_t objectBufferOffset;
+        size_t textureBufferOffset;
+
         rhi::CommandList commands;
 
         std::vector<rhi::Buffer> vertexBuffers;

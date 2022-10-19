@@ -8,14 +8,6 @@ using namespace simcoe::render;
 #define DX_NAME(it) it->SetName(L"" #it)
 
 namespace {
-    namespace PostSlots {
-        enum Slot : unsigned {
-            eImgui, // imgui const buffer
-            eFrame, // intermediate render target
-            eTotal
-        };
-    }
-
     constexpr size_t totalRenderTargets(size_t frames) {
         return frames + 1;
     }
@@ -63,6 +55,7 @@ Context::Context(Create &&info)
     , scene(info.scene)
     , frames(info.frames)
     , device(rhi::getDevice()) 
+    , cbvAlloc(kHeapSize)
 {
     auto [width, height] = window->size();
     updateViewports({ size_t(width), size_t(height) }, scene->resolution);
@@ -107,9 +100,12 @@ void Context::create() {
 
     renderTargetSet = device.newDescriptorSet(totalRenderTargets(frames), rhi::DescriptorSet::Type::eRenderTarget, false);
 
-    postHeap = device.newDescriptorSet(PostSlots::eTotal, rhi::DescriptorSet::Type::eConstBuffer, true);
+    cbvHeap = device.newDescriptorSet(kHeapSize, rhi::DescriptorSet::Type::eConstBuffer, true);
 
-    DX_NAME(postHeap);
+    intermediateHeapOffset = cbvAlloc.alloc();
+    imguiHeapOffset = cbvAlloc.alloc();
+
+    DX_NAME(cbvHeap);
 
     // TODO: iterators again
     postAllocators = {frames};
@@ -125,7 +121,7 @@ void Context::create() {
     intermediateTarget = std::move(result.buffer);
 
     device.createRenderTargetView(intermediateTarget, renderTargetSet.cpuHandle(frames));
-    device.createTextureBufferView(intermediateTarget, postHeap.cpuHandle(PostSlots::eFrame));
+    device.createTextureBufferView(intermediateTarget, cbvHeap.cpuHandle(intermediateHeapOffset));
 
     DX_NAME(intermediateTarget);
 
@@ -189,7 +185,7 @@ void Context::create() {
 
     // release copy resources that are no longer needed
     pendingCopies.resize(0);
-    device.imguiInit(frames, postHeap, postHeap.cpuHandle(PostSlots::eImgui), postHeap.gpuHandle(PostSlots::eImgui));
+    device.imguiInit(frames, cbvHeap, cbvHeap.cpuHandle(imguiHeapOffset), cbvHeap.gpuHandle(imguiHeapOffset));
 }
 
 void Context::begin() {
@@ -199,7 +195,7 @@ void Context::begin() {
 }
 
 void Context::end() {
-    ID3D12CommandList *sceneCommands = scene->populate(this);
+    ID3D12CommandList *sceneCommands = scene->populate();
 
     endPost();
 
@@ -239,7 +235,7 @@ void Context::createRenderTargets() {
 
 // draw the intermediate render target to the screen
 void Context::beginPost() {
-    auto kDescriptors = std::to_array({ postHeap.get() });
+    auto kDescriptors = std::to_array({ cbvHeap.get() });
     auto kVerts = std::to_array({ vertexBufferView });
     auto kTransitions = std::to_array({
         rhi::newStateTransition(renderTargets[frameIndex], BufferState::ePresent, BufferState::eRenderTarget),
@@ -254,7 +250,7 @@ void Context::beginPost() {
     // transition into rendering to the intermediate
     postCommands.transition(kTransitions);
 
-    postCommands.bindTable(0, postHeap.gpuHandle(PostSlots::eFrame));
+    postCommands.bindTable(0, cbvHeap.gpuHandle(intermediateHeapOffset));
     postCommands.setViewAndScissor(postView);
 
     postCommands.setVertexBuffers(kVerts);

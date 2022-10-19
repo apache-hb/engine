@@ -62,10 +62,10 @@ input.key.right-ctrl: Prawa kontrola
 input.key.left-alt: Lewy alt
 input.key.right-alt: Prawy alt
 
-input.button.left: Pad kierunkowy w lewo
-input.button.right: Pad kierunkowy w prawo
-input.button.up: Pad kierunkowy w górę
-input.button.down: Pad kierunkowy w dół
+input.pad.left: Pad kierunkowy w lewo
+input.pad.right: Pad kierunkowy w prawo
+input.pad.up: Pad kierunkowy w górę
+input.pad.down: Pad kierunkowy w dół
 
 input.button.left: X
 input.button.right: B

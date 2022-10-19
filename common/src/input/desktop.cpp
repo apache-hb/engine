@@ -93,8 +93,11 @@ namespace {
     };
 }
 
-Keyboard::Keyboard() : Source(Device::eDesktop) {
-    captureInput(true); 
+Keyboard::Keyboard(bool capture) 
+    : Source(Device::eDesktop)
+    , enabled(capture) 
+{
+    captureInput(capture); 
 }
 
 bool Keyboard::poll(State *pState) {
