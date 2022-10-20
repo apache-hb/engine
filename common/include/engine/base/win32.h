@@ -7,4 +7,6 @@
 
 namespace simcoe::win32 {
     void init();
+
+    void showCursor(bool show);
 }

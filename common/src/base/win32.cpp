@@ -15,3 +15,13 @@ void win32::init() {
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
 }
+
+void win32::showCursor(bool show) {
+
+    // ShowCursor maintans an internal counter, so we need to call it repeatedly
+    if (show) {
+        while (ShowCursor(true) < 0);
+    } else {
+        while (ShowCursor(false) >= 0);
+    }
+}

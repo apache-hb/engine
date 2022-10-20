@@ -148,7 +148,7 @@ int commonMain() {
 
     render::Context render { { window.get(), &scene } };
 
-    input::Keyboard keyboard { };
+    input::Keyboard keyboard { true };
     input::Gamepad gamepad { 0 };
 
     CameraListener state { camera, keyboard };

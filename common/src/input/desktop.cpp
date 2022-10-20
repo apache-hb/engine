@@ -93,11 +93,8 @@ namespace {
     };
 }
 
-Keyboard::Keyboard(bool capture) 
-    : Source(Device::eDesktop)
-    , enabled(capture) 
-{
-    captureInput(capture); 
+Keyboard::Keyboard(bool capture) : Source(Device::eDesktop), enabled(true) {
+    captureInput(capture);
 }
 
 bool Keyboard::poll(State *pState) {
@@ -114,8 +111,10 @@ bool Keyboard::poll(State *pState) {
 }
 
 void Keyboard::captureInput(bool capture) {
+    if (enabled == capture) { return; }
+
     enabled = capture;
-    ShowCursor(!capture);
+    win32::showCursor(!enabled);
 }
 
 void Keyboard::update(HWND hwnd, const KeyState newKeys) {
