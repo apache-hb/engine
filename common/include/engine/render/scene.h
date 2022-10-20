@@ -4,8 +4,6 @@
 #include "engine/render/world.h"
 #include "engine/render/data.h"
 
-#include "engine/container/unique.h"
-
 namespace simcoe::render {
     struct Object {
         std::vector<std::byte> vs;
@@ -80,8 +78,6 @@ namespace simcoe::render {
         assets::World *world;
 
         void updateObject(size_t index, math::float4x4 parent);
-
-        size_t cbvSetSize() const;
         
         rhi::GpuHandle getObjectBufferGpuHandle(size_t index);
         rhi::CpuHandle getObjectBufferCpuHandle(size_t index);

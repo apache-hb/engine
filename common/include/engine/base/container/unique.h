@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/container/resource.h"
+#include "engine/base/container/resource.h"
 
 namespace simcoe {
     template<typename T>

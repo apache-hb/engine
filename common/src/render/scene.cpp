@@ -272,10 +272,6 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
     }
 }
 
-size_t BasicScene::cbvSetSize() const {
-    return std::size(world->nodes) + std::size(world->textures);
-}
-
 rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
     return ctx->getCbvGpuHandle(objectBufferOffset + index);
 }
