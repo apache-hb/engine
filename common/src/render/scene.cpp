@@ -137,7 +137,7 @@ ID3D12CommandList *BasicScene::populate() {
     }
     ImGui::End();
 
-    // update light position
+    // update light and camera position
     sceneData.update(camera, aspectRatio, light);
 
     // update object data
