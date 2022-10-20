@@ -46,7 +46,7 @@ namespace {
 }
 
 std::vector<std::byte> render::loadShader(std::string_view path) {
-    Io *io = Io::open(path, Io::eRead);
+    UniquePtr<Io> io { Io::open(path, Io::eRead) };
     return io->read<std::byte>();
 }
 
@@ -57,8 +57,7 @@ Context::Context(Create &&info)
     , device(rhi::getDevice()) 
     , cbvAlloc(kHeapSize)
 {
-    auto [width, height] = window->size();
-    updateViewports({ size_t(width), size_t(height) }, scene->resolution);
+    updateViewports(window->size().as<size_t>(), scene->resolution);
     create();
 }
 

@@ -22,7 +22,13 @@ namespace simcoe::math {
 
         template<typename U>
         constexpr U aspectRatio() const {
-            return U(width) / U(height);
+            auto [w, h] = as<U>();
+            return w / h;
+        }
+
+        template<typename U>
+        constexpr Resolution<U> as() const {
+            return { U(width), U(height) };
         }
     };
 
