@@ -17,7 +17,6 @@ void win32::init() {
 }
 
 void win32::showCursor(bool show) {
-
     // ShowCursor maintans an internal counter, so we need to call it repeatedly
     if (show) {
         while (ShowCursor(true) < 0);
