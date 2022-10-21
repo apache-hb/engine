@@ -5,7 +5,7 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
-#define DX_NAME(it) it->SetName(L"" #it)
+#define DX_NAME(it) it.rename("" #it)
 
 namespace {
     constexpr size_t totalRenderTargets(size_t frames) {
@@ -101,8 +101,10 @@ void Context::create() {
 
     cbvHeap = device.newDescriptorSet(kHeapSize, rhi::DescriptorSet::Type::eConstBuffer, true);
 
-    intermediateHeapOffset = cbvAlloc.alloc();
-    imguiHeapOffset = cbvAlloc.alloc();
+    cbvHeap.rename("cbv-heap");
+
+    intermediateHeapOffset = cbvAlloc.alloc(DescriptorSlot::eIntermediate);
+    imguiHeapOffset = cbvAlloc.alloc(DescriptorSlot::eImGui);
 
     DX_NAME(cbvHeap);
 

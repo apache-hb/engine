@@ -13,7 +13,15 @@
 
 namespace simcoe::rhi {
     template<typename T>
-    using UniqueComPtr = com::UniqueComPtr<T>;
+    struct UniqueObject : com::UniqueComPtr<T> {
+        using Super = com::UniqueComPtr<T>;
+        using Super::Super;
+
+        UniqueObject& rename(std::string_view name) {
+            Super::get()->SetName(strings::widen(name).c_str());
+            return *this;
+        }
+    };
     
     struct HandleDeleter {
         void operator()(HANDLE handle) {
@@ -87,6 +95,7 @@ namespace simcoe::rhi {
 
     enum struct BindingMutability {
         eAlwaysStatic = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC,
+        eBindless = D3D12_DESCRIPTOR_RANGE_FLAG_DESCRIPTORS_VOLATILE,
         eStaticAtExecute = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
     };
     
@@ -146,15 +155,15 @@ namespace simcoe::rhi {
         bool depth = false;
     };
 
-    struct Allocator final : UniqueComPtr<ID3D12CommandAllocator> {
-        using Super = UniqueComPtr<ID3D12CommandAllocator>;
+    struct Allocator final : UniqueObject<ID3D12CommandAllocator> {
+        using Super = UniqueObject<ID3D12CommandAllocator>;
         using Super::Super;
 
         void reset();
     };
 
-    struct Buffer final : UniqueComPtr<ID3D12Resource> {
-        using Super = UniqueComPtr<ID3D12Resource>;
+    struct Buffer final : UniqueObject<ID3D12Resource> {
+        using Super = UniqueObject<ID3D12Resource>;
         using Super::Super;
 
         enum State {
@@ -207,8 +216,8 @@ namespace simcoe::rhi {
         };
     }
 
-    struct Fence final : UniqueComPtr<ID3D12Fence> {
-        using Super = UniqueComPtr<ID3D12Fence>;
+    struct Fence final : UniqueObject<ID3D12Fence> {
+        using Super = UniqueObject<ID3D12Fence>;
         using Super::Super;
 
         Fence(ID3D12Fence *fence = nullptr);
@@ -219,8 +228,8 @@ namespace simcoe::rhi {
         UniqueHandle event;
     };
     
-    struct DescriptorSet final : UniqueComPtr<ID3D12DescriptorHeap> {
-        using Super = UniqueComPtr<ID3D12DescriptorHeap>;
+    struct DescriptorSet final : UniqueObject<ID3D12DescriptorHeap> {
+        using Super = UniqueObject<ID3D12DescriptorHeap>;
         using Super::Super;
 
         enum struct Type {
@@ -246,12 +255,17 @@ namespace simcoe::rhi {
     struct PipelineState final {
         PipelineState(ID3D12RootSignature *signature = nullptr, ID3D12PipelineState *pipeline = nullptr);
 
-        UniqueComPtr<ID3D12RootSignature> signature;
-        UniqueComPtr<ID3D12PipelineState> pipeline;
+        void rename(std::string_view name) {
+            signature.rename(std::format("{}.signature", name));
+            pipeline.rename(std::format("{}.pipeline", name));
+        }
+
+        UniqueObject<ID3D12RootSignature> signature;
+        UniqueObject<ID3D12PipelineState> pipeline;
     };
 
-    struct CommandList final : UniqueComPtr<ID3D12GraphicsCommandList> {
-        using Super = UniqueComPtr<ID3D12GraphicsCommandList>;
+    struct CommandList final : UniqueObject<ID3D12GraphicsCommandList> {
+        using Super = UniqueObject<ID3D12GraphicsCommandList>;
         using Super::Super;
 
         enum struct Type {
@@ -284,8 +298,8 @@ namespace simcoe::rhi {
         void imgui();
     };
     
-    struct SwapChain final : UniqueComPtr<IDXGISwapChain3> {
-        using Super = UniqueComPtr<IDXGISwapChain3>;
+    struct SwapChain final : UniqueObject<IDXGISwapChain3> {
+        using Super = UniqueObject<IDXGISwapChain3>;
         using Super::Super;
 
         SwapChain(IDXGISwapChain3 *swapchain = nullptr, bool tearing = false);
@@ -301,8 +315,8 @@ namespace simcoe::rhi {
         UINT presentFlags;
     };
 
-    struct CommandQueue final : UniqueComPtr<ID3D12CommandQueue> {
-        using Super = UniqueComPtr<ID3D12CommandQueue>;
+    struct CommandQueue final : UniqueObject<ID3D12CommandQueue> {
+        using Super = UniqueObject<ID3D12CommandQueue>;
         using Super::Super;
 
         SwapChain newSwapChain(Window *window, size_t buffers);
@@ -316,8 +330,8 @@ namespace simcoe::rhi {
         size_t uploadSize;
     };
 
-    struct Device final : UniqueComPtr<ID3D12Device> {
-        using Super = UniqueComPtr<ID3D12Device>;
+    struct Device final : UniqueObject<ID3D12Device> {
+        using Super = UniqueObject<ID3D12Device>;
         using Super::Super;
 
         Device(ID3D12Device *device);

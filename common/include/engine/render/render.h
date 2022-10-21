@@ -29,6 +29,36 @@ namespace simcoe::render {
         rhi::TextureSize resolution;
     };
 
+    namespace DescriptorSlot {
+        enum Slot : unsigned {
+            eDebugBuffer,
+            eSceneBuffer,
+            eObjectBuffer,
+            eTexture,
+
+            eImGui,
+            eIntermediate,
+
+            eEmpty
+        };
+
+        constexpr const char *getSlotName(Slot slot) {
+            switch (slot) {
+            case eDebugBuffer: return "debug-buffer";
+            case eSceneBuffer: return "scene-buffer";
+            case eObjectBuffer: return "object-buffer";
+            case eTexture: return "texture";
+
+            case eImGui: return "imgui";
+            case eIntermediate: return "intermediate";
+            
+            default: return "empty";
+            }
+        }
+    }
+
+    using SlotMap = memory::DebugBitMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
+
     struct Context {
         struct Create {
             Window *window; // window to attach to
@@ -58,7 +88,7 @@ namespace simcoe::render {
         rhi::CpuHandle getCbvCpuHandle(size_t offset) { return cbvHeap.cpuHandle(offset); }
         rhi::GpuHandle getCbvGpuHandle(size_t offset) { return cbvHeap.gpuHandle(offset); }
 
-        memory::BitMap& getAlloc() { return cbvAlloc; }
+        SlotMap& getAlloc() { return cbvAlloc; }
         rhi::DescriptorSet &getHeap() { return cbvHeap; }
 
     private:
@@ -116,7 +146,7 @@ namespace simcoe::render {
         // scene data set
         // contains texture, imgui data, and the camera buffer
         rhi::DescriptorSet cbvHeap;
-        memory::BitMap cbvAlloc;
+        SlotMap cbvAlloc;
 
         // sync objects
         rhi::Fence fence;

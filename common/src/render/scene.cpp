@@ -1,5 +1,7 @@
 #include "engine/render/scene.h"
+#include "engine/base/logging.h"
 #include "engine/render/data.h"
+#include "engine/render/render.h"
 #include "engine/rhi/rhi.h"
 #include "imgui.h"
 
@@ -33,7 +35,7 @@ namespace {
     });
 
     constexpr auto kSceneTextureBindings = std::to_array<rhi::BindingRange>({
-        { 0, rhi::Object::eTexture, rhi::BindingMutability::eAlwaysStatic, SIZE_MAX }
+        { 0, rhi::Object::eTexture, rhi::BindingMutability::eBindless, SIZE_MAX }
     });
 
     constexpr auto kSceneBindings = std::to_array<rhi::Binding>({
@@ -74,6 +76,21 @@ BasicScene::BasicScene(Create&& info)
 }
 
 ID3D12CommandList *BasicScene::populate() {
+    if (ImGui::Begin("Heap")) {
+        auto& alloc = ctx->getAlloc();
+
+        ImGui::Text("Heap: %zu / %zu", alloc.getUsed(), alloc.getSize());
+
+        if (ImGui::BeginListBox("Slots")) {
+            for (size_t i = 0u; i < alloc.getUsed(); ++i) {
+                ImGui::Text("%zu: %s", i, DescriptorSlot::getSlotName(alloc.getBit(i)));
+            }
+
+            ImGui::EndListBox();
+        }
+    }
+    ImGui::End();
+
     if (ImGui::Begin("World")) {
         float data[] = { light.x, light.y, light.z };
         ImGui::SliderFloat3("Light", data, -5.f, 5.f);
@@ -160,7 +177,10 @@ ID3D12CommandList *BasicScene::populate() {
     // bind data that wont change
     commands.bindTable(0, ctx->getCbvGpuHandle(debugBufferOffset)); // register(b0, space1) is debug data 
     commands.bindTable(1, ctx->getCbvGpuHandle(sceneBufferOffset)); // register(b0) is per scene data
+
+    OutputDebugStringA("set table 4\n");
     commands.bindTable(4, getTextureGpuHandle(0)); // register(t0...) are all the textures
+    OutputDebugStringA("set table 4 done\n");
 
     for (size_t i = 0; i < std::size(world->nodes); i++) {
         const auto& node = world->nodes[i];
@@ -169,6 +189,7 @@ ID3D12CommandList *BasicScene::populate() {
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
             commands.bindConst(3, 0, uint32_t(primitive.texture)); // register(b2) is per primitive data
+            OutputDebugStringA(std::format("bound texture: {}\n", primitive.texture).c_str());
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
@@ -183,6 +204,8 @@ ID3D12CommandList *BasicScene::populate() {
 
 ID3D12CommandList *BasicScene::attach(Context *render) {
     ctx = render;
+
+    auto& channel = logging::get(logging::eRender);
     auto& device = ctx->getDevice();
     auto& alloc = ctx->getAlloc();
 
@@ -195,8 +218,8 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 
     depthBuffer = device.newDepthStencil(resolution, dsvHeap.cpuHandle(DepthSlots::eDepthStencil));
 
-    debugBufferOffset = alloc.alloc();
-    sceneBufferOffset = alloc.alloc();
+    debugBufferOffset = alloc.alloc(DescriptorSlot::eDebugBuffer);
+    sceneBufferOffset = alloc.alloc(DescriptorSlot::eSceneBuffer);
 
     debugData.attach(device, ctx->getCbvCpuHandle(debugBufferOffset));
     sceneData.attach(device, ctx->getCbvCpuHandle(sceneBufferOffset));
@@ -215,23 +238,29 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
         .depth = true
     });
 
+    pso.rename("scene-pso");
+
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
     size_t totalNodes = std::size(world->nodes);
     size_t totalTextures = std::size(world->textures);
 
-    objectBufferOffset = alloc.alloc(totalNodes);
-    textureBufferOffset = alloc.alloc(totalTextures);
+    objectBufferOffset = alloc.alloc(DescriptorSlot::eObjectBuffer, totalNodes);
+    textureBufferOffset = alloc.alloc(DescriptorSlot::eTexture, totalTextures);
 
-    logging::get(logging::eRender).info("alloc objects: {} {} textures: {} {}", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
+    channel.info("alloc objects: {} {} textures: {} {}", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
 
     // upload all our node data
     for (size_t i = 0; i < totalNodes; i++) {
+        channel.info("uploading node at {}", objectBufferOffset + i);
+
         objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
     }
 
     // upload all textures
     for (size_t i = 0; i < totalTextures; i++) {
+        channel.info("uploading texture at {}", textureBufferOffset + i);
+
         const auto &image = world->textures[i];
         auto it = ctx->uploadTexture(commands, image.size, image.data);
         device.createTextureBufferView(it, getTextureCpuHandle(i));
@@ -282,17 +311,41 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
 }
 
 rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
+    ASSERTF(
+        ctx->getAlloc().isKind(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
+        DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
+        objectBufferOffset + index
+    );
     return ctx->getCbvGpuHandle(objectBufferOffset + index);
 }
 
 rhi::CpuHandle BasicScene::getObjectBufferCpuHandle(size_t index) {
+    ASSERTF(
+        ctx->getAlloc().isKind(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
+        DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
+        objectBufferOffset + index
+    );
     return ctx->getCbvCpuHandle(objectBufferOffset + index);
 }
 
 rhi::GpuHandle BasicScene::getTextureGpuHandle(size_t index) {
+    ASSERTF(
+        ctx->getAlloc().isKind(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
+        DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
+        textureBufferOffset + index
+    );
     return ctx->getCbvGpuHandle(textureBufferOffset + index);
 }
 
 rhi::CpuHandle BasicScene::getTextureCpuHandle(size_t index) {
+    ASSERTF(
+        ctx->getAlloc().isKind(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
+        DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
+        textureBufferOffset + index
+    );
     return ctx->getCbvCpuHandle(textureBufferOffset + index);
 }
