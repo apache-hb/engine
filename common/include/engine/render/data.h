@@ -24,6 +24,5 @@ namespace simcoe::render {
     // data that is specific to each object
     struct alignas(256) ObjectBuffer {
         math::float4x4 transform = math::float4x4::identity();
-        uint32_t texture = 0;
     };
 }

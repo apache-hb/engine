@@ -218,11 +218,16 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
-    objectBufferOffset = alloc.alloc(std::size(world->nodes));
-    textureBufferOffset = alloc.alloc(std::size(world->textures));
+    size_t totalNodes = std::size(world->nodes);
+    size_t totalTextures = std::size(world->textures);
+
+    objectBufferOffset = alloc.alloc(totalNodes);
+    textureBufferOffset = alloc.alloc(totalTextures);
+
+    logging::get(logging::eRender).info("alloc objects: {} {} textures: {} {}", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
 
     // upload all textures
-    for (size_t i = 0; i < std::size(world->textures); i++) {
+    for (size_t i = 0; i < totalTextures; i++) {
         const auto &image = world->textures[i];
         auto it = ctx->uploadTexture(commands, image.size, image.data);
         device.createTextureBufferView(it, getTextureCpuHandle(i));
@@ -230,7 +235,7 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
     }
 
     // upload all our node data
-    for (size_t i = 0; i < std::size(world->nodes); i++) {
+    for (size_t i = 0; i < totalNodes; i++) {
         objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
     }
 
@@ -271,7 +276,7 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
     const auto &node = world->nodes[index];
     
     auto transform = parent * world->nodes[index].transform;
-    objectData[index].update({ .transform = transform, .texture = 0 });
+    objectData[index].update({ .transform = transform });
     for (size_t child : node.children) {
         updateObject(child, transform);
     }
