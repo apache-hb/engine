@@ -142,7 +142,7 @@ int commonMain() {
     });
     
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\amongus\\amongus\\amongus.gltf");
+    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
     render::BasicScene scene { { &camera, &world } };
 
