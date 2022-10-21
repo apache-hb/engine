@@ -158,17 +158,17 @@ ID3D12CommandList *BasicScene::populate() {
     commands.bindDescriptors(kDescriptors);
 
     // bind data that wont change
-    commands.bindTable(0, ctx->getCbvGpuHandle(debugBufferOffset));
-    commands.bindTable(1, ctx->getCbvGpuHandle(sceneBufferOffset));
-    commands.bindTable(4, getTextureGpuHandle(0));
+    commands.bindTable(0, ctx->getCbvGpuHandle(debugBufferOffset)); // register(b0, space1) is debug data 
+    commands.bindTable(1, ctx->getCbvGpuHandle(sceneBufferOffset)); // register(b0) is per scene data
+    commands.bindTable(4, getTextureGpuHandle(0)); // register(t0...) are all the textures
 
     for (size_t i = 0; i < std::size(world->nodes); i++) {
         const auto& node = world->nodes[i];
-        commands.bindTable(2, getObjectBufferGpuHandle(i));
+        commands.bindTable(2, getObjectBufferGpuHandle(i)); // register(b1) is per object data
 
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
-            commands.bindConst(3, 0, uint32_t(primitive.texture));
+            commands.bindConst(3, 0, uint32_t(primitive.texture)); // register(b2) is per primitive data
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
