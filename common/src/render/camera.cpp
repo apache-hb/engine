@@ -16,12 +16,15 @@ namespace {
     constexpr auto kPitchLimit = kPiDiv4<float>;
 }
 
+float4x4 Camera::getProjection(float aspectRatio) const {
+    return float4x4::perspectiveRH(fov * kPiDiv180, aspectRatio, 0.1f, 1000.f).transpose();
+}
+
 Perspective::Perspective(float3 position, float3 direction, float fov)
-    : position(position)
+    : Camera(position, fov)
     , direction(direction)
     , pitch(0.f)
     , yaw(0.f)
-    , fov(fov)
 { 
     rotate(0.f, 0.f);
 }
@@ -44,21 +47,28 @@ void Perspective::rotate(float yawUpdate, float pitchUpdate) {
     yaw = newYaw;
 }
 
+float4x4 Perspective::getView() const {
+    return float4x4::lookToRH(position, direction, kUpVector).transpose();
+}
+
 float4x4 Perspective::mvp(const float4x4 &model, float aspectRatio) const {
-    auto view = float4x4::lookToRH(position, direction, kUpVector).transpose();
-    auto projection = float4x4::perspectiveRH(fov * kPiDiv180, aspectRatio, 0.1f, 1000.f).transpose();
+    auto view = getView();
+    auto projection = getProjection(aspectRatio);
     return projection * view * model;
 }
 
 LookAt::LookAt(float3 position, float3 focus, float fov) 
-    : position(position)
+    : Camera(position, fov)
     , focus(focus)
-    , fov(fov)
 { }
 
+float4x4 LookAt::getView() const {
+    return float4x4::lookAtRH(position, focus, kUpVector).transpose();
+}
+
 float4x4 LookAt::mvp(const float4x4 &model, float aspectRatio) const {
-    auto view = float4x4::lookAtRH(position, focus, kUpVector).transpose();
-    auto projection = float4x4::perspectiveRH(fov * kPiDiv180, aspectRatio, 0.1f, 1000.f).transpose();
+    auto view = getView();
+    auto projection = getProjection(aspectRatio);
     return projection * view * model;
 }
 

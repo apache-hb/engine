@@ -8,43 +8,52 @@ namespace simcoe::render {
     using namespace math;
 
     struct Camera {
+        Camera(float3 position, float fov) 
+            : position(position)
+            , fov(fov) 
+        { }
+
         virtual ~Camera() = default;
         virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const = 0;
-    };
+        virtual float4x4 getView() const = 0;
 
-    struct Perspective : Camera {
-        Perspective(float3 position, float3 direction, float fov = 90.f);
+        float4x4 getProjection(float aspectRatio) const;
 
-        virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
+        float3 getPosition() const { return position; }
 
-        void move(float3 offset);
-        void rotate(float yawUpdate, float pitchUpdate);
-
-        const float3 getPosition() const { return position; }
-        const float3 getDirection() const { return direction; }
-
-    private:
+    protected:
         float3 position;
-        float3 direction;
-
-        float pitch;
-        float yaw;
 
         float fov;
     };
 
-    struct LookAt : Camera {
+    struct Perspective final : Camera {
+        Perspective(float3 position, float3 direction, float fov = 90.f);
+
+        float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
+        float4x4 getView() const override;
+
+        void move(float3 offset);
+        void rotate(float yawUpdate, float pitchUpdate);
+
+        float3 getDirection() const { return direction; }
+    private:
+        float3 direction;
+
+        float pitch;
+        float yaw;
+    };
+
+    struct LookAt final : Camera {
         LookAt(float3 position, float3 focus, float fov = 90.f);
 
-        virtual float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
+        float4x4 mvp(const float4x4 &model, float aspectRatio) const override;
+        float4x4 getView() const override;
 
         void setPosition(float3 update);
         void setFocus(float3 update);
 
     private:
-        float3 position;
         float3 focus;
-
-        float fov;
     };
 }

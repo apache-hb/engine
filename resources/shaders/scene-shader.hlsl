@@ -7,6 +7,10 @@ cbuffer DebugBuffer : register(b0, space1) {
 #endif
 
 cbuffer SceneBuffer : register(b0) {
+    float4x4 model;
+    float4x4 view;
+    float4x4 projection;
+    
     float4x4 camera; // camera matrix, column major
     float3 light; // light position
 };
@@ -50,11 +54,11 @@ float4 psMain(PSInput input) : SV_TARGET {
 #endif
 
     // diffuse lighting
-    float3 lightDir = normalize(light - input.pos.xyz);
-    float diffuse = max(0.f, dot(input.normal.xyz, lightDir));
+    //float3 lightDir = normalize(light - input.pos.xyz);
+    //float diffuse = max(0.f, dot(input.normal.xyz, lightDir));
 
     // texture
-    float4 color = gTextures[texture].Sample(gSampler, input.uv);
+    float4 colour = gTextures[texture].Sample(gSampler, input.uv);
 
-    return float4(color.rgb * diffuse, color.a);
+    return colour;
 }

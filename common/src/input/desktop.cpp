@@ -111,8 +111,6 @@ bool Keyboard::poll(State *pState) {
 }
 
 void Keyboard::captureInput(bool capture) {
-    if (enabled == capture) { return; }
-
     enabled = capture;
     win32::showCursor(!enabled);
 }

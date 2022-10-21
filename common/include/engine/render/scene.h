@@ -29,6 +29,10 @@ namespace simcoe::render {
 
         void update(const T& in) {
             data = in;
+            upload();
+        }
+
+        void upload() {
             memcpy(ptr, &data, sizeof(T));
         }
 

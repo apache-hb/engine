@@ -4,6 +4,7 @@
 #include "imgui.h"
 
 #include <array>
+#include <debugapi.h>
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -54,6 +55,9 @@ namespace {
 
 void SceneBufferHandle::update(Camera *camera, float aspectRatio, float3 light) {
     Super::update({
+        .model = float4x4::identity(),
+        .view = camera->getView(),
+        .projection = camera->getProjection(aspectRatio),
         .camera = camera->mvp(float4x4::identity(), aspectRatio),
         .light = light
     });
@@ -130,7 +134,7 @@ ID3D12CommandList *BasicScene::populate() {
                 ImGui::TableNextColumn();
                 ImGui::Text("%s", texture.name.c_str());
                 ImGui::TableNextColumn();
-                ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
+                //ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
             }
             ImGui::EndTable();
         }
@@ -168,6 +172,7 @@ ID3D12CommandList *BasicScene::populate() {
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
+            OutputDebugStringA("Drawing mesh\n");
             commands.drawMesh(indexBufferViews[primitive.indices]);
         }
     }
