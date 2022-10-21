@@ -149,10 +149,10 @@ ID3D12CommandList *BasicScene::populate() {
 
     commands.beginRecording(allocators[ctx->currentFrame()]);
 
-    commands.setPipeline(pso);
-
     commands.setViewAndScissor(view);
     commands.setRenderTarget(ctx->getRenderTarget(), dsvHeap.cpuHandle(DepthSlots::eDepthStencil), kClearColour); // render to the intermediate framebuffer
+
+    commands.setPipeline(pso);
 
     auto kDescriptors = std::to_array({ ctx->getHeap().get() });
     commands.bindDescriptors(kDescriptors);
@@ -172,7 +172,6 @@ ID3D12CommandList *BasicScene::populate() {
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
-            OutputDebugStringA("Drawing mesh\n");
             commands.drawMesh(indexBufferViews[primitive.indices]);
         }
     }
@@ -226,17 +225,17 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 
     logging::get(logging::eRender).info("alloc objects: {} {} textures: {} {}", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
 
+    // upload all our node data
+    for (size_t i = 0; i < totalNodes; i++) {
+        objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
+    }
+
     // upload all textures
     for (size_t i = 0; i < totalTextures; i++) {
         const auto &image = world->textures[i];
         auto it = ctx->uploadTexture(commands, image.size, image.data);
         device.createTextureBufferView(it, getTextureCpuHandle(i));
-        textures.push_back(std::move(it));
-    }
-
-    // upload all our node data
-    for (size_t i = 0; i < totalNodes; i++) {
-        objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
+        textures.emplace_back(std::move(it));
     }
 
     // upload all our vertex buffers
