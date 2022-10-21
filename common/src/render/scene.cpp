@@ -134,7 +134,7 @@ ID3D12CommandList *BasicScene::populate() {
                 ImGui::TableNextColumn();
                 ImGui::Text("%s", texture.name.c_str());
                 ImGui::TableNextColumn();
-                //ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
+                ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
             }
             ImGui::EndTable();
         }
