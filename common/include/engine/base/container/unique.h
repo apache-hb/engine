@@ -38,19 +38,19 @@ namespace simcoe {
             : Super(new Type[size]) 
         {}
         
-        Type &operator[](size_t index) requires(std::is_array_v<T>) {
+        [[nodiscard]] Type &operator[](size_t index) requires(std::is_array_v<T>) {
             return Super::get()[index];
         }
 
-        const Type &operator[](size_t index) const requires(std::is_array_v<T>) {
+        [[nodiscard]] const Type &operator[](size_t index) const requires(std::is_array_v<T>) {
             return Super::get()[index];
         }
 
-        Type *operator->() { return Super::get(); }
-        const Type *operator->() const { return Super::get(); }
+        [[nodiscard]] Type *operator->() { return Super::get(); }
+        [[nodiscard]] const Type *operator->() const { return Super::get(); }
 
-        Type **operator&() { return Super::ref(); }
-        const Type**operator&() const { return Super::ref(); }
+        [[nodiscard]] Type **operator&() { return Super::ref(); }
+        [[nodiscard]] const Type**operator&() const { return Super::ref(); }
     };
 
 }

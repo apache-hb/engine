@@ -32,13 +32,16 @@ struct PSInput {
 Texture2D gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 
-float4 perspective(float3 pos) {
-    return mul(mul(float4(pos, 1.f), transform), camera);
+float4 perspective(float4 pos) {
+    float4 result = mul(pos, transform);
+    result = mul(result, view);
+    result = mul(result, projection);
+    return result;
 }
 
 PSInput vsMain(float3 pos : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD) {
     PSInput result;
-    result.pos = perspective(pos);
+    result.pos = perspective(float4(pos, 1.f));
     result.normal = float4(normal, 0.f);
     result.uv = uv;
     return result;

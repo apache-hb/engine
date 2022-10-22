@@ -27,14 +27,14 @@ namespace simcoe {
             destroy();
         }
 
-        operator bool() const { return valid(); }
-        bool valid() const { return data != Invalid; }
+        [[nodiscard]] operator bool() const { return valid(); }
+        [[nodiscard]] bool valid() const { return data != Invalid; }
 
-        T get() { ASSERT(valid()); return data; }
-        const T get() const { ASSERT(valid()); return data; }
+        [[nodiscard]] T get() { ASSERT(valid()); return data; }
+        [[nodiscard]] const T get() const { ASSERT(valid()); return data; }
 
-        T *ref() { return &data; }
-        const T* ref() const { return &data; }
+        [[nodiscard]] T *ref() { return &data; }
+        [[nodiscard]] const T* ref() const { return &data; }
 
     protected:
         void destroy() {
