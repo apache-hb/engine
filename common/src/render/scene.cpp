@@ -57,7 +57,6 @@ namespace {
 
 void SceneBufferHandle::update(Camera *camera, float aspectRatio, float3 light) {
     Super::update({
-        .model = float4x4::identity(),
         .view = camera->getView(),
         .projection = camera->getProjection(aspectRatio),
         .camera = camera->mvp(float4x4::identity(), aspectRatio),
@@ -178,9 +177,7 @@ ID3D12CommandList *BasicScene::populate() {
     commands.bindTable(0, ctx->getCbvGpuHandle(debugBufferOffset)); // register(b0, space1) is debug data 
     commands.bindTable(1, ctx->getCbvGpuHandle(sceneBufferOffset)); // register(b0) is per scene data
 
-    OutputDebugStringA("set table 4\n");
     commands.bindTable(4, getTextureGpuHandle(0)); // register(t0...) are all the textures
-    OutputDebugStringA("set table 4 done\n");
 
     for (size_t i = 0; i < std::size(world->nodes); i++) {
         const auto& node = world->nodes[i];
@@ -189,7 +186,6 @@ ID3D12CommandList *BasicScene::populate() {
         for (size_t j : node.primitives) {
             const auto& primitive = world->primitives[j];
             commands.bindConst(3, 0, uint32_t(primitive.texture)); // register(b2) is per primitive data
-            OutputDebugStringA(std::format("bound texture: {}\n", primitive.texture).c_str());
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);

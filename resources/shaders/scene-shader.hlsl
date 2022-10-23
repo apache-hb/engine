@@ -7,7 +7,6 @@ cbuffer DebugBuffer : register(b0, space1) {
 #endif
 
 cbuffer SceneBuffer : register(b0) {
-    float4x4 model;
     float4x4 view;
     float4x4 projection;
     
@@ -25,8 +24,11 @@ cbuffer PrimitiveBuffer : register(b2) {
 
 struct PSInput {
     float4 pos : SV_POSITION;
-    float4 normal : NORMAL;
+    float4 world : POSITION;
+
     float2 uv : TEXCOORD;
+
+    float3 normal : NORMAL;
 };
 
 Texture2D gTextures[] : register(t0);
@@ -42,7 +44,8 @@ float4 perspective(float4 pos) {
 PSInput vsMain(float3 pos : POSITION, float3 normal : NORMAL, float2 uv : TEXCOORD) {
     PSInput result;
     result.pos = perspective(float4(pos, 1.f));
-    result.normal = float4(normal, 0.f);
+    result.world = mul(float4(pos, 1.f), transform);
+    result.normal = normal;
     result.uv = uv;
     return result;
 }
@@ -57,11 +60,12 @@ float4 psMain(PSInput input) : SV_TARGET {
 #endif
 
     // diffuse lighting
-    //float3 lightDir = normalize(light - input.pos.xyz);
-    //float diffuse = max(0.f, dot(input.normal.xyz, lightDir));
+    float3 lightDir = normalize(light - input.world.xyz);
+    float3 normal = normalize(input.normal.xyz);
+    float diffuse = max(0.f, dot(normal, lightDir));
 
     // texture
     float4 colour = gTextures[texture].Sample(gSampler, input.uv);
 
-    return colour;
+    return colour * diffuse;
 }

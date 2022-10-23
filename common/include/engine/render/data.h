@@ -13,7 +13,6 @@ namespace simcoe::render {
 
     // data that is shared across the entire scene
     struct alignas(256) SceneBuffer {
-        float4x4 model;
         float4x4 view;
         float4x4 projection;
         
