@@ -159,21 +159,17 @@ namespace {
     }
 
     D3D_ROOT_SIGNATURE_VERSION getHighestVersion(ID3D12Device *device) {
+        if (device == nullptr) {
+            return D3D_ROOT_SIGNATURE_VERSION_1_0;
+        }
+
         D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = { D3D_ROOT_SIGNATURE_VERSION_1_1 };
         if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) {
             featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
         }
+
         return featureData.HighestVersion;
     }
-}
-
-Device::Device(ID3D12Device *device)
-    : Super(device)
-    , kHighestVersion(getHighestVersion(device))
-{ }
-
-Device::~Device() {
-    ImGui_ImplDX12_Shutdown();
 }
 
 rhi::Fence Device::newFence() {
@@ -366,7 +362,7 @@ rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings
 
     auto input = createInputLayout(bindings.input);
 
-    auto signature = serializeRootSignature(kHighestVersion, bindings.samplers, bindings.bindings);
+    auto signature = serializeRootSignature(getHighestVersion(get()), bindings.samplers, bindings.bindings);
 
     ID3D12RootSignature *root = createRootSignature(signature.get());
     ID3D12PipelineState *pipeline = createPipelineState(root, vs, ps, input, bindings.depth);
@@ -414,6 +410,10 @@ void Device::imguiInit(size_t frames, rhi::DescriptorSet &heap, size_t offset) {
     const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(heap.gpuHandle(offset)) };
 
     ImGui_ImplDX12_Init(get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
+}
+
+void Device::imguiShutdown() {
+    ImGui_ImplDX12_Shutdown();
 }
 
 void Device::imgui() {

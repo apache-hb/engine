@@ -333,10 +333,7 @@ namespace simcoe::rhi {
     struct Device final : UniqueObject<ID3D12Device> {
         using Super = UniqueObject<ID3D12Device>;
         using Super::Super;
-
-        Device(ID3D12Device *device);
-        ~Device();
-
+        
         Fence newFence();
         CommandQueue newQueue(CommandList::Type type);
         CommandList newCommandList(Allocator &allocator, CommandList::Type type);
@@ -357,14 +354,13 @@ namespace simcoe::rhi {
         PipelineState newPipelineState(const PipelineBinding& bindings);
 
         void imguiInit(size_t frames, DescriptorSet &heap, size_t offset);
+        void imguiShutdown();
         void imgui();
 
     private:
         ID3D12RootSignature *createRootSignature(ID3DBlob *signature);
 
         ID3D12PipelineState *createPipelineState(ID3D12RootSignature *root, D3D12_SHADER_BYTECODE vertex, D3D12_SHADER_BYTECODE pixel, std::span<D3D12_INPUT_ELEMENT_DESC> input, bool depth);
-
-        D3D_ROOT_SIGNATURE_VERSION kHighestVersion;
     };
 
     Device getDevice();

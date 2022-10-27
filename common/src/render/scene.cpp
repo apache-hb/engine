@@ -271,9 +271,7 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 
     // upload all our vertex buffers
     for (const auto& data : world->verts) {
-        size_t vertexBufferSize = data.size() * sizeof(assets::Vertex);
-        
-        auto vertexBuffer = ctx->uploadData(data.data(), vertexBufferSize);
+        auto vertexBuffer = ctx->uploadData(data.data(), data.size() * sizeof(assets::Vertex));
 
         rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(vertexBuffer.gpuAddress(), data.size(), sizeof(assets::Vertex));
 

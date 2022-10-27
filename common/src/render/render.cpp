@@ -62,6 +62,10 @@ Context::Context(Create &&info)
     createScene();
 }
 
+Context::~Context() {
+    device.imguiShutdown();
+}
+
 void Context::updateViewports(rhi::TextureSize post, rhi::TextureSize scene) {
     resolution = post;
 

@@ -67,6 +67,7 @@ namespace simcoe::render {
         };
 
         Context(Create &&info);
+        ~Context();
 
         // end api
         void begin();
