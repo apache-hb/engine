@@ -255,22 +255,17 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
     objectBufferOffset = alloc.alloc(DescriptorSlot::eObjectBuffer, totalNodes);
     textureBufferOffset = alloc.alloc(DescriptorSlot::eTexture, totalTextures);
 
-    channel.info("alloc objects: {} {} textures: {} {}", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
+    channel.info("alloc objects: {}[{}] textures: {}[{}]", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
 
     // upload all our node data
     for (size_t i = 0; i < totalNodes; i++) {
-        channel.info("uploading node at {}", objectBufferOffset + i);
-
         objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
     }
 
     // upload all textures
     for (size_t i = 0; i < totalTextures; i++) {
-        channel.info("uploading texture at {}", textureBufferOffset + i);
-
         const auto &image = world->textures[i];
-        auto it = ctx->uploadTexture(commands, image.size, image.data);
-        device.createTextureBufferView(it, getTextureCpuHandle(i));
+        auto it = ctx->uploadTexture(getTextureCpuHandle(i), commands, image.size, image.data);
         textures.emplace_back(std::move(it));
     }
 

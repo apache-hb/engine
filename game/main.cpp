@@ -166,15 +166,6 @@ int commonMain() {
 
         state.imgui();
 
-        if (ImGui::Begin("Camera")) {
-            auto mvp = camera.mvp(float4x4::identity(), window->size().aspectRatio<float>());
-            ImGui::Text("%f %f %f %f", mvp.at(0, 0), mvp.at(0, 1), mvp.at(0, 2), mvp.at(0, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(1, 0), mvp.at(1, 1), mvp.at(1, 2), mvp.at(1, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(2, 0), mvp.at(2, 1), mvp.at(2, 2), mvp.at(2, 3));
-            ImGui::Text("%f %f %f %f", mvp.at(3, 0), mvp.at(3, 1), mvp.at(3, 2), mvp.at(3, 3));
-        }
-        ImGui::End();
-
         if (ImGui::Begin("Locale")) {
             static int locale = 0;
             const char *localeNames[] = { locale::get("locale.english").data(), locale::get("locale.polish").data() };

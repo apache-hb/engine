@@ -81,7 +81,7 @@ namespace simcoe::render {
         rhi::Device &getDevice() { return device; }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
-        rhi::Buffer uploadTexture(rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
+        rhi::Buffer uploadTexture(rhi::CpuHandle handle, rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
 
         rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(frames); }
 

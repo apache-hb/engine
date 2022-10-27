@@ -219,9 +219,7 @@ namespace {
             return indexBuffer;
         }
 
-        assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices, const AttributeData& normal) {
-            log.info("primitive: texture: {}, position: {}, uv: {}, indices: {}, normal: {}", texture, position.length, uv.length, indices, normal.length);
-            
+        assets::Primitive getPrimitive(size_t texture, const AttributeData& position, const AttributeData& uv, int indices, const AttributeData& normal) {            
             std::unordered_map<assets::Vertex, uint32_t> indexCache;
 
             assets::VertexBuffer vertexBuffer;
