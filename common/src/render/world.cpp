@@ -387,3 +387,18 @@ assets::World assets::loadGltf(const char *path) {
 
     return sink.world;
 }
+
+void assets::World::makeDirty(size_t node) {
+    auto& it = nodes[node];
+    it.dirty = true;
+    for (auto child : it.children) {
+        makeDirty(child);
+    }
+}
+
+bool assets::World::clearDirty(size_t node) {
+    auto& it = nodes[node];
+    bool dirty = it.dirty;
+    it.dirty = false;
+    return dirty;
+}

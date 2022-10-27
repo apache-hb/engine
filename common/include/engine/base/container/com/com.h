@@ -9,7 +9,7 @@ namespace simcoe::com {
     
     template<IsComObject T>
     struct ComDeleter {
-        void operator()(T *ptr) {
+        void operator()(T *ptr) const {
             ptr->Release();
         }
     };

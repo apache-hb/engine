@@ -16,17 +16,14 @@ namespace simcoe::assets {
     using IndexBuffer = std::vector<uint32_t>;
 
     struct Node {
+        bool dirty = true;
+
         std::string name;
 
         math::float4x4 transform;
 
         std::vector<size_t> children;
         std::vector<size_t> primitives;
-    };
-
-    struct Scene {
-        std::string_view name;
-        std::vector<size_t> nodes;
     };
 
     struct Texture {
@@ -43,6 +40,9 @@ namespace simcoe::assets {
     };
 
     struct World {
+        void makeDirty(size_t node);
+        bool clearDirty(size_t node);
+
         std::vector<Node> nodes;
 
         std::vector<Texture> textures;

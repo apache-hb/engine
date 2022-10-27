@@ -24,7 +24,7 @@ namespace simcoe::rhi {
     };
     
     struct HandleDeleter {
-        void operator()(HANDLE handle) {
+        void operator()(HANDLE handle) const {
             CloseHandle(handle);
         }
     };

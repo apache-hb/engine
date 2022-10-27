@@ -108,6 +108,17 @@ ID3D12CommandList *BasicScene::populate() {
             });
         }
 
+        ImGui::Text("Index Buffers: %zu", indexBufferViews.size());
+        if (ImGui::BeginTable("Index Buffers", 1, ImGuiTableFlags_Borders)) {
+            ImGui::TableSetupColumn("Size");
+            for (auto& buffer : indexBufferViews) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%zu bytes", buffer.size);
+            }
+            ImGui::EndTable();
+        }
+
         ImGui::Text("Nodes");
         if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
             ImGui::TableSetupColumn("Name");
@@ -297,10 +308,14 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 }
 
 void BasicScene::updateObject(size_t index, math::float4x4 parent) {
-    const auto &node = world->nodes[index];
-    
+    auto &node = world->nodes[index];
+
     auto transform = parent * world->nodes[index].transform;
-    objectData[index].update({ .transform = transform });
+    
+    if (world->clearDirty(index)) {
+        objectData[index].update({ .transform = transform });
+    }
+
     for (size_t child : node.children) {
         updateObject(child, transform);
     }

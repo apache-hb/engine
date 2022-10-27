@@ -5,14 +5,6 @@
 #include "engine/render/data.h"
 
 namespace simcoe::render {
-    struct Object {
-        std::vector<std::byte> vs;
-        std::vector<std::byte> ps;
-
-        std::vector<assets::Vertex> vertices;
-        std::vector<uint32_t> inidices;
-    };
-
     template<typename T>
     struct ConstBuffer {
         ConstBuffer() = default;
