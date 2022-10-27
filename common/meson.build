@@ -50,7 +50,11 @@ locale = declare_dependency(
     include_directories : 'include'
 )
 
-src = [ 'src/input/input.cpp', 'src/input/gamepad.cpp', 'src/input/desktop.cpp' ]
+src = [ 
+    'src/input/input.cpp', 
+    'src/input/gamepad.cpp', 
+    'src/input/desktop.cpp' 
+]
 
 libinput = library('input', src,
     cpp_args : args,
@@ -130,7 +134,7 @@ src = [
     'src/render/render.cpp', 
     'src/render/camera.cpp', 
     'src/render/scene.cpp', 
-    'src/render/world.cpp' 
+    'src/render/world.cpp'
 ]
 
 librender = library('render', src,

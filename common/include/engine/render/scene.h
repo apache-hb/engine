@@ -56,7 +56,7 @@ namespace simcoe::render {
         using Super::Super;
     };
 
-    struct BasicScene : RenderScene {
+    struct BasicScene final : RenderScene {
         struct Create {
             Camera *camera;
             assets::World *world;

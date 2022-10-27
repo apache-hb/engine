@@ -409,9 +409,9 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
 }
 
 
-void Device::imguiInit(size_t frames, rhi::DescriptorSet &heap, rhi::CpuHandle cpuHandle, rhi::GpuHandle gpuHandle) {
-    const D3D12_CPU_DESCRIPTOR_HANDLE kCpuHandle { size_t(cpuHandle) };
-    const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(gpuHandle) };
+void Device::imguiInit(size_t frames, rhi::DescriptorSet &heap, size_t offset) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kCpuHandle { size_t(heap.cpuHandle(offset)) };
+    const D3D12_GPU_DESCRIPTOR_HANDLE kGpuHandle { size_t(heap.gpuHandle(offset)) };
 
     ImGui_ImplDX12_Init(get(), int(frames), DXGI_FORMAT_R8G8B8A8_UNORM, heap.get(), kCpuHandle, kGpuHandle);
 }

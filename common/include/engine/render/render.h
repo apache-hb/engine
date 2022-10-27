@@ -102,10 +102,14 @@ namespace simcoe::render {
         void create();
         void createRenderTargets();
 
+        void createScene();
+
         void updateViewports(rhi::TextureSize post, rhi::TextureSize scene);
 
         void waitForFrame();
         void waitOnQueue(rhi::CommandQueue &queue, size_t value);
+
+        void executeCopy(size_t signal);
 
         void beginCopy();
         size_t endCopy(); // return the value to wait for to signal that all copies are complete

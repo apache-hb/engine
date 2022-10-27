@@ -356,7 +356,7 @@ namespace simcoe::rhi {
 
         PipelineState newPipelineState(const PipelineBinding& bindings);
 
-        void imguiInit(size_t frames, DescriptorSet &heap, CpuHandle cpuHandle, GpuHandle gpuHandle);
+        void imguiInit(size_t frames, DescriptorSet &heap, size_t offset);
         void imgui();
 
     private:

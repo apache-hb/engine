@@ -59,6 +59,7 @@ Context::Context(Create &&info)
 {
     updateViewports(window->size().as<size_t>(), scene->resolution);
     create();
+    createScene();
 }
 
 void Context::updateViewports(rhi::TextureSize post, rhi::TextureSize scene) {
@@ -172,21 +173,29 @@ void Context::create() {
         rhi::Format::uint32
     };
 
+    size_t signal = endCopy();
+
+    executeCopy(signal);
+
+    // release copy resources that are no longer needed
+    device.imguiInit(frames, cbvHeap, imguiHeapOffset);
+}
+
+void Context::createScene() {
+    beginCopy();
+
     ID3D12CommandList *sceneCommands = scene->attach(this);
 
     size_t signal = endCopy();
 
-    ID3D12CommandList* copyCommandList[] = { copyCommands.get() };
-    copyQueue.execute(copyCommandList);
-    waitOnQueue(copyQueue, signal);
+    executeCopy(signal);
 
-    ID3D12CommandList* directCommandList[] = { sceneCommands, postCommands.get() };
+    ID3D12CommandList* directCommandList[] = { sceneCommands };
     directQueue.execute(directCommandList);
     waitForFrame();
 
     // release copy resources that are no longer needed
     pendingCopies.resize(0);
-    device.imguiInit(frames, cbvHeap, cbvHeap.cpuHandle(imguiHeapOffset), cbvHeap.gpuHandle(imguiHeapOffset));
 }
 
 void Context::begin() {
@@ -321,4 +330,10 @@ void Context::beginCopy() {
 size_t Context::endCopy() {
     copyCommands.endRecording();
     return ++currentCopy;
+}
+
+void Context::executeCopy(size_t signal) {
+    ID3D12CommandList* commands[] = { copyCommands.get() };
+    copyQueue.execute(commands);
+    waitOnQueue(copyQueue, signal);
 }
