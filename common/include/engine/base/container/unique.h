@@ -36,21 +36,28 @@ namespace simcoe {
 
         UniquePtr(size_t size) requires (std::is_array_v<T>) 
             : Super(new Type[size]) 
-        {}
-        
+        { }
+
         [[nodiscard]] Type &operator[](size_t index) requires(std::is_array_v<T>) {
-            return Super::get()[index];
+            return at(index);
         }
 
         [[nodiscard]] const Type &operator[](size_t index) const requires(std::is_array_v<T>) {
+            return at(index);
+        }
+
+        [[nodiscard]] Type &at(size_t index) requires(std::is_array_v<T>) {
             return Super::get()[index];
         }
 
+        [[nodiscard]] const Type &at(size_t index) const requires(std::is_array_v<T>) {
+            return Super::get()[index];
+        }
+        
         [[nodiscard]] Type *operator->() { return Super::get(); }
         [[nodiscard]] const Type *operator->() const { return Super::get(); }
 
         [[nodiscard]] Type **operator&() { return Super::ref(); }
         [[nodiscard]] const Type**operator&() const { return Super::ref(); }
     };
-
 }

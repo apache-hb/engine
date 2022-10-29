@@ -271,6 +271,25 @@ rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibi
     return rhi::Buffer(resource);
 }
 
+rhi::Buffer Device::newTexture(const rhi::TextureDesc& desc, rhi::DescriptorSet::Visibility visibility, math::float4 clear) {
+    const D3D12_CLEAR_VALUE kClear { 
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .Color = { clear.x, clear.y, clear.z, clear.w }
+    };
+
+    ID3D12Resource *resource;
+    DX_CHECK(get()->CreateCommittedResource(
+        getHeapProps(visibility),
+        D3D12_HEAP_FLAG_NONE,
+        &desc.resourceDesc,
+        desc.state,
+        (desc.state & D3D12_RESOURCE_STATE_RENDER_TARGET) ? &kClear : nullptr,
+        IID_PPV_ARGS(&resource)
+    ));
+
+    return rhi::Buffer(resource);
+}
+
 rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state, math::float4 clear) {
     ASSERT(size.width > 0 && size.height > 0);
 

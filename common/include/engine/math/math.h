@@ -30,6 +30,14 @@ namespace simcoe::math {
         constexpr Resolution<U> as() const {
             return { U(width), U(height) };
         }
+
+        constexpr bool operator==(const Resolution &other) const {
+            return width == other.width && height == other.height;
+        }
+
+        constexpr bool operator!=(const Resolution &other) const {
+            return width != other.width || height != other.height;
+        }
     };
 
     template<typename T>

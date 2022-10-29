@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dx/d3d12.h"
 #include "engine/window/window.h"
 #include "engine/base/util.h"
 #include "engine/base/logging.h"
@@ -330,6 +331,34 @@ namespace simcoe::rhi {
         size_t uploadSize;
     };
 
+    struct TextureDesc {
+        D3D12_RESOURCE_DESC resourceDesc;
+        D3D12_RESOURCE_STATES state;
+    };
+
+    constexpr TextureDesc newTextureDesc(const TextureSize& size, Buffer::State state) {
+        ASSERT(size.width > 0 && size.height > 0);
+
+        const auto kState = D3D12_RESOURCE_STATES(state);
+        const D3D12_RESOURCE_DESC kTextureDesc {
+            .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            .Alignment = 0,
+            .Width = UINT(size.width),
+            .Height = UINT(size.height),
+            .DepthOrArraySize = 1,
+            .MipLevels = 1,
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .SampleDesc = {
+                .Count = 1,
+                .Quality = 0
+            },
+            .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            .Flags = (kState & D3D12_RESOURCE_STATE_RENDER_TARGET) ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE
+        };
+
+        return { kTextureDesc, kState };
+    }
+
     struct Device final : UniqueObject<ID3D12Device> {
         using Super = UniqueObject<ID3D12Device>;
         using Super::Super;
@@ -349,6 +378,7 @@ namespace simcoe::rhi {
         Buffer newBuffer(size_t size, DescriptorSet::Visibility visibility, Buffer::State state);
         Buffer newDepthStencil(TextureSize size, CpuHandle handle);
 
+        rhi::Buffer newTexture(const TextureDesc& desc, DescriptorSet::Visibility visibility, math::float4 clear = math::float4::of(0.f));
         TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
         PipelineState newPipelineState(const PipelineBinding& bindings);
