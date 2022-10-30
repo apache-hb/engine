@@ -4,7 +4,6 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
-#include "engine/graph/render.h"
 #include "engine/input/input.h"
 
 #include "engine/locale/locale.h"
@@ -145,15 +144,15 @@ int commonMain() {
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, 110.f };
     auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
-    graph::Create create {
-        .window = window.get()
-    };
+    //graph::Create create {
+    //    .window = window.get()
+    //};
 
-    graph::RenderGraph graph { create };
+    //graph::RenderGraph graph { create };
     
-    //render::BasicScene scene { { &camera, &world } };
+    render::BasicScene scene { { &camera, &world } };
 
-    //render::Context render { { window.get(), &scene } };
+    render::Context render { { window.get(), &scene } };
 
     input::Keyboard keyboard { true };
     input::Gamepad gamepad { 0 };
@@ -165,9 +164,7 @@ int commonMain() {
     while (window->poll(&keyboard)) {
         manager.poll();
 
-        graph.render();
-
-#if 0
+        //graph.render();
         render.begin();
         window->imgui();
 
@@ -202,7 +199,6 @@ int commonMain() {
         ImGui::End();
 
         render.end();
-#endif
     }
 
     logging::get(logging::eGeneral).info("clean exit");
