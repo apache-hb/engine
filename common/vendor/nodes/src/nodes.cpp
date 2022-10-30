@@ -24,7 +24,7 @@
 #   define IMGUI_DEFINE_MATH_OPERATORS
 #endif
 
-#include "editor/widgets/nodes.h"
+#include "imnodes/nodes.h"
 
 #include <imgui_internal.h>
 #include <limits>

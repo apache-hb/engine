@@ -20,3 +20,17 @@ imgui = declare_dependency(
     dependencies : [ base ],
     include_directories : inc
 )
+
+src = [ 'nodes/src/nodes.cpp', 'nodes/src/nodes-ez.cpp' ]
+
+libwidgets = library('widgets', src,
+    dependencies : [ imgui ],
+    include_directories : 'nodes/include',
+    cpp_args : args
+)
+
+widgets = declare_dependency(
+    link_with : libwidgets,
+    dependencies : [ imgui ],
+    include_directories : 'nodes/include'
+)

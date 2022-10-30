@@ -46,6 +46,14 @@ void CommandList::setRenderTarget(rhi::CpuHandle rtv, rhi::CpuHandle dsv, const 
     }
 }
 
+void CommandList::clearRenderTarget(CpuHandle rtv, const math::float4 &colour) {
+    const D3D12_CPU_DESCRIPTOR_HANDLE kRtv { size_t(rtv) };
+    
+    const float kClear[] = { colour.x, colour.y, colour.z, colour.w };
+
+    get()->ClearRenderTargetView(kRtv, kClear, 0, nullptr);
+}
+
 void CommandList::setViewAndScissor(const rhi::View &view) {
     get()->RSSetViewports(1, &view.viewport);
     get()->RSSetScissorRects(1, &view.scissor);

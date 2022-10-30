@@ -4,6 +4,7 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
+#include "engine/graph/render.h"
 #include "engine/input/input.h"
 
 #include "engine/locale/locale.h"
@@ -144,9 +145,15 @@ int commonMain() {
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, 110.f };
     auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
-    render::BasicScene scene { { &camera, &world } };
+    graph::Create create {
+        .window = window.get()
+    };
 
-    render::Context render { { window.get(), &scene } };
+    graph::RenderGraph graph { create };
+    
+    //render::BasicScene scene { { &camera, &world } };
+
+    //render::Context render { { window.get(), &scene } };
 
     input::Keyboard keyboard { true };
     input::Gamepad gamepad { 0 };
@@ -158,6 +165,9 @@ int commonMain() {
     while (window->poll(&keyboard)) {
         manager.poll();
 
+        graph.render();
+
+#if 0
         render.begin();
         window->imgui();
 
@@ -192,6 +202,7 @@ int commonMain() {
         ImGui::End();
 
         render.end();
+#endif
     }
 
     logging::get(logging::eGeneral).info("clean exit");
@@ -199,10 +210,10 @@ int commonMain() {
     return 0;
 }
 
-int WINAPI WinMain(UNUSED HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR CmdLine, UNUSED int nCmdShow) {
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     return commonMain();
 }
 
-int main(UNUSED int argc, UNUSED const char **argv) {
+int main(int, const char **) {
     return commonMain();
 }

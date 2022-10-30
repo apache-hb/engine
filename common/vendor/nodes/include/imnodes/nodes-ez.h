@@ -22,7 +22,7 @@
 //
 #pragma once
 
-#include "editor/widgets/nodes.h"
+#include "imnodes/nodes.h"
 
 //
 // Appearance can be styled mid-frame by ImNodes::Ez::PushStyleVar()/ImNodes::Ez::PopStyleVar().

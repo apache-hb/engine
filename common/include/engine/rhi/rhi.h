@@ -178,7 +178,9 @@ namespace simcoe::rhi {
             eIndex = D3D12_RESOURCE_STATE_INDEX_BUFFER,
 
             eRenderTarget = D3D12_RESOURCE_STATE_RENDER_TARGET,
-            ePresent = D3D12_RESOURCE_STATE_PRESENT
+            ePresent = D3D12_RESOURCE_STATE_PRESENT,
+
+            eInvalid = UINT_MAX
         };
 
         void write(const void *src, size_t size);
@@ -278,6 +280,7 @@ namespace simcoe::rhi {
         void endRecording();
 
         void setRenderTarget(CpuHandle rtv, CpuHandle dsv, const math::float4 &colour);
+        void clearRenderTarget(CpuHandle rtv, const math::float4 &colour);
 
         void setViewAndScissor(const View &view);
         void setPipeline(PipelineState &pipeline);
