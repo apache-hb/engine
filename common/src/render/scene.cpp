@@ -67,14 +67,75 @@ void SceneBufferHandle::update(Camera *camera, float aspectRatio, float3 light) 
 BasicScene::BasicScene(Create&& info) 
     : RenderScene(info.resolution)
     , camera(info.camera)
-    , world(info.world)
 {
     auto [width, height] = resolution;
     view = rhi::View(0, 0, float(width), float(height));
     aspectRatio = resolution.aspectRatio<float>();
 }
 
+size_t BasicScene::addTexture(const assets::Texture& image) {
+    return update([&](auto) {
+        auto it = ctx->uploadTexture(getTextureCpuHandle(textures.size()), image.size, image.data);
+        textures.emplace_back(std::move(it));
+
+        world.textures.push_back({ 
+            .name = image.name, 
+            .index = textures.size() - 1 
+        });
+
+        return world.textures.size() - 1;
+    });
+}
+
+size_t BasicScene::addNode(const assets::Node& node) {
+    return update([&](auto) {
+        world.nodes.push_back(node);
+        objectData.emplace_back(ctx->getDevice(), getObjectBufferCpuHandle(objectData.size()));
+        return world.nodes.size() - 1;
+    });
+}
+
+size_t BasicScene::addVertexBuffer(const assets::VertexBuffer& verts) {
+    return update([&](auto) {
+        auto vertexBuffer = ctx->uploadData(verts.data(), verts.size() * sizeof(assets::Vertex));
+
+        rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(vertexBuffer.gpuAddress(), verts.size(), sizeof(assets::Vertex));
+
+        vertexBuffers.push_back(std::move(vertexBuffer));
+        vertexBufferViews.push_back(vertexBufferView);
+        return vertexBuffers.size() - 1;
+    });
+}
+
+size_t BasicScene::addIndexBuffer(const assets::IndexBuffer& indices) {
+    return update([&](auto) {
+        size_t indexBufferSize = indices.size() * sizeof(uint32_t);
+
+        auto indexBuffer = ctx->uploadData(indices.data(), indexBufferSize);
+
+        rhi::IndexBufferView indexBufferView {
+            .buffer = indexBuffer.gpuAddress(),
+            .size = indices.size(),
+            .format = rhi::Format::uint32
+        };
+
+        indexBuffers.push_back(std::move(indexBuffer));
+        indexBufferViews.push_back(indexBufferView);
+        
+        world.indices.push_back(indices);
+        return world.indices.size() - 1;
+    });
+}
+
+size_t BasicScene::addPrimitive(const assets::Primitive& prim) {
+    return update([&](auto) {
+        world.primitives.emplace_back(prim);
+        return world.primitives.size() - 1;
+    });
+}
+
 ID3D12CommandList *BasicScene::populate() {
+    std::lock_guard lock(mutex);
     if (ImGui::Begin("Heap")) {
         auto& alloc = ctx->getAlloc();
 
@@ -108,62 +169,65 @@ ID3D12CommandList *BasicScene::populate() {
             });
         }
 
-        ImGui::Text("Index Buffers: %zu", indexBufferViews.size());
-        if (ImGui::BeginTable("Index Buffers", 1, ImGuiTableFlags_Borders)) {
-            ImGui::TableSetupColumn("Size");
-            for (auto& buffer : indexBufferViews) {
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%zu bytes", buffer.size);
+        if (ImGui::CollapsingHeader("Index Buffers")) {
+            if (ImGui::BeginTable("Index Buffers", 1, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Size");
+                for (auto& buffer : indexBufferViews) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%zu bytes", buffer.size);
+                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
         }
 
-        ImGui::Text("Nodes");
-        if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
-            ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Properties");
-            ImGui::TableHeadersRow();
+        if (ImGui::CollapsingHeader("Nodes")) {
+            if (ImGui::BeginTable("Nodes", 2, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Properties");
+                ImGui::TableHeadersRow();
 
-            for (auto& node : world->nodes) {
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::Text("%s", node.name.c_str());
+                for (auto& node : world.nodes) {
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", node.name.c_str());
 
-                ImGui::TableNextColumn();
+                    ImGui::TableNextColumn();
 
-                {
-                    auto [x, y, z] = node.transform.scale();
-                    float scale[3] = { x, y, z };
-                    ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f);
-                    node.transform.setScale({ scale[0], scale[1], scale[2] });
+                    {
+                        auto [x, y, z] = node.transform.scale();
+                        float scale[3] = { x, y, z };
+                        ImGui::SliderFloat3("Scale", scale, 0.0f, 1.0f);
+                        node.transform.setScale({ scale[0], scale[1], scale[2] });
+                    }
+
+                    {
+                        auto [x, y, z] = node.transform.translation();
+                        float translation[3] = { x, y, z };
+                        ImGui::SliderFloat3("Translation", translation, -1.0f, 1.0f);
+                        node.transform.setTranslation({ translation[0], translation[1], translation[2] });
+                    }
                 }
-
-                {
-                    auto [x, y, z] = node.transform.translation();
-                    float translation[3] = { x, y, z };
-                    ImGui::SliderFloat3("Translation", translation, -1.0f, 1.0f);
-                    node.transform.setTranslation({ translation[0], translation[1], translation[2] });
-                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
         }
 
-        ImGui::Text("Textures");
-        if (ImGui::BeginTable("Textures", 2, ImGuiTableFlags_Borders)) {
-            ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Value");
-            ImGui::TableHeadersRow();
+        if (ImGui::CollapsingHeader("Textures")) {
+            if (ImGui::BeginTable("Textures", 2, ImGuiTableFlags_Borders)) {
+                ImGui::TableSetupColumn("Name");
+                ImGui::TableSetupColumn("Value");
+                ImGui::TableHeadersRow();
 
-            for (size_t i = 0; i < world->textures.size(); ++i) {
-                auto& texture = world->textures[i];
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                ImGui::Text("%s", texture.name.c_str());
-                ImGui::TableNextColumn();
-                ImGui::Image((ImTextureID)getTextureGpuHandle(i), { 128, 128 });
+                for (size_t i = 0; i < world.textures.size(); ++i) {
+                    auto& texture = world.textures[i];
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", texture.name.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::Image((ImTextureID)getTextureGpuHandle(texture.index), { 128, 128 });
+                }
+                ImGui::EndTable();
             }
-            ImGui::EndTable();
         }
     }
     ImGui::End();
@@ -190,12 +254,12 @@ ID3D12CommandList *BasicScene::populate() {
 
     commands.bindTable(4, getTextureGpuHandle(0)); // register(t0...) are all the textures
 
-    for (size_t i = 0; i < std::size(world->nodes); i++) {
-        const auto& node = world->nodes[i];
+    for (size_t i = 0; i < std::size(world.nodes); i++) {
+        const auto& node = world.nodes[i];
         commands.bindTable(2, getObjectBufferGpuHandle(i)); // register(b1) is per object data
 
         for (size_t j : node.primitives) {
-            const auto& primitive = world->primitives[j];
+            const auto& primitive = world.primitives[j];
             commands.bindConst(3, 0, uint32_t(primitive.texture)); // register(b2) is per primitive data
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
@@ -212,7 +276,6 @@ ID3D12CommandList *BasicScene::populate() {
 ID3D12CommandList *BasicScene::attach(Context *render) {
     ctx = render;
 
-    auto& channel = logging::get(logging::eRender);
     auto& device = ctx->getDevice();
     auto& alloc = ctx->getAlloc();
 
@@ -247,65 +310,19 @@ ID3D12CommandList *BasicScene::attach(Context *render) {
 
     pso.rename("scene-pso");
 
-    commands.beginRecording(allocators[ctx->currentFrame()]);
-
-    size_t totalNodes = std::size(world->nodes);
-    size_t totalTextures = std::size(world->textures);
-
-    objectBufferOffset = alloc.alloc(DescriptorSlot::eObjectBuffer, totalNodes);
-    textureBufferOffset = alloc.alloc(DescriptorSlot::eTexture, totalTextures);
-
-    channel.info("alloc objects: {}[{}] textures: {}[{}]", objectBufferOffset, totalNodes, textureBufferOffset, totalTextures);
-
-    // upload all our node data
-    for (size_t i = 0; i < totalNodes; i++) {
-        objectData.emplace_back(device, getObjectBufferCpuHandle(i));        
-    }
-
-    // upload all textures
-    for (size_t i = 0; i < totalTextures; i++) {
-        const auto &image = world->textures[i];
-        auto it = ctx->uploadTexture(getTextureCpuHandle(i), commands, image.size, image.data);
-        textures.emplace_back(std::move(it));
-    }
-
-    // upload all our vertex buffers
-    for (const auto& data : world->verts) {
-        auto vertexBuffer = ctx->uploadData(data.data(), data.size() * sizeof(assets::Vertex));
-
-        rhi::VertexBufferView vertexBufferView = rhi::newVertexBufferView(vertexBuffer.gpuAddress(), data.size(), sizeof(assets::Vertex));
-
-        vertexBuffers.push_back(std::move(vertexBuffer));
-        vertexBufferViews.push_back(vertexBufferView);
-    }
-
-    // upload index buffers
-    for (const auto& indices : world->indices) {
-        size_t indexBufferSize = indices.size() * sizeof(uint32_t);
-
-        auto indexBuffer = ctx->uploadData(indices.data(), indexBufferSize);
-
-        rhi::IndexBufferView indexBufferView {
-            .buffer = indexBuffer.gpuAddress(),
-            .size = indices.size(),
-            .format = rhi::Format::uint32
-        };
-
-        indexBuffers.push_back(std::move(indexBuffer));
-        indexBufferViews.push_back(indexBufferView);
-    }
-
-    commands.endRecording();
+    // TODO: dont hardcode values
+    objectBufferOffset = alloc.alloc(DescriptorSlot::eObjectBuffer, 512);
+    textureBufferOffset = alloc.alloc(DescriptorSlot::eTexture, 512);
 
     return commands.get();
 }
 
 void BasicScene::updateObject(size_t index, math::float4x4 parent) {
-    auto &node = world->nodes[index];
+    auto &node = world.nodes[index];
 
-    auto transform = parent * world->nodes[index].transform;
+    auto transform = parent * world.nodes[index].transform;
     
-    if (world->clearDirty(index)) {
+    if (world.clearDirty(index)) {
         objectData[index].update({ .transform = transform });
     }
 
@@ -316,40 +333,40 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
 
 rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().isKind(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
-        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
+        ctx->getAlloc().checkBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
-        objectBufferOffset + index
+        objectBufferOffset, index
     );
     return ctx->getCbvGpuHandle(objectBufferOffset + index);
 }
 
 rhi::CpuHandle BasicScene::getObjectBufferCpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().isKind(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
-        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
+        ctx->getAlloc().checkBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
-        objectBufferOffset + index
+        objectBufferOffset, index
     );
     return ctx->getCbvCpuHandle(objectBufferOffset + index);
 }
 
 rhi::GpuHandle BasicScene::getTextureGpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().isKind(textureBufferOffset + index, DescriptorSlot::eTexture), 
-        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
+        ctx->getAlloc().checkBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
-        textureBufferOffset + index
+        textureBufferOffset, index
     );
     return ctx->getCbvGpuHandle(textureBufferOffset + index);
 }
 
 rhi::CpuHandle BasicScene::getTextureCpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().isKind(textureBufferOffset + index, DescriptorSlot::eTexture), 
-        "expecting {} found {} instead at {}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
+        ctx->getAlloc().checkBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
-        textureBufferOffset + index
+        textureBufferOffset, index
     );
     return ctx->getCbvCpuHandle(textureBufferOffset + index);
 }

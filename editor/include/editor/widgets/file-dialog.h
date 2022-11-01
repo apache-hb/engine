@@ -941,23 +941,7 @@ inline std::string ImGui::FileBrowser::u8StrToStr(std::string s)
 
 #ifdef _WIN32
 
-#ifndef _INC_WINDOWS
-
-#ifndef WIN32_LEAN_AND_MEAN
-
-#define IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-
-#endif // #ifndef WIN32_LEAN_AND_MEAN
-
-#include <windows.h>
-
-#ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#undef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-#undef WIN32_LEAN_AND_MEAN
-#endif // #ifdef IMGUI_FILEBROWSER_UNDEF_WIN32_LEAN_AND_MEAN
-
-#endif // #ifdef _INC_WINDOWS
+#include "engine/base/win32.h"
 
 inline std::uint32_t ImGui::FileBrowser::GetDrivesBitMask()
 {

@@ -204,6 +204,7 @@ void Context::createScene() {
 void Context::begin() {
     device.imgui();
 
+    beginCopy();
     beginPost();
 }
 
@@ -211,12 +212,15 @@ void Context::end() {
     ID3D12CommandList *sceneCommands = scene->populate();
 
     endPost();
+    size_t signal = endCopy();
 
     ID3D12CommandList* commands[] = { sceneCommands, postCommands.get() };
     directQueue.execute(commands);
     swapchain.present();
 
     waitForFrame();
+
+    executeCopy(signal);
 }
 
 void Context::resizeScene(rhi::TextureSize) {
@@ -255,7 +259,13 @@ void Context::beginPost() {
         rhi::newStateTransition(intermediateTarget, BufferState::eRenderTarget, BufferState::ePixelShaderResource)
     });
 
+    // TODO: race condition?
     postCommands.beginRecording(postAllocators[frameIndex]);
+    if (!pendingTransitions.empty()) {
+        postCommands.transition(pendingTransitions);
+        pendingTransitions.clear();
+    }
+
     postCommands.setPipeline(pso);
 
     postCommands.bindDescriptors(kDescriptors);
@@ -296,15 +306,12 @@ void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fe
     fence.waitUntil(value);
 }
 
-rhi::Buffer Context::uploadTexture(rhi::CpuHandle handle, rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data) {
+rhi::Buffer Context::uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size, std::span<const std::byte> data) {
     auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
     auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
 
-    auto kBarrier = std::to_array({
-        rhi::newStateTransition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource)
-    });
+    pendingTransitions.push_back(rhi::newStateTransition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource));
 
-    commands.transition(kBarrier);
     copyCommands.copyTexture(result.buffer, upload, data.data(), size);
 
     pendingCopies.push_back(std::move(upload));

@@ -156,8 +156,6 @@ namespace simcoe::math {
 
     template<typename T>
     struct Vec4 {
-        enum Select { X = (1 << 0), Y = (1 << 1), Z = (1 << 2), W = (1 << 3) };
-
         T x;
         T y;
         T z;
@@ -169,15 +167,6 @@ namespace simcoe::math {
 
         static constexpr Vec4 of(T it) {
             return from(it, it, it, it);
-        }
-
-        static constexpr Vec4 select(const Vec4& lhs, const Vec4& rhs, Select control) {
-            auto x = control & X ? rhs.x : lhs.x;
-            auto y = control & Y ? rhs.y : lhs.y;
-            auto z = control & Z ? rhs.z : lhs.z;
-            auto w = control & W ? rhs.w : lhs.w;
-
-            return from(x, y, z, w);
         }
 
         constexpr T length() const {
@@ -239,7 +228,6 @@ namespace simcoe::math {
     struct Mat4x4 {
         using Row = Vec4<T>;
         using Row3 = Vec3<T>;
-        using RowSelect = typename Row::Select;
         Row rows[4];
 
         constexpr const Vec4<T> column(size_t column) const {

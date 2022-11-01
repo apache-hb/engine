@@ -59,7 +59,6 @@ namespace simcoe::render {
     struct BasicScene final : RenderScene {
         struct Create {
             Camera *camera;
-            assets::World *world;
             rhi::TextureSize resolution = { 1920, 1080 };
         };
 
@@ -68,10 +67,24 @@ namespace simcoe::render {
         ID3D12CommandList *populate() override;
         ID3D12CommandList *attach(Context *ctx) override;
 
+        size_t addTexture(const assets::Texture& texture);
+        size_t addNode(const assets::Node& node);
+        size_t addVertexBuffer(const assets::VertexBuffer& verts);
+        size_t addIndexBuffer(const assets::IndexBuffer& indices);
+        size_t addPrimitive(const assets::Primitive& primitive);
+
     private:
+        template<typename F>
+        auto update(F&& func) {
+            std::lock_guard lock(mutex);
+            return func(&world);
+        }
+
+        std::mutex mutex;
+        assets::World world;
+
         Context *ctx;
         Camera *camera;
-        assets::World *world;
 
         void updateObject(size_t index, math::float4x4 parent);
         

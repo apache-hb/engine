@@ -5,6 +5,7 @@
 #include "engine/memory/bitmap.h"
 
 #include "engine/base/logging.h"
+#include "engine/memory/slotmap.h"
 #include "engine/rhi/rhi.h"
 #include "engine/window/window.h"
 
@@ -13,7 +14,7 @@
 
 namespace simcoe::render {
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
-    constexpr size_t kHeapSize = 1024;
+    constexpr size_t kHeapSize = 0x1000;
 
     std::vector<std::byte> loadShader(std::string_view path);
 
@@ -57,7 +58,7 @@ namespace simcoe::render {
         }
     }
 
-    using SlotMap = memory::DebugBitMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
+    using SlotMap = memory::SlotMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
 
     struct Context {
         struct Create {
@@ -82,7 +83,7 @@ namespace simcoe::render {
         rhi::Device &getDevice() { return device; }
 
         rhi::Buffer uploadData(const void *ptr, size_t size);
-        rhi::Buffer uploadTexture(rhi::CpuHandle handle, rhi::CommandList &commands, rhi::TextureSize size, std::span<const std::byte> data);
+        rhi::Buffer uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size, std::span<const std::byte> data);
 
         rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(frames); }
 
@@ -91,6 +92,11 @@ namespace simcoe::render {
 
         SlotMap& getAlloc() { return cbvAlloc; }
         rhi::DescriptorSet &getHeap() { return cbvHeap; }
+
+        void executeCopy(size_t signal);
+
+        void beginCopy();
+        size_t endCopy(); // return the value to wait for to signal that all copies are complete
 
     private:
         Window *window;
@@ -109,11 +115,6 @@ namespace simcoe::render {
 
         void waitForFrame();
         void waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fence);
-
-        void executeCopy(size_t signal);
-
-        void beginCopy();
-        size_t endCopy(); // return the value to wait for to signal that all copies are complete
 
         void beginPost();
         void endPost();
@@ -146,6 +147,7 @@ namespace simcoe::render {
         rhi::CommandList copyCommands;
         UniquePtr<rhi::Allocator[]> copyAllocators;
         std::vector<rhi::Buffer> pendingCopies;
+        std::vector<rhi::StateTransition> pendingTransitions;
         size_t currentCopy = 0;
         rhi::Fence copyFence;
 
@@ -156,8 +158,8 @@ namespace simcoe::render {
 
         // sync objects
         rhi::Fence directFence;
-        size_t fenceValue = 0;
-        size_t frameIndex;
+        std::atomic_size_t fenceValue = 0;
+        std::atomic_size_t frameIndex;
 
         size_t intermediateHeapOffset;
         size_t imguiHeapOffset;

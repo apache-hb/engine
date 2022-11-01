@@ -11,6 +11,7 @@
 #include "engine/render/render.h"
 #include "engine/render/scene.h"
 #include "engine/render/world.h"
+#include "engine/render/assets/assets.h"
 
 #include "engine/ui/ui.h"
 
@@ -142,15 +143,8 @@ int commonMain() {
     });
     
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 1.f, 1.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
-    //graph::Create create {
-    //    .window = window.get()
-    //};
-
-    //graph::RenderGraph graph { create };
-    
-    render::BasicScene scene { { &camera, &world } };
+    render::BasicScene scene { { &camera } };
 
     render::Context render { { window.get(), &scene } };
 
@@ -161,10 +155,13 @@ int commonMain() {
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
 
+    std::thread([&] {
+        assets::loadGltf(&scene, "D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
+    }).detach();
+
     while (window->poll(&keyboard)) {
         manager.poll();
 
-        //graph.render();
         render.begin();
         window->imgui();
 

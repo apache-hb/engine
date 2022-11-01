@@ -3,7 +3,6 @@
 #include "engine/rhi/rhi.h"
 
 #include <vector>
-#include <string_view>
 
 namespace simcoe::assets {
     struct Vertex {
@@ -33,6 +32,11 @@ namespace simcoe::assets {
         std::vector<std::byte> data;
     };
 
+    struct TextureView {
+        std::string name;
+        size_t index;
+    };
+
     struct Primitive {
         size_t texture;
         size_t verts;
@@ -45,12 +49,10 @@ namespace simcoe::assets {
 
         std::vector<Node> nodes;
 
-        std::vector<Texture> textures;
+        std::vector<TextureView> textures;
         std::vector<VertexBuffer> verts;
         std::vector<IndexBuffer> indices;
 
         std::vector<Primitive> primitives;
     };
-
-    World loadGltf(const char *path);
 }

@@ -134,7 +134,7 @@ src = [
     'src/render/render.cpp', 
     'src/render/camera.cpp', 
     'src/render/scene.cpp', 
-    'src/render/world.cpp'
+    'src/render/assets/assets.cpp'
 ]
 
 librender = library('render', src,

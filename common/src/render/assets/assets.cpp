@@ -1,4 +1,4 @@
-#include "engine/render/world.h"
+#include "engine/render/assets/assets.h"
 
 #include "engine/math/consts.h"
 
@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <unordered_map>
 
+#include "engine/render/scene.h"
 #include "tinygltf/tinygltf.h"
 
 namespace gltf = tinygltf;
@@ -97,18 +98,6 @@ namespace {
         return result;
     }
 
-    size_t getTexture(const gltf::Model& model, const gltf::Primitive& primitive) {
-        if (primitive.material == -1) { return SIZE_MAX; }
-
-        const auto& mat = model.materials[primitive.material];
-        const auto& base = mat.pbrMetallicRoughness.baseColorTexture;
-
-        if (base.index == -1) { return SIZE_MAX; }
-
-        const auto& texture = model.textures[base.index];
-        return texture.source;
-    }
-
     struct AttributeData {
         const std::byte *data;
         size_t length;
@@ -166,9 +155,29 @@ namespace {
     };
 
     struct Sink {
-        Sink(const gltf::Model& model) 
-            : model(model) 
-        { }
+        Sink(const gltf::Model& model, render::BasicScene *scene)
+            : scene(scene) 
+            , model(model) 
+        { 
+            assets::Texture it = {
+                .name = "default",
+                .size = { 2, 2 },
+                .data = { (std::byte*)kDefaultImage, (std::byte*)kDefaultImage + sizeof(kDefaultImage) }
+            };
+            defaultTexture = scene->addTexture(it);
+        }
+
+        size_t getTexture(const gltf::Model& model, const gltf::Primitive& primitive) {
+            if (primitive.material == -1) { return SIZE_MAX; }
+
+            const auto& mat = model.materials[primitive.material];
+            const auto& base = mat.pbrMetallicRoughness.baseColorTexture;
+
+            if (base.index == -1) { return SIZE_MAX; }
+
+            const auto& texture = model.textures[base.index];
+            return textureIndices[texture.source];
+        }
 
         std::vector<size_t> getPrimitives(int index) {
             if (index == -1) { return { }; }
@@ -297,37 +306,33 @@ namespace {
             }
 
             return { 
-                .texture = texture == SIZE_MAX ? world.textures.size() - 1 : texture,
+                .texture = texture == SIZE_MAX ? defaultTexture : texture,
                 .verts = addVertexBuffer(vertexBuffer),
                 .indices = addIndexBuffer(indexBuffer)
             };
         }
 
         size_t addPrimitive(assets::Primitive prim) {
-            size_t i = world.primitives.size();
-            world.primitives.push_back(prim);
-            return i;
+            return scene->addPrimitive(prim);
         }
 
         size_t addVertexBuffer(assets::VertexBuffer buffer) {
-            size_t i = world.verts.size();
-            world.verts.push_back(buffer);
-            return i;
+            return scene->addVertexBuffer(buffer);
         }
 
         size_t addIndexBuffer(assets::IndexBuffer buffer) {
-            size_t i = world.indices.size();
-            world.indices.push_back(buffer);
-            return i;
+            return scene->addIndexBuffer(buffer);
         }
 
-        assets::World world;
+        render::BasicScene *scene;
+        size_t defaultTexture;
         const gltf::Model& model;
         logging::Channel& log = logging::get(logging::eRender);
+        std::unordered_map<size_t, size_t> textureIndices;
     };
 }
 
-assets::World assets::loadGltf(const char *path) {
+void assets::loadGltf(render::BasicScene *scene, const char *path) {
     auto &channel = logging::get(logging::eRender);
 
     gltf::Model model;
@@ -346,12 +351,13 @@ assets::World assets::loadGltf(const char *path) {
     }
 
     if (!result) {
-        return { };
+        return;
     }
 
-    Sink sink{model};
+    Sink sink{model, scene};
 
-    for (const auto& image : model.images) {
+    for (size_t i = 0; i < model.textures.size(); i++) {
+        auto& image =  model.images[i];
         Texture it = {
             .name = image.name,
             .size = { size_t(image.width), size_t(image.height) }
@@ -360,15 +366,8 @@ assets::World assets::loadGltf(const char *path) {
         it.data.resize(image.image.size());
         memcpy(it.data.data(), image.image.data(), it.data.size());
 
-        sink.world.textures.push_back(it);
+        sink.textureIndices[i] = scene->addTexture(it);
     }
-
-    Texture defaultTexture = {
-        .name = "default",
-        .size = { 2, 2 },
-        .data = { (std::byte*)kDefaultImage, (std::byte*)kDefaultImage + sizeof(kDefaultImage) }
-    };
-    sink.world.textures.push_back(defaultTexture);
 
     for (const auto& node : model.nodes) {
         Node it = {
@@ -378,12 +377,10 @@ assets::World assets::loadGltf(const char *path) {
             .primitives = sink.getPrimitives(node.mesh)
         };
 
-        sink.world.nodes.push_back(it);
+        scene->addNode(it);
     }
 
     channel.info("finished loading gltf `{}`", path);
-
-    return sink.world;
 }
 
 void assets::World::makeDirty(size_t node) {

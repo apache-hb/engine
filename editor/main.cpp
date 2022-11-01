@@ -11,6 +11,7 @@
 #include "engine/render/render.h"
 #include "engine/render/scene.h"
 #include "engine/render/world.h"
+#include "engine/render/assets/assets.h"
 
 #include "engine/ui/ui.h"
 
@@ -207,9 +208,8 @@ int commonMain() {
     });
 
     render::Perspective camera { { 1.f, 1.f, 1.f }, { 0.f, 0.f, 1.f }, 110.f };
-    auto world = assets::loadGltf("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
-    render::BasicScene scene { { &camera, &world } };
+    render::BasicScene scene { { &camera } };
 
     render::Context render { { window.get(), &scene } };
 
@@ -219,6 +219,8 @@ int commonMain() {
     CameraListener state { camera, keyboard };
 
     input::Manager manager { { &keyboard, &gamepad }, { &state } };
+
+    assets::loadGltf(&scene, "D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
     while (window->poll(&keyboard)) {
         manager.poll();
