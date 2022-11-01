@@ -6,7 +6,6 @@
 #include "engine/math/math.h"
 #include "engine/base/win32.h"
 
-#include <bitset>
 #include <xinput.h>
 
 #include <vector>

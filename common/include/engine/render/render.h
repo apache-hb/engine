@@ -108,7 +108,7 @@ namespace simcoe::render {
         void updateViewports(rhi::TextureSize post, rhi::TextureSize scene);
 
         void waitForFrame();
-        void waitOnQueue(rhi::CommandQueue &queue, size_t value);
+        void waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fence);
 
         void executeCopy(size_t signal);
 
@@ -144,9 +144,10 @@ namespace simcoe::render {
         // copy commands
         rhi::CommandQueue copyQueue;
         rhi::CommandList copyCommands;
-        rhi::Allocator copyAllocator;
+        UniquePtr<rhi::Allocator[]> copyAllocators;
         std::vector<rhi::Buffer> pendingCopies;
         size_t currentCopy = 0;
+        rhi::Fence copyFence;
 
         // scene data set
         // contains texture, imgui data, and the camera buffer
@@ -154,7 +155,7 @@ namespace simcoe::render {
         SlotMap cbvAlloc;
 
         // sync objects
-        rhi::Fence fence;
+        rhi::Fence directFence;
         size_t fenceValue = 0;
         size_t frameIndex;
 

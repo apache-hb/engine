@@ -115,9 +115,11 @@ void Context::create() {
 
     // TODO: iterators again
     postAllocators = {frames};
+    copyAllocators = {frames};
     for (size_t i = 0; i < frames; i++) {
         // create per frame data
         postAllocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
+        copyAllocators[i] = device.newAllocator(rhi::CommandList::Type::eCopy);
     }
 
     createRenderTargets();
@@ -136,13 +138,13 @@ void Context::create() {
     DX_NAME(postCommands);
 
     // create copy queue resources
-    copyAllocator = device.newAllocator(rhi::CommandList::Type::eCopy);
     copyQueue = device.newQueue(rhi::CommandList::Type::eCopy);
     DX_NAME(copyQueue);
 
-    copyCommands = device.newCommandList(copyAllocator, rhi::CommandList::Type::eCopy);
+    copyCommands = device.newCommandList(copyAllocators[frameIndex], rhi::CommandList::Type::eCopy);
 
-    fence = device.newFence();
+    copyFence = device.newFence();
+    directFence = device.newFence();
 
     auto postPs = loadShader("resources/shaders/post-shader.ps.pso");
     auto postVs = loadShader("resources/shaders/post-shader.vs.pso");
@@ -197,9 +199,6 @@ void Context::createScene() {
     ID3D12CommandList* directCommandList[] = { sceneCommands };
     directQueue.execute(directCommandList);
     waitForFrame();
-
-    // release copy resources that are no longer needed
-    pendingCopies.resize(0);
 }
 
 void Context::begin() {
@@ -287,12 +286,12 @@ void Context::endPost() {
 }
 
 void Context::waitForFrame() {
-    waitOnQueue(directQueue, fenceValue++);
+    waitOnQueue(directQueue, fenceValue++, directFence);
 
     frameIndex = swapchain.currentBackBuffer();
 }
 
-void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value) {
+void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fence) {
     queue.signal(fence, value);
     fence.waitUntil(value);
 }
@@ -328,7 +327,7 @@ rhi::Buffer Context::uploadData(const void *ptr, size_t size) {
 }
 
 void Context::beginCopy() {
-    copyCommands.beginRecording(copyAllocator);
+    copyCommands.beginRecording(copyAllocators[frameIndex]);
 }
 
 size_t Context::endCopy() {
@@ -339,5 +338,8 @@ size_t Context::endCopy() {
 void Context::executeCopy(size_t signal) {
     ID3D12CommandList* commands[] = { copyCommands.get() };
     copyQueue.execute(commands);
-    waitOnQueue(copyQueue, signal);
+    waitOnQueue(copyQueue, signal, copyFence);
+
+    // release copy resources that are no longer needed
+    pendingCopies.resize(0);
 }
