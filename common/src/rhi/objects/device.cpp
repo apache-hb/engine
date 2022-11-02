@@ -435,6 +435,6 @@ void Device::imguiShutdown() {
     ImGui_ImplDX12_Shutdown();
 }
 
-void Device::imgui() {
+void Device::imguiFrame() {
     ImGui_ImplDX12_NewFrame();
 }

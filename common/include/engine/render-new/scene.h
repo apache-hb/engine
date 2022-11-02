@@ -5,6 +5,8 @@
 
 #include "engine/math/math.h"
 
+#include "engine/render-new/graph.h"
+
 namespace simcoe::render {
     struct Node {
         std::string name;
@@ -34,5 +36,16 @@ namespace simcoe::render {
         std::vector<Node> nodes;
         std::vector<Texture> textures;
         std::vector<Primitive> primitives;
+    };
+
+    struct WorldGraph : Graph {
+        WorldGraph();
+
+        void execute(Context& ctx) {
+            Graph::execute(ctx, primary);
+        }
+
+    private:
+        Pass *primary;
     };
 }

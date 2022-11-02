@@ -74,6 +74,17 @@ namespace {
             pWindow->keys[VK_MBUTTON] = 0;
             break;
 
+        case WM_SETFOCUS:
+            pWindow->hasFocus = true;
+            break;
+        case WM_KILLFOCUS:
+            pWindow->hasFocus = false;
+            break;
+
+        case WM_ACTIVATE:
+            pWindow->hasFocus = (LOWORD(wparam) != WA_INACTIVE);
+            break;
+
         case WM_CLOSE:
             DestroyWindow(hwnd);
             return 0;
@@ -141,7 +152,7 @@ HWND Window::handle() {
     return hwnd;
 }
 
-void Window::imgui() {
+void Window::imguiFrame() {
     ImGui_ImplWin32_NewFrame();
 }
 
@@ -160,7 +171,9 @@ bool Window::poll(input::Keyboard *pKeyboard) {
         DispatchMessageA(&msg);
     }
 
-    pKeyboard->update(hwnd, keys);
+    if (hasFocus) {
+        pKeyboard->update(hwnd, keys);
+    }
 
     return true;
 }

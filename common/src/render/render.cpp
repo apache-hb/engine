@@ -202,7 +202,7 @@ void Context::createScene() {
 }
 
 void Context::begin() {
-    device.imgui();
+    device.imguiFrame();
 
     beginCopy();
     beginPost();
@@ -287,7 +287,7 @@ void Context::endPost() {
         rhi::newStateTransition(intermediateTarget, BufferState::ePixelShaderResource, BufferState::eRenderTarget)
     });
 
-    postCommands.imgui();
+    postCommands.imguiFrame();
 
     // now switch back to rendering from intermediate to target
     postCommands.transition(kTransitions);
@@ -303,7 +303,7 @@ void Context::waitForFrame() {
 
 void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fence) {
     queue.signal(fence, value);
-    fence.waitUntil(value);
+    fence.wait(value);
 }
 
 rhi::Buffer Context::uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size, std::span<const std::byte> data) {

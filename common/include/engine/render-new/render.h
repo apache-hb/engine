@@ -103,12 +103,28 @@ namespace simcoe::render {
     struct PresentQueue {
         PresentQueue(rhi::Device& device, const ContextInfo& info);
 
+        void present(Context& ctx);
+        void execute(std::span<ID3D12CommandList*> lists);
+
+        size_t currentFrame() const { return current; }
+
+        rhi::CpuHandle getFrameHandle(size_t frame) { return rtvHeap.cpuHandle(frame); }
+        rhi::CpuHandle getSceneHandle() { return rtvHeap.cpuHandle(0); }
+
+        rhi::Buffer& getRenderTarget() { return renderTargets[current]; }
+
     private:
+        size_t frames;
+        size_t current;
+
         rhi::CommandQueue queue;
         rhi::SwapChain swapchain;
 
         rhi::DescriptorSet rtvHeap;
         UniquePtr<rhi::Buffer[]> renderTargets;
+
+        size_t frameIndex = 0;
+        rhi::Fence fence;
     };
 
     struct HeapAllocator : SlotMap {
@@ -120,6 +136,7 @@ namespace simcoe::render {
         rhi::CpuHandle cpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type);
         rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type);
         
+        rhi::DescriptorSet& getHeap() { return heap; }
     private:
         rhi::DescriptorSet heap;
     };
@@ -127,21 +144,38 @@ namespace simcoe::render {
     struct Context {
         Context(const ContextInfo& info);
 
+        // external api
         void update(const ContextInfo& info);
-
         void present();
 
+        // render graph api
+        void submit(ID3D12CommandList *list);
+
+        // imgui related functions
+        void imguiInit(size_t offset);
+        void imguiFrame();
+        void imguiShutdown();
+
         // trivial getters
+        rhi::Device &getDevice() { return device; }
         PresentQueue& getPresentQueue() { return presentQueue; }
         CopyQueue& getCopyQueue() { return copyQueue; }
         HeapAllocator& getHeap() { return cbvHeap; }
+
+        rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
+        rhi::CpuHandle getRenderTargetHandle() { return presentQueue.getFrameHandle(currentFrame()); }
+
+        size_t getFrames() const { return info.frames; }
+        size_t currentFrame() const { return presentQueue.currentFrame(); }
 
         // getters
         rhi::TextureSize windowSize() { return info.window->size().as<size_t>(); }
         rhi::TextureSize sceneSize() { return info.resolution; }
 
     private:
-        void updateViewport(rhi::TextureSize scene);
+        void createFrameData();
+
+        std::vector<ID3D12CommandList*> lists;
 
         ContextInfo info;
 
@@ -152,10 +186,5 @@ namespace simcoe::render {
 
         rhi::DescriptorSet dsvHeap;
         HeapAllocator cbvHeap;
-
-        UniquePtr<rhi::Allocator[]> allocators;
-
-        rhi::View viewport;
-        rhi::Buffer sceneTarget;
     };
 }

@@ -21,8 +21,9 @@ namespace simcoe {
 
         bool poll(input::Keyboard *pKeyboard);
 
-        void imgui();
+        void imguiFrame();
 
+        bool hasFocus = false;
         size_t index = 1;
         input::Keyboard::KeyState keys { };
     private:

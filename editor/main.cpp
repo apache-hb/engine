@@ -226,7 +226,7 @@ int commonMain() {
         manager.poll();
 
         render.begin();
-        window->imgui();
+        window->imguiFrame();
 
         ImGui::NewFrame();
 

@@ -1,5 +1,4 @@
 #include "engine/render-new/render.h"
-#include "engine/rhi/rhi.h"
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -20,31 +19,33 @@ Context::Context(const ContextInfo& info)
     , copyQueue(device, info)
     , cbvHeap(device, getMaxHeapSize(info), rhi::DescriptorSet::Type::eConstBuffer, true)
 { 
-    updateViewport(sceneSize());
+    createFrameData();
 }
 
-void Context::updateViewport(rhi::TextureSize scene) {
-    auto [width, height] = windowSize();;
+void Context::createFrameData() {
+    dsvHeap = device.newDescriptorSet(1, rhi::DescriptorSet::Type::eDepthStencil, false);
+}
 
-    auto widthRatio = float(scene.width) / width;
-    auto heightRatio = float(scene.height) / height;
+void Context::submit(ID3D12CommandList *list) {
+    lists.push_back(list);
+}
 
-    float x = 1.f;
-    float y = 1.f;
+void Context::imguiInit(size_t offset) {
+    device.imguiInit(info.frames, cbvHeap.getHeap(), offset);
+}
 
-    if (widthRatio < heightRatio) {
-        x = widthRatio / heightRatio;
-    } else {
-        y = heightRatio / widthRatio;
-    }
+void Context::imguiFrame() {
+    device.imguiFrame();
+    info.window->imguiFrame();
+}
 
-    viewport.viewport.TopLeftX = width * (1.f - x) / 2.f;
-    viewport.viewport.TopLeftY = height * (1.f - y) / 2.f;
-    viewport.viewport.Width = x * width;
-    viewport.viewport.Height = y * height;
+void Context::imguiShutdown() {
+    device.imguiShutdown();
+}
 
-    viewport.scissor.left = LONG(viewport.viewport.TopLeftX);
-    viewport.scissor.right = LONG(viewport.viewport.TopLeftX + viewport.viewport.Width);
-    viewport.scissor.top = LONG(viewport.viewport.TopLeftY);
-    viewport.scissor.bottom = LONG(viewport.viewport.TopLeftY + viewport.viewport.Height);
+void Context::present() {
+    presentQueue.execute(lists);
+    presentQueue.present(*this);
+
+    lists.clear();
 }

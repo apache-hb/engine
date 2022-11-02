@@ -27,8 +27,9 @@ namespace simcoe::memory {
             return SIZE_MAX;
         }
 
-        void release(size_t index, size_t count = 1) {
+        void release(T kind, size_t index, size_t count = 1) {
             for (size_t i = 0; i < count; i++) {
+                ASSERT(checkBit(index + i, kind));
                 setBit(index + i, Empty);
             }
         }

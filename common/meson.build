@@ -148,3 +148,22 @@ render = declare_dependency(
     dependencies : [ base, rhi, window, memory ],
     include_directories : 'include'
 )
+
+src = [
+    'src/render-new/queue.cpp',
+    'src/render-new/render.cpp',
+    'src/render-new/graph.cpp',
+    'src/render-new/scene.cpp'
+]
+
+librender2 = library('render2', src,
+    cpp_args : args,
+    dependencies : [ base, rhi, window, memory, gltf ],
+    include_directories : 'include'
+)
+
+render2 = declare_dependency(
+    link_with : librender2,
+    dependencies : [ base, rhi, window, memory ],
+    include_directories : 'include'
+)

@@ -225,7 +225,7 @@ namespace simcoe::rhi {
 
         Fence(ID3D12Fence *fence = nullptr);
 
-        void waitUntil(size_t signal);
+        void wait(size_t signal);
 
     private:
         UniqueHandle event;
@@ -299,7 +299,7 @@ namespace simcoe::rhi {
 
         void transition(std::span<const StateTransition> barriers);
 
-        void imgui();
+        void imguiFrame();
     };
     
     struct SwapChain final : UniqueObject<IDXGISwapChain3> {
@@ -388,7 +388,7 @@ namespace simcoe::rhi {
 
         void imguiInit(size_t frames, DescriptorSet &heap, size_t offset);
         void imguiShutdown();
-        void imgui();
+        void imguiFrame();
 
     private:
         ID3D12RootSignature *createRootSignature(ID3DBlob *signature);

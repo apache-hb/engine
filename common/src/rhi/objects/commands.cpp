@@ -113,7 +113,7 @@ void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
     get()->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
 }
 
-void CommandList::imgui() {
+void CommandList::imguiFrame() {
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), get());
 }

@@ -9,7 +9,7 @@ Fence::Fence(ID3D12Fence *fence)
     , event(CreateEvent(nullptr, false, false, nullptr))
 { }
 
-void Fence::waitUntil(size_t signal) {
+void Fence::wait(size_t signal) {
     if (get()->GetCompletedValue() < signal) {
         DX_CHECK(get()->SetEventOnCompletion(signal, event.get()));
         WaitForSingleObject(event.get(), INFINITE);
