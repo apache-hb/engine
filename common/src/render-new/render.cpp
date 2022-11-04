@@ -1,4 +1,5 @@
 #include "engine/render-new/render.h"
+#include "engine/rhi/rhi.h"
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -12,6 +13,11 @@ namespace {
     }
 }
 
+std::vector<std::byte> render::loadShader(std::string_view path) {
+    UniquePtr<Io> io { Io::open(path, Io::eRead) };
+    return io->read<std::byte>();
+}
+
 Context::Context(const ContextInfo& info)
     : info(info)
     , device(rhi::getDevice())
@@ -20,14 +26,19 @@ Context::Context(const ContextInfo& info)
     , cbvHeap(device, getMaxHeapSize(info), rhi::DescriptorSet::Type::eConstBuffer, true)
 { 
     createFrameData();
+    createCommands();
 }
 
 void Context::createFrameData() {
     dsvHeap = device.newDescriptorSet(1, rhi::DescriptorSet::Type::eDepthStencil, false);
 }
 
-void Context::submit(ID3D12CommandList *list) {
-    lists.push_back(list);
+void Context::createCommands() {
+    allocators = new rhi::Allocator[info.frames];
+    for (size_t i = 0; i < info.frames; ++i) {
+        allocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
+    }
+    commands = device.newCommandList(allocators[currentFrame()], rhi::CommandList::Type::eDirect);
 }
 
 void Context::imguiInit(size_t offset) {
@@ -44,8 +55,21 @@ void Context::imguiShutdown() {
 }
 
 void Context::present() {
+    ID3D12CommandList *lists[] = { commands.get() };
     presentQueue.execute(lists);
     presentQueue.present(*this);
+}
 
-    lists.clear();
+void Context::beginFrame() {
+    commands.beginRecording(allocators[currentFrame()]);
+}
+
+void Context::endFrame() {
+    commands.endRecording();
+}
+
+void Context::transition(std::span<const rhi::StateTransition> barriers) {
+    if (barriers.empty()) { return; }
+
+    commands.transition(barriers);
 }

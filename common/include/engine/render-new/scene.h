@@ -7,6 +7,14 @@
 
 #include "engine/render-new/graph.h"
 
+namespace simcoe::assets {
+    struct Vertex {
+        math::float3 position;
+        math::float3 normal;
+        math::float2 uv;
+    };
+}
+
 namespace simcoe::render {
     struct Node {
         std::string name;
@@ -39,10 +47,10 @@ namespace simcoe::render {
     };
 
     struct WorldGraph : Graph {
-        WorldGraph();
+        WorldGraph(Context& ctx);
 
-        void execute(Context& ctx) {
-            Graph::execute(ctx, primary);
+        void execute() {
+            Graph::execute(primary);
         }
 
     private:

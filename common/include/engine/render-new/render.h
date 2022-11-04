@@ -12,6 +12,8 @@ namespace simcoe::render {
     struct PresentQueue;
     struct Context;
 
+    std::vector<std::byte> loadShader(std::string_view path);
+
     namespace DescriptorSlot {
         enum Slot : unsigned {
             eDebugBuffer,
@@ -41,7 +43,7 @@ namespace simcoe::render {
     }
 
     using SlotMap = memory::SlotMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
-    
+
     struct ContextInfo {
         Window *window;
         size_t frames = 2; // number of backbuffers
@@ -137,6 +139,7 @@ namespace simcoe::render {
         rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type);
         
         rhi::DescriptorSet& getHeap() { return heap; }
+        ID3D12DescriptorHeap *get() { return heap.get(); }
     private:
         rhi::DescriptorSet heap;
     };
@@ -148,8 +151,9 @@ namespace simcoe::render {
         void update(const ContextInfo& info);
         void present();
 
-        // render graph api
-        void submit(ID3D12CommandList *list);
+        void beginFrame();
+        void endFrame();
+        void transition(std::span<const rhi::StateTransition> barriers);
 
         // imgui related functions
         void imguiInit(size_t offset);
@@ -165,6 +169,8 @@ namespace simcoe::render {
         rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
         rhi::CpuHandle getRenderTargetHandle() { return presentQueue.getFrameHandle(currentFrame()); }
 
+        rhi::CommandList &getCommands() { return commands; }
+
         size_t getFrames() const { return info.frames; }
         size_t currentFrame() const { return presentQueue.currentFrame(); }
 
@@ -174,8 +180,7 @@ namespace simcoe::render {
 
     private:
         void createFrameData();
-
-        std::vector<ID3D12CommandList*> lists;
+        void createCommands();
 
         ContextInfo info;
 
@@ -186,5 +191,8 @@ namespace simcoe::render {
 
         rhi::DescriptorSet dsvHeap;
         HeapAllocator cbvHeap;
+
+        UniquePtr<rhi::Allocator[]> allocators;
+        rhi::CommandList commands;
     };
 }

@@ -33,11 +33,10 @@ int commonMain() {
     });
 
     input::Keyboard keyboard { false };
-    input::Gamepad gamepad { 0 };
+    input::Gamepad gamepad0 { 0 };
+    input::Gamepad gamepad1 { 1 };
 
-    input::Manager manager { { &keyboard, &gamepad }, { } };
-
-    render::WorldGraph world { };
+    input::Manager manager { { &keyboard, &gamepad0, &gamepad1 }, { } };
 
     render::ContextInfo info {
         .window = window.get(),
@@ -45,15 +44,16 @@ int commonMain() {
         .resolution = { size_t(width / 2), size_t(height / 2) },
     };
     render::Context context { info };
+    render::WorldGraph world { context };
 
-    world.init(context);
+    world.init();
 
     while (window->poll(&keyboard)) {
         manager.poll();
-        world.execute(context);
+        world.execute();
     }
 
-    world.deinit(context);
+    world.deinit();
 
     return 0;
 }
