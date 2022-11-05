@@ -1,5 +1,6 @@
 #include "engine/render-new/scene.h"
 
+#include "engine/render-new/render.h"
 #include "engine/rhi/rhi.h"
 #include "imgui/imgui.h"
 
@@ -93,7 +94,7 @@ private:
 };
 
 struct GlobalPass final : Pass {
-    GlobalPass(const Info& info) : Pass(info) {
+    GlobalPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         rtvResource = getParent()->addResource<RenderTargetResource>("rtv");
         renderTargetOut = newOutput<Source>("rtv", State::ePresent, rtvResource);
     }
@@ -107,7 +108,7 @@ struct GlobalPass final : Pass {
 };
 
 struct PresentPass final : Pass {
-    PresentPass(const Info& info) : Pass(info) {
+    PresentPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
         renderTargetIn = newInput<Input>("rtv", State::ePresent);
     }
@@ -122,7 +123,7 @@ struct PresentPass final : Pass {
 };
 
 struct ScenePass final : Pass {
-    ScenePass(const Info& info) : Pass(info) {
+    ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
@@ -136,7 +137,7 @@ struct ScenePass final : Pass {
 };
 
 struct PostPass final : Pass {
-    PostPass(const Info& info) : Pass(info) {
+    PostPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         sceneTargetIn = newInput<Input>("scene-target", State::ePixelShaderResource);
         sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn); // TODO: this is also a hack, graph code should be able to handle this
         
@@ -150,7 +151,7 @@ struct PostPass final : Pass {
     }
 
     void execute(Context& ctx) override {
-        auto& cmd = ctx.getCommands();
+        auto& cmd = ctx.getCommands(getSlot());
         auto *sceneTarget = sceneTargetIn.get();
         auto *renderTarget = renderTargetIn.get();
 
@@ -265,16 +266,12 @@ private:
 };
 
 struct ImGuiPass final : Pass {
-    ImGuiPass(const Info& info) : Pass(info) {
+    ImGuiPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         renderTargetIn = newInput<Input>("rtv", State::eRenderTarget);
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
     
     void init(Context& ctx) override {
-        auto [width, height] = ctx.windowSize();
-
-        view = { 0.f, 0.f, float(width), float(height) };
-
         imguiHeapOffset = ctx.getHeap().alloc(DescriptorSlot::eImGui);
         ctx.imguiInit(imguiHeapOffset);
     }
@@ -285,11 +282,7 @@ struct ImGuiPass final : Pass {
     }
 
     void execute(Context& ctx) override {
-        auto& cmd = ctx.getCommands();
-        auto *target = renderTargetIn.get();
-        cmd.setRenderTarget(target->rtvCpuHandle(), rhi::CpuHandle::Invalid, kLetterBox);
-        cmd.setViewAndScissor(view);
-
+        auto& cmd = ctx.getCommands(getSlot());
         // imgui work
 
         ctx.imguiFrame();
@@ -301,8 +294,6 @@ struct ImGuiPass final : Pass {
         ImGui::ShowDemoWindow();
         cmd.imguiFrame();
     }
-
-    rhi::View view;
 
     size_t imguiHeapOffset;
 

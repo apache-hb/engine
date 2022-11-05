@@ -110,7 +110,12 @@ namespace simcoe::render {
 
     struct Pass {
         Pass(const Info& info)
+            : Pass(info, CommandSlot::eTotal)
+        { }
+
+        Pass(const Info& info, CommandSlot::Slot slot)
             : info(info)
+            , slot(slot)
         { }
 
         virtual ~Pass() = default;
@@ -140,9 +145,11 @@ namespace simcoe::render {
         const char *getName() const;
         Graph *getParent() const;
         Context& getContext() const;
+        CommandSlot::Slot getSlot() const { return slot; }
 
     private:
         Info info;
+        CommandSlot::Slot slot;
     };
 
     // render graph

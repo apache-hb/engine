@@ -36,11 +36,13 @@ void Context::createFrameData() {
 }
 
 void Context::createCommands() {
-    allocators = new rhi::Allocator[info.frames];
-    for (size_t i = 0; i < info.frames; ++i) {
-        allocators[i] = device.newAllocator(rhi::CommandList::Type::eDirect);
+    allocators = new rhi::Allocator[info.frames * CommandSlot::eTotal];
+    for (size_t i = 0; i < CommandSlot::eTotal; ++i) {
+        for (size_t j = 0; j < info.frames; ++j) {
+            allocators[i * info.frames + j] = device.newAllocator(rhi::CommandList::Type::eDirect);
+        }
+        commands[i] = device.newCommandList(getAllocator(currentFrame(), CommandSlot::Slot(i)), rhi::CommandList::Type::eDirect);
     }
-    commands = device.newCommandList(allocators[currentFrame()], rhi::CommandList::Type::eDirect);
 }
 
 void Context::imguiInit(size_t offset) {
@@ -57,7 +59,10 @@ void Context::imguiShutdown() {
 }
 
 void Context::present() {
-    ID3D12CommandList *lists[] = { commands.get() };
+    ID3D12CommandList *lists[CommandSlot::eTotal] = { };
+    for (size_t i = 0; i < CommandSlot::eTotal; ++i) {
+        lists[i] = commands[i].get();
+    }
     presentQueue.execute(lists);
     presentQueue.present(*this);
 }
@@ -65,14 +70,18 @@ void Context::present() {
 void Context::beginFrame() {
     auto kDescriptors = std::to_array({ getHeap().get() });
 
-    commands.beginRecording(allocators[currentFrame()]);
-    commands.bindDescriptors(kDescriptors);
+    for (size_t i = 0; i < CommandSlot::eTotal; i++) {
+        commands[i].beginRecording(getAllocator(currentFrame(), CommandSlot::Slot(i)));
+        commands[i].bindDescriptors(kDescriptors);
+    }
 }
 
 void Context::endFrame() {
-    commands.endRecording();
+    for (size_t i = 0; i < CommandSlot::eTotal; i++) {
+        commands[i].endRecording();
+    }
 }
 
-void Context::transition(std::span<const rhi::StateTransition> barriers) {
-    commands.transition(barriers);
+void Context::transition(CommandSlot::Slot slot, std::span<const rhi::StateTransition> barriers) {
+    commands[slot].transition(barriers);
 }

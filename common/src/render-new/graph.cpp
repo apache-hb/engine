@@ -1,5 +1,6 @@
 #include "engine/render-new/graph.h"
 #include "engine/base/logging.h"
+#include "engine/render-new/render.h"
 #include "engine/rhi/rhi.h"
 
 using namespace simcoe;
@@ -42,7 +43,7 @@ namespace {
 
             if (barriers.empty()) { return; }
 
-            ctx.transition(barriers);
+            ctx.transition(CommandSlot::ePost, barriers);
         }
 
         void execute(Context& ctx, Graph& graph, Tree& tree) {

@@ -186,7 +186,7 @@ namespace simcoe::render {
 
         void beginFrame();
         void endFrame();
-        void transition(std::span<const rhi::StateTransition> barriers);
+        void transition(CommandSlot::Slot slot, std::span<const rhi::StateTransition> barriers);
 
         // imgui related functions
         void imguiInit(size_t offset);
@@ -202,7 +202,7 @@ namespace simcoe::render {
         rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
         rhi::CpuHandle getRenderTargetHandle() { return presentQueue.getFrameHandle(currentFrame()); }
 
-        rhi::CommandList &getCommands() { return commands; }
+        rhi::CommandList &getCommands(CommandSlot::Slot slot) { return commands[slot]; }
 
         size_t getFrames() const { return info.frames; }
         size_t currentFrame() const { return presentQueue.currentFrame(); }
@@ -225,7 +225,11 @@ namespace simcoe::render {
         rhi::DescriptorSet dsvHeap;
         HeapAllocator cbvHeap;
 
+        rhi::Allocator &getAllocator(size_t index, CommandSlot::Slot slot) {
+            return allocators[(index * getFrames()) + slot];
+        }
+
         UniquePtr<rhi::Allocator[]> allocators;
-        rhi::CommandList commands;
+        rhi::CommandList commands[CommandSlot::eTotal];
     };
 }
