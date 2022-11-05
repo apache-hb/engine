@@ -1,5 +1,7 @@
 #include "engine/render-new/render.h"
+#include "dx/d3d12.h"
 #include "engine/rhi/rhi.h"
+#include <array>
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -22,7 +24,7 @@ Context::Context(const ContextInfo& info)
     : info(info)
     , device(rhi::getDevice())
     , presentQueue(device, info)
-    , copyQueue(device, info)
+    , copyQueue(*this, info)
     , cbvHeap(device, getMaxHeapSize(info), rhi::DescriptorSet::Type::eConstBuffer, true)
 { 
     createFrameData();
@@ -61,7 +63,10 @@ void Context::present() {
 }
 
 void Context::beginFrame() {
+    auto kDescriptors = std::to_array({ getHeap().get() });
+
     commands.beginRecording(allocators[currentFrame()]);
+    commands.bindDescriptors(kDescriptors);
 }
 
 void Context::endFrame() {
@@ -69,7 +74,5 @@ void Context::endFrame() {
 }
 
 void Context::transition(std::span<const rhi::StateTransition> barriers) {
-    if (barriers.empty()) { return; }
-
     commands.transition(barriers);
 }

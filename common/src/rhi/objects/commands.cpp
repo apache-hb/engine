@@ -104,13 +104,13 @@ void CommandList::setVertexBuffers(std::span<const rhi::VertexBufferView> buffer
 void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
     const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(indexView.buffer),
-        .SizeInBytes = UINT(indexView.size * getElementSize(indexView.format)),
+        .SizeInBytes = UINT(indexView.length * getElementSize(indexView.format)),
         .Format = getElementFormat(indexView.format)
     };
 
     get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     get()->IASetIndexBuffer(&kIndexBufferView);
-    get()->DrawIndexedInstanced(UINT(indexView.size), 1, 0, 0, 0);
+    get()->DrawIndexedInstanced(UINT(indexView.length), 1, 0, 0, 0);
 }
 
 void CommandList::imguiFrame() {

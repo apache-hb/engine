@@ -8,9 +8,18 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
-struct RenderTargetResource final : Resource {
-    RenderTargetResource(const Info& info)
+namespace {
+    constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
+}
+
+struct BufferResource : Resource {
+    virtual rhi::Buffer& get() = 0;
+    size_t cbvHandle() const { return cbvOffset; }
+
+protected:
+    BufferResource(const Info& info, size_t handle) 
         : Resource(info)
+        , cbvOffset(handle) 
     { }
 
     void addBarrier(Barriers& barriers, Output* output, Input* input) override {
@@ -19,40 +28,68 @@ struct RenderTargetResource final : Resource {
         auto before = output->getState();
         auto after = input->getState();
 
+        ASSERT(before != State::eInvalid && after != State::eInvalid);
         if (before == after) { return; }
-        if (before == State::eInvalid || after == State::eInvalid) { return; }
 
-        barriers.push_back(rhi::newStateTransition(getContext().getRenderTarget(), before, after));
+        logging::get(logging::eRender).info("buffer `{}` transitioned from 0x{:x} to 0x{:x}", getName(), (unsigned)before, (unsigned)after);
+
+        barriers.push_back(rhi::newStateTransition(get(), before, after));
     }
+
+private:
+    size_t cbvOffset;
 };
 
-struct TextureResource final : Resource {
-    TextureResource(const Info& info, rhi::TextureSize size, State initial, bool hostVisible) : Resource(info) { 
+struct RenderTargetResource final : BufferResource {
+    RenderTargetResource(const Info& info)
+        : BufferResource(info, SIZE_MAX)
+    { }
+
+    rhi::Buffer& get() override { return getContext().getRenderTarget(); }
+    rhi::CpuHandle rtvCpuHandle() { return getContext().getRenderTargetHandle(); }
+};
+
+struct TextureResource : BufferResource {
+    TextureResource(const Info& info, State initial, rhi::TextureSize size, bool hostVisible)
+        : BufferResource(info, ::getContext(info).getHeap().alloc(DescriptorSlot::eTexture))
+    { 
         auto& ctx = getContext();
+        auto& heap = ctx.getHeap();
         auto& device = ctx.getDevice();
 
         const auto desc = rhi::newTextureDesc(size, initial);
         const auto visibility = hostVisible ? rhi::DescriptorSet::Visibility::eHostVisible : rhi::DescriptorSet::Visibility::eDeviceOnly;
 
-        buffer = device.newTexture(desc, visibility);
+        buffer = device.newTexture(desc, visibility, kLetterBox);
+        device.createTextureBufferView(get(), heap.cpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture));
+
+        buffer.rename(getName());
     }
 
-    void addBarrier(Barriers& barriers, Output* output, Input* input) override {
-        Resource::addBarrier(barriers, output, input);
+    rhi::Buffer& get() override { return buffer; }
 
-        auto before = output->getState();
-        auto after = input->getState();
-
-        if (before == after) { return; }
-        if (before == State::eInvalid || after == State::eInvalid) { return; }
-
-        barriers.push_back(rhi::newStateTransition(buffer, before, after));
-    }
-
-    rhi::Buffer& get() { return buffer; }
+    rhi::CpuHandle cbvCpuHandle() const { return getContext().getHeap().cpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture); }
+    rhi::GpuHandle cbvGpuHandle() const { return getContext().getHeap().gpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture); }
 
 private:
     rhi::Buffer buffer;
+};
+
+struct SceneTargetResource final : TextureResource {
+    SceneTargetResource(const Info& info, State initial)
+        : TextureResource(info, initial, ::getContext(info).sceneSize(), false)
+    { 
+        auto& ctx = getContext();
+        auto& device = ctx.getDevice();
+
+        rtvOffset = ctx.getPresentQueue().getSceneHandle();
+        device.createRenderTargetView(get(), rtvOffset);
+    }
+
+    rhi::CpuHandle rtvHandle() const { return rtvOffset; }
+
+private:
+    rhi::CpuHandle rtvOffset;
 };
 
 struct GlobalPass final : Pass {
@@ -71,6 +108,7 @@ struct GlobalPass final : Pass {
 
 struct PresentPass final : Pass {
     PresentPass(const Info& info) : Pass(info) {
+        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
         renderTargetIn = newInput<Input>("rtv", State::ePresent);
     }
 
@@ -79,13 +117,13 @@ struct PresentPass final : Pass {
         ctx.present();
     }
     
+    Input *sceneTargetIn;
     Input *renderTargetIn;
 };
 
 struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info) {
-        auto& ctx = getContext();
-        sceneTargetResource = getParent()->addResource<TextureResource>("scene-target", ctx.sceneSize(), State::eRenderTarget, false);
+        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
@@ -93,14 +131,17 @@ struct ScenePass final : Pass {
         
     }
 
-    TextureResource *sceneTargetResource;
+    SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 };
 
 struct PostPass final : Pass {
     PostPass(const Info& info) : Pass(info) {
         sceneTargetIn = newInput<Input>("scene-target", State::ePixelShaderResource);
-        renderTargetOut = newOutput<Output>("rtv", State::eRenderTarget);
+        sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn); // TODO: this is also a hack, graph code should be able to handle this
+        
+        renderTargetIn = newInput<Input>("rtv", State::eRenderTarget);
+        renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
 
     void init(Context& ctx) override {
@@ -110,17 +151,23 @@ struct PostPass final : Pass {
 
     void execute(Context& ctx) override {
         auto& cmd = ctx.getCommands();
-        auto& heap = ctx.getHeap();
-        auto kHeaps = std::to_array({ heap.get() });
+        auto *sceneTarget = sceneTargetIn.get();
+        auto *renderTarget = renderTargetIn.get();
 
         cmd.setViewAndScissor(view);
-        cmd.bindDescriptors(kHeaps);
+        cmd.setRenderTarget(renderTarget->rtvCpuHandle(), rhi::CpuHandle::Invalid, kLetterBox);
         cmd.setPipeline(pso);
+
+        cmd.bindTable(0, sceneTarget->cbvGpuHandle());
+        cmd.setVertexBuffers(std::to_array({ vboView }));
+        cmd.drawMesh(iboView);
     }
 
-    Input *sceneTargetIn;
+    WireHandle<Input, SceneTargetResource> sceneTargetIn;
+    WireHandle<Input, RenderTargetResource> renderTargetIn;
 
     Output *renderTargetOut;
+    Output *sceneTargetOut;
 
 private:
     void initView(Context& ctx) {
@@ -152,6 +199,9 @@ private:
 
     void initScreenQuad(Context& ctx) {
         auto& device = ctx.getDevice();
+        auto& copy = ctx.getCopyQueue();
+        auto pending = copy.getThread();
+
         auto ps = loadShader("resources/shaders/post-shader.ps.pso");
         auto vs = loadShader("resources/shaders/post-shader.vs.pso");
 
@@ -162,7 +212,18 @@ private:
             .ps = ps,
             .vs = vs
         });
-        // TODO: upload quad
+
+        vbo = pending.uploadData(kScreenQuad, sizeof(kScreenQuad));
+        ibo = pending.uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
+
+        vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
+        iboView = {
+            .buffer = ibo.gpuAddress(),
+            .length = std::size(kScreenQuad),
+            .format = rhi::Format::uint32
+        };
+
+        copy.submit(pending);
     }
 
     rhi::View view;
@@ -209,8 +270,6 @@ struct ImGuiPass final : Pass {
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
     
-    constexpr static math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
-
     void init(Context& ctx) override {
         auto [width, height] = ctx.windowSize();
 
@@ -227,10 +286,8 @@ struct ImGuiPass final : Pass {
 
     void execute(Context& ctx) override {
         auto& cmd = ctx.getCommands();
-        auto kDescriptors = std::to_array({ ctx.getHeap().get() });
-
-        cmd.bindDescriptors(kDescriptors);
-        cmd.setRenderTarget(ctx.getRenderTargetHandle(), rhi::CpuHandle::Invalid, kLetterBox);
+        auto *target = renderTargetIn.get();
+        cmd.setRenderTarget(target->rtvCpuHandle(), rhi::CpuHandle::Invalid, kLetterBox);
         cmd.setViewAndScissor(view);
 
         // imgui work
@@ -249,17 +306,35 @@ struct ImGuiPass final : Pass {
 
     size_t imguiHeapOffset;
 
-    Input *renderTargetIn;
+    WireHandle<Input, RenderTargetResource> renderTargetIn;
     Output *renderTargetOut;
 };
 
 WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
-    auto globalPass = addPass<GlobalPass>("global");
+    auto global = addPass<GlobalPass>("global");
+    auto scene = addPass<ScenePass>("scene");
+    auto post = addPass<PostPass>("post");
     auto imgui = addPass<ImGuiPass>("imgui");
     auto present = addPass<PresentPass>("present");
 
-    link(imgui->renderTargetIn, globalPass->renderTargetOut);
+    // global (render target) -> post -> imgui -> present
+    // scene (scene target) ----^
+
+    // post.renderTarget <= global.renderTarget
+    // post.sceneTarget <= scene.sceneTarget
+    link(post->renderTargetIn, global->renderTargetOut);
+    link(post->sceneTargetIn, scene->sceneTargetOut);
+
+    // imgui.renderTarget <= post.renderTarget
+    link(imgui->renderTargetIn, post->renderTargetOut);
+
+    // present.renderTarget <= imgui.renderTarget
+    // present.sceneTarget <= scene.sceneTarget
     link(present->renderTargetIn, imgui->renderTargetOut);
 
+    // TODO: this is a bit of a hack because we dont have a way to reset
+    // resources to intitial state.
+    link(present->sceneTargetIn, post->sceneTargetOut);
+    
     primary = present;
 }

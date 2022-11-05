@@ -14,6 +14,14 @@ namespace simcoe::render {
 
     std::vector<std::byte> loadShader(std::string_view path);
 
+    namespace CommandSlot {
+        enum Slot : unsigned {
+            ePost,
+            eScene,
+            eTotal
+        };
+    }
+
     namespace DescriptorSlot {
         enum Slot : unsigned {
             eDebugBuffer,
@@ -59,6 +67,8 @@ namespace simcoe::render {
         bool valid() const;
         rhi::CommandList& cmd();
 
+        rhi::Buffer uploadData(const void* data, size_t size);
+
     private:
         friend CopyQueue;
 
@@ -73,12 +83,12 @@ namespace simcoe::render {
 
     // multithreaded upload queue
     struct CopyQueue {
-        CopyQueue(rhi::Device& device, const ContextInfo& info);
+        CopyQueue(Context& ctx, const ContextInfo& info);
 
         ThreadHandle getThread();
         void submit(ThreadHandle thread);
 
-        void wait(Context& ctx);
+        void wait();
 
     private:
         friend ThreadHandle;
@@ -92,12 +102,18 @@ namespace simcoe::render {
         size_t threads;
         std::mutex mutex;
 
+        Context& ctx;
+
         rhi::CommandQueue queue;
 
         memory::SlotMap<State, eAvailable> alloc;
         UniquePtr<rhi::CommandList[]> lists;
         UniquePtr<rhi::Allocator[]> allocators;
 
+        std::mutex stagingMutex;
+        std::vector<rhi::Buffer> stagingBuffers;
+
+        rhi::Fence fence;
         size_t index = 0;
     };
 
@@ -135,8 +151,25 @@ namespace simcoe::render {
             , heap(device.newDescriptorSet(size, type, shaderVisible))
         { }
 
-        rhi::CpuHandle cpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type);
-        rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type);
+        rhi::CpuHandle cpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
+            ASSERTF(
+                checkBit(offset, type), 
+                "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
+                DescriptorSlot::getSlotName(getBit(offset)), 
+                offset, length
+            );
+            return heap.cpuHandle(offset);
+        }
+
+        rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
+            ASSERTF(
+                checkBit(offset, type), 
+                "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
+                DescriptorSlot::getSlotName(getBit(offset)), 
+                offset, length
+            );
+            return heap.gpuHandle(offset);
+        }
         
         rhi::DescriptorSet& getHeap() { return heap; }
         ID3D12DescriptorHeap *get() { return heap.get(); }

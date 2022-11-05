@@ -115,7 +115,7 @@ size_t BasicScene::addIndexBuffer(const assets::IndexBuffer& indices) {
 
         rhi::IndexBufferView indexBufferView {
             .buffer = indexBuffer.gpuAddress(),
-            .size = indices.size(),
+            .length = indices.size(),
             .format = rhi::Format::uint32
         };
 
@@ -175,7 +175,7 @@ ID3D12CommandList *BasicScene::populate() {
                 for (auto& buffer : indexBufferViews) {
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%zu bytes", buffer.size);
+                    ImGui::Text("%zu bytes", buffer.length);
                 }
                 ImGui::EndTable();
             }

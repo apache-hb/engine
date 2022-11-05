@@ -193,17 +193,17 @@ namespace simcoe::rhi {
 
     struct IndexBufferView {
         GpuHandle buffer;
-        size_t size;
+        size_t length;
         Format format;
     };
 
     using VertexBufferView = D3D12_VERTEX_BUFFER_VIEW;
     using StateTransition = D3D12_RESOURCE_BARRIER;
 
-    constexpr VertexBufferView newVertexBufferView(GpuHandle buffer, size_t size, size_t stride) {
+    constexpr VertexBufferView newVertexBufferView(GpuHandle buffer, size_t length, size_t stride) {
         return {
             .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(buffer),
-            .SizeInBytes = UINT(size * stride),
+            .SizeInBytes = UINT(length * stride),
             .StrideInBytes = UINT(stride)
         };
     }

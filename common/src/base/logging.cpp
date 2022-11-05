@@ -1,6 +1,7 @@
 #include "engine/base/logging.h"
 #include "engine/base/io/io.h"
 #include "engine/base/container/unique.h"
+#include "engine/base/win32.h"
 
 #include <ranges>
 #include <iostream>
@@ -47,6 +48,17 @@ protected:
     }
 };
 
+struct DebugChannel final : Channel {
+    DebugChannel(std::string_view name, Level level = eInfo)
+        : Channel(name, level)
+    { }
+
+protected:
+    void send(Level reportLevel, const std::string_view message) override {
+        OutputDebugStringA(std::format("[{}:{}]: {}\n", name, levelName(reportLevel), message).c_str());
+    }
+};
+
 template<size_t N>
 struct MultiChannel final : Channel {
     MultiChannel(std::string_view name, std::array<Channel*, N> channels, Level level = eDebug)
@@ -89,10 +101,11 @@ namespace {
 void logging::init() {
     auto *fileLogger = addChannel(new IoChannel("general", "game.log"));
     auto *consoleLogger = addChannel(new ConsoleChannel("general", eDebug));
+    auto *debugLogger = addChannel(new DebugChannel("general", eDebug));
 
-    Channel *generalChannels[] { fileLogger, consoleLogger };
+    Channel *generalChannels[] { fileLogger, consoleLogger, debugLogger };
 
-    kSinks[eGeneral] = addChannel(new MultiChannel<2>("general", std::to_array(generalChannels)));
+    kSinks[eGeneral] = addChannel(new MultiChannel<3>("general", std::to_array(generalChannels)));
     kSinks[eInput] = kSinks[eGeneral];
     kSinks[eRender] = kSinks[eGeneral];
     kSinks[eLocale] = kSinks[eGeneral];

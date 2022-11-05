@@ -1,4 +1,5 @@
 #include "engine/render-new/graph.h"
+#include "engine/base/logging.h"
 #include "engine/rhi/rhi.h"
 
 using namespace simcoe;
@@ -54,6 +55,8 @@ namespace {
                 execute(ctx, graph, dep);
             }
 
+            logging::get(logging::eRender).info("transitioning into pass `{}`", pass->getName());
+
             wireBarriers(ctx, graph, pass);
 
             pass->execute(ctx);
@@ -66,7 +69,12 @@ namespace {
 }
 
 void Resource::addBarrier(Barriers &, Output *before, Input *after) {
+    ASSERT(after != nullptr && before != nullptr);
     after->resource = before->resource;
+}
+
+Context& render::getContext(const Info& info) {
+    return info.parent->getContext();
 }
 
 Graph *Resource::getParent() const { return info.parent; }
@@ -76,6 +84,11 @@ Context& Resource::getContext() const { return getParent()->getContext(); }
 Graph *Pass::getParent() const { return info.parent; }
 const char *Pass::getName() const { return info.name; }
 Context& Pass::getContext() const { return getParent()->getContext(); }
+
+void Output::update(Barriers& barriers, Input* input) { 
+    ASSERTF(resource != nullptr, "output `{}:{}` was null", getName(), getPass()->getName());
+    resource->addBarrier(barriers, this, input);
+}
 
 void Relay::update(Barriers &barriers, Input *other) {
     resource = input->resource;
@@ -87,6 +100,8 @@ void Graph::init() {
         pass->init(ctx);
         channel.info("initialized pass: {}", name);
     }
+    
+    ctx.getCopyQueue().wait();
 }
 
 void Graph::deinit() {

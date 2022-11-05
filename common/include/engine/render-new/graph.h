@@ -20,6 +20,8 @@ namespace simcoe::render {
         const char *name;
     };
 
+    Context& getContext(const Info& info);
+
     struct Resource {
         Resource(const Info& info)
             : info(info)
@@ -73,9 +75,7 @@ namespace simcoe::render {
             : Wire(pass, name, state, nullptr)
         { }
         
-        virtual void update(Barriers& barriers, Input* input) { 
-            resource->addBarrier(barriers, this, input);
-        }
+        virtual void update(Barriers& barriers, Input* input);
     };
 
     struct Source : Output {
@@ -94,6 +94,18 @@ namespace simcoe::render {
 
     private:
         Input *input;
+    };
+
+    template<typename TWire, typename TResource>
+    struct WireHandle {
+        WireHandle(TWire *wire = nullptr) : wire(wire) { }
+
+        TResource *get() { return static_cast<TResource*>(wire->resource); }
+
+        operator TWire *() { return wire; }
+
+    private:
+        TWire *wire;
     };
 
     struct Pass {
