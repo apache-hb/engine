@@ -23,7 +23,7 @@ size_t BitMap::alloc(size_t count) {
 
 bool BitMap::isRangeFree(size_t start, size_t length) const {
     for (size_t i = 0; i < length; i++) {
-        if (isSet(start + i)) {
+        if (testBit(start + i)) {
             return false;
         }
     }
@@ -36,7 +36,7 @@ void BitMap::setRange(size_t start, size_t length) {
     }
 }
 
-bool BitMap::isSet(size_t bit) const {
+bool BitMap::testBit(size_t bit) const {
     ASSERT(bit < size);
 
     return bits[bit / 64] & (1ull << (bit % 64));

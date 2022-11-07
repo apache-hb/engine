@@ -10,8 +10,7 @@ namespace simcoe::memory {
         size_t alloc(size_t count = 1);
         void release(size_t index, size_t count = 1);
 
-        bool isSet(size_t bit) const;
-        bool getBit(size_t bit) const;
+        bool testBit(size_t bit) const;
 
     private:
         bool isRangeFree(size_t start, size_t length) const;
