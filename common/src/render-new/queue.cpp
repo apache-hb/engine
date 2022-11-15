@@ -5,7 +5,7 @@ using namespace simcoe::render;
 
 namespace {
     size_t getRtvHeapSize(size_t frames) {
-        return frames;
+        return frames + 1; // +1 for scene target
     }
 }
 
@@ -113,9 +113,9 @@ PresentQueue::PresentQueue(rhi::Device& device, const ContextInfo& info)
     , fence(device.newFence())
 { 
     renderTargets = new rhi::Buffer[frames];
-    for (size_t i = 0; i < frames; ++i) {
+    for (size_t i = 0; i < frames; i++) {
         renderTargets[i] = swapchain.getBuffer(i);
-        device.createRenderTargetView(renderTargets[i], rtvHeap.cpuHandle(i));
+        device.createRenderTargetView(renderTargets[i], getFrameHandle(i));
     }
 
     current = swapchain.currentBackBuffer();

@@ -30,7 +30,7 @@ namespace simcoe::render {
         virtual ~Resource() = default;
 
         virtual void addBarrier(Barriers& barriers, Output* before, Input* after);
-    
+
         Graph *getParent() const;
         const char *getName() const;
         Context& getContext() const;

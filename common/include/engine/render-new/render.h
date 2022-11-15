@@ -126,7 +126,7 @@ namespace simcoe::render {
 
         size_t currentFrame() const { return current; }
 
-        rhi::CpuHandle getFrameHandle(size_t frame) { return rtvHeap.cpuHandle(frame); }
+        rhi::CpuHandle getFrameHandle(size_t frame) { return rtvHeap.cpuHandle(frame + 1); }
         rhi::CpuHandle getSceneHandle() { return rtvHeap.cpuHandle(0); }
 
         rhi::Buffer& getRenderTarget() { return renderTargets[current]; }

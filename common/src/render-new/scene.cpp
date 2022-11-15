@@ -109,7 +109,6 @@ struct GlobalPass final : Pass {
 
 struct PresentPass final : Pass {
     PresentPass(const Info& info) : Pass(info, CommandSlot::ePost) {
-        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
         renderTargetIn = newInput<Input>("rtv", State::ePresent);
     }
 
@@ -118,7 +117,6 @@ struct PresentPass final : Pass {
         ctx.present();
     }
     
-    Input *sceneTargetIn;
     Input *renderTargetIn;
 };
 
@@ -323,9 +321,5 @@ WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
     // present.sceneTarget <= scene.sceneTarget
     link(present->renderTargetIn, imgui->renderTargetOut);
 
-    // TODO: this is a bit of a hack because we dont have a way to reset
-    // resources to intitial state.
-    link(present->sceneTargetIn, post->sceneTargetOut);
-    
     primary = present;
 }
