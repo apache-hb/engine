@@ -116,6 +116,7 @@ PresentQueue::PresentQueue(rhi::Device& device, const ContextInfo& info)
     for (size_t i = 0; i < frames; i++) {
         renderTargets[i] = swapchain.getBuffer(i);
         device.createRenderTargetView(renderTargets[i], getFrameHandle(i));
+        renderTargets[i].rename(std::format("frame {}", i));
     }
 
     current = swapchain.currentBackBuffer();

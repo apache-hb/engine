@@ -110,6 +110,7 @@ struct GlobalPass final : Pass {
 struct PresentPass final : Pass {
     PresentPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         renderTargetIn = newInput<Input>("rtv", State::ePresent);
+        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
     }
 
     void execute(Context& ctx) override {
@@ -118,6 +119,7 @@ struct PresentPass final : Pass {
     }
     
     Input *renderTargetIn;
+    Input *sceneTargetIn;
 };
 
 struct ScenePass final : Pass {
@@ -320,6 +322,7 @@ WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
     // present.renderTarget <= imgui.renderTarget
     // present.sceneTarget <= scene.sceneTarget
     link(present->renderTargetIn, imgui->renderTargetOut);
+    link(present->sceneTargetIn, post->sceneTargetOut);
 
     primary = present;
 }
