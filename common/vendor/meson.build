@@ -21,7 +21,7 @@ imgui = declare_dependency(
     include_directories : inc
 )
 
-src = [ 'nodes/src/nodes.cpp', 'nodes/src/nodes-ez.cpp' ]
+src = [ 'nodes/src/imnodes.cpp' ]
 
 libwidgets = library('widgets', src,
     dependencies : [ imgui ],

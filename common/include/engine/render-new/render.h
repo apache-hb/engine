@@ -12,7 +12,9 @@ namespace simcoe::render {
     struct PresentQueue;
     struct Context;
 
-    std::vector<std::byte> loadShader(std::string_view path);
+    using Shader = std::vector<std::byte>;
+
+    Shader loadShader(std::string_view path);
 
     namespace CommandSlot {
         enum Slot : unsigned {

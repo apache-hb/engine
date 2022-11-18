@@ -158,7 +158,7 @@ src = [
 
 librender2 = library('render2', src,
     cpp_args : args,
-    dependencies : [ base, rhi, window, memory, gltf ],
+    dependencies : [ base, rhi, window, memory, gltf, widgets ],
     include_directories : 'include'
 )
 

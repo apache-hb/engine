@@ -16,7 +16,7 @@ namespace {
     }
 }
 
-std::vector<std::byte> render::loadShader(std::string_view path) {
+render::Shader render::loadShader(std::string_view path) {
     UniquePtr<Io> io { Io::open(path, Io::eRead) };
     return io->read<std::byte>();
 }
@@ -74,13 +74,11 @@ void Context::beginFrame() {
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
         commands[i].beginRecording(getAllocator(currentFrame(), CommandSlot::Slot(i)));
         commands[i].bindDescriptors(kDescriptors);
-        OutputDebugStringA(std::format("begin {}\n", i).c_str());
     }
 }
 
 void Context::endFrame() {
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
-        OutputDebugStringA(std::format("close {}\n", i).c_str());
         commands[i].endRecording();
     }
 }

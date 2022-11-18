@@ -1,8 +1,11 @@
 #include "engine/render-new/scene.h"
-
 #include "engine/render-new/render.h"
+
+#include "engine/assets/assets.h"
+
 #include "engine/rhi/rhi.h"
 #include "imgui/imgui.h"
+#include "imnodes/imnodes.h"
 
 #include <array>
 
@@ -105,25 +108,92 @@ struct GlobalPass final : Pass {
         ctx.beginFrame();
     }
 
-    void imgui(Context& ctx) override {
-        ImGui::Text("Total frames: %zu", ctx.getFrames());
-        ImGui::Text("Frame: %zu", ctx.currentFrame());
+    void init(Context&) override {
+        ImNodes::CreateContext();
 
-        auto [wx, wy] = ctx.windowSize();
-        ImGui::Text("Present resolution: %zu x %zu", wx, wy);
-
-        auto [sx, sy] = ctx.sceneSize();
-        ImGui::Text("Scene resolution: %zu x %zu", sx, sy);
-
-        auto& heap = ctx.getHeap();
-        ImGui::Text("CBV Heap: %zu/%zu", heap.getUsed(), heap.getSize());
-
-        if (ImGui::BeginListBox("Slots")) {
-            for (size_t i = 0; i < heap.getUsed(); i++) {
-                ImGui::Text("Slot %zu: %s", i, getSlotName(heap.getBit(i)));
+        auto& passes = getParent()->passes;
+        int i = 0;
+        for (auto& [name, pass] : passes) {
+            passIds[pass.get()] = i++;
+            for (auto& input : pass->inputs) {
+                wireIds[input.get()] = i++;
             }
-            ImGui::EndListBox();
+
+            for (auto& output : pass->outputs) {
+                wireIds[output.get()] = i++;
+            }
         }
+
+        for (auto& [source, dst] : getParent()->wires) {
+            auto from = wireIds[source];
+            auto to = wireIds[dst];
+
+            links[from] = to;
+        }
+    }
+
+    void deinit(Context&) override {
+        ImNodes::DestroyContext();
+    }
+
+    void imgui(Context& ctx) override {
+        if (ImGui::Begin("Context state")) {
+            ImGui::Text("Total frames: %zu", ctx.getFrames());
+            ImGui::Text("Frame: %zu", ctx.currentFrame());
+
+            auto [wx, wy] = ctx.windowSize();
+            ImGui::Text("Present resolution: %zu x %zu", wx, wy);
+
+            auto [sx, sy] = ctx.sceneSize();
+            ImGui::Text("Scene resolution: %zu x %zu", sx, sy);
+
+            auto& heap = ctx.getHeap();
+            ImGui::Text("CBV Heap: %zu/%zu", heap.getUsed(), heap.getSize());
+
+            if (ImGui::BeginListBox("Slots")) {
+                for (size_t i = 0; i < heap.getUsed(); i++) {
+                    ImGui::Text("Slot %zu: %s", i, getSlotName(heap.getBit(i)));
+                }
+                ImGui::EndListBox();
+            }
+        }
+
+        ImGui::End();
+
+        if (ImGui::Begin("Graph state")) {
+            ImNodes::BeginNodeEditor();
+
+            for (auto& [name, pass] : getParent()->passes) {
+                ImNodes::BeginNode(passIds[pass.get()]);
+                
+                ImNodes::BeginNodeTitleBar();
+                ImGui::TextUnformatted(name);
+                ImNodes::EndNodeTitleBar();
+
+                for (auto& input : pass->inputs) {
+                    ImNodes::BeginInputAttribute(wireIds[input.get()]);
+                    ImGui::TextUnformatted(input->getName());
+                    ImNodes::EndInputAttribute();
+                }
+
+                for (auto& output : pass->outputs) {
+                    ImNodes::BeginOutputAttribute(wireIds[output.get()]);
+                    ImGui::TextUnformatted(output->getName());
+                    ImNodes::EndOutputAttribute();
+                }
+
+                ImNodes::EndNode();
+            }
+
+            int i = 0;
+            for (auto& [from, to] : links) {
+                ImNodes::Link(i++, from, to);
+            }
+
+            ImNodes::EndNodeEditor();
+        }
+
+        ImGui::End();
     }
 
     RenderTargetResource *rtvResource;
@@ -131,6 +201,11 @@ struct GlobalPass final : Pass {
 
     Output *renderTargetOut;
     Output *sceneTargetOut;
+
+private:
+    std::unordered_map<Pass*, int> passIds;
+    std::unordered_map<Wire*, int> wireIds;
+    std::unordered_map<int, int> links;
 };
 
 struct PresentPass final : Pass {
@@ -154,16 +229,75 @@ struct ScenePass final : Pass {
         sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn);
     }
 
+    void init(Context& ctx) override { 
+        auto& device = ctx.getDevice();
+
+        vs = loadShader("resources/shaders/scene-shader.vs.pso");
+        ps = loadShader("resources/shaders/scene-shader.ps.pso");
+
+        pso = device.newPipelineState({
+            .samplers = kSamplers,
+            .bindings = kSceneBindings,
+            .input = kInputLayout,
+            .ps = ps,
+            .vs = vs,
+            .depth = true
+        });
+    }
+
     void execute(Context& ctx) override {
         auto& cmd = ctx.getCommands(CommandSlot::eScene);
 
-        OutputDebugStringA("here\n");
+        auto [width, height] = ctx.sceneSize().as<float>();
+
+        cmd.setPipeline(pso);
+        cmd.setViewAndScissor(rhi::View(0, 0, width, height));
         cmd.clearRenderTarget(sceneTargetIn->rtvHandle(), kClearColour);
-        OutputDebugStringA("there\n");
     }
 
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
     Output *sceneTargetOut;
+
+private:
+    Shader vs;
+    Shader ps;
+
+    rhi::PipelineState pso;
+
+    constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
+        { rhi::ShaderVisibility::ePixel }
+    });
+
+    constexpr static auto kDebugBindings = std::to_array<rhi::BindingRange>({
+        { .base = 0, .type = rhi::Object::eConstBuffer, .mutability = rhi::BindingMutability::eAlwaysStatic, .space = 1 }
+    });
+
+    constexpr static auto kSceneBufferBindings = std::to_array<rhi::BindingRange>({
+        { 0, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }
+    });
+
+    constexpr static auto kObjectBufferBindings = std::to_array<rhi::BindingRange>({
+        { 1, rhi::Object::eConstBuffer, rhi::BindingMutability::eStaticAtExecute }
+    });
+
+    constexpr static auto kSceneTextureBindings = std::to_array<rhi::BindingRange>({
+        { 0, rhi::Object::eTexture, rhi::BindingMutability::eBindless, SIZE_MAX }
+    });
+
+    constexpr static auto kSceneBindings = std::to_array<rhi::Binding>({
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, kDebugBindings), // register(b0, space1) is debug data
+
+        rhi::bindTable(rhi::ShaderVisibility::eAll, kSceneBufferBindings), // register(b0) is per scene data
+        rhi::bindTable(rhi::ShaderVisibility::eVertex, kObjectBufferBindings), // register(b1) is per object data
+        rhi::bindConst(rhi::ShaderVisibility::ePixel, 2, 1), // register(b2) is per primitive data
+        rhi::bindTable(rhi::ShaderVisibility::ePixel, kSceneTextureBindings) // register(t0...) are all the textures
+    });
+
+    constexpr static auto kInputLayout = std::to_array<rhi::InputElement>({
+        { "POSITION", rhi::Format::float32x3, offsetof(assets::Vertex, position) },
+        { "NORMAL", rhi::Format::float32x3, offsetof(assets::Vertex, normal) },
+        { "TEXCOORD", rhi::Format::float32x2, offsetof(assets::Vertex, uv) }
+    });
 };
 
 struct PostPass final : Pass {
@@ -325,10 +459,7 @@ struct ImGuiPass final : Pass {
         ImGui::ShowDemoWindow();
 
         for (auto& [name, pass] : getParent()->passes) {
-            if (ImGui::Begin(name)) {
-                pass->imgui(ctx);
-            }
-            ImGui::End();
+            pass->imgui(ctx);
         }
 
         cmd.imguiFrame();

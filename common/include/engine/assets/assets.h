@@ -1,13 +1,16 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
 #include "engine/math/math.h"
 
-#include "engine/render-new/graph.h"
+#include <vector>
 
-namespace simcoe::render {
+namespace simcoe::assets {
+    struct Vertex {
+        math::float3 position;
+        math::float3 normal;
+        math::float2 uv;
+    };
+
     struct Node {
         std::string name;
         size_t index; // cbv index
@@ -36,17 +39,5 @@ namespace simcoe::render {
         std::vector<Node> nodes;
         std::vector<Texture> textures;
         std::vector<Primitive> primitives;
-    };
-
-    struct WorldGraph : Graph {
-        WorldGraph(Context& ctx);
-
-        void execute() { Graph::execute(primary); }
-
-        void addWorld(const char *path);
-
-    private:
-        Pass *primary;
-        Pass *scene;
     };
 }
