@@ -41,7 +41,7 @@ int commonMain() {
     render::ContextInfo info {
         .window = window.get(),
         .frames = 2,
-        .resolution = { size_t(width / 2), size_t(height / 2) },
+        .resolution = { 640, 480 },
     };
     render::Context context { info };
     render::WorldGraph world { context };

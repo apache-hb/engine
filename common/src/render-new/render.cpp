@@ -2,6 +2,7 @@
 #include "dx/d3d12.h"
 #include "engine/rhi/rhi.h"
 #include <array>
+#include <debugapi.h>
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -60,7 +61,7 @@ void Context::imguiShutdown() {
 
 void Context::present() {
     ID3D12CommandList *lists[CommandSlot::eTotal] = { };
-    for (size_t i = 0; i < CommandSlot::eTotal; ++i) {
+    for (size_t i = 0; i < CommandSlot::eTotal; i++) {
         lists[i] = commands[i].get();
     }
     presentQueue.execute(lists);
@@ -73,11 +74,13 @@ void Context::beginFrame() {
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
         commands[i].beginRecording(getAllocator(currentFrame(), CommandSlot::Slot(i)));
         commands[i].bindDescriptors(kDescriptors);
+        OutputDebugStringA(std::format("begin {}\n", i).c_str());
     }
 }
 
 void Context::endFrame() {
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
+        OutputDebugStringA(std::format("close {}\n", i).c_str());
         commands[i].endRecording();
     }
 }

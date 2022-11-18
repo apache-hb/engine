@@ -10,6 +10,7 @@ using namespace simcoe;
 using namespace simcoe::render;
 
 namespace {
+    constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 }
 
@@ -31,8 +32,6 @@ protected:
 
         ASSERT(before != State::eInvalid && after != State::eInvalid);
         if (before == after) { return; }
-
-        logging::get(logging::eRender).info("buffer `{}` transitioned from 0x{:x} to 0x{:x}", getName(), (unsigned)before, (unsigned)after);
 
         barriers.push_back(rhi::newStateTransition(get(), before, after));
     }
@@ -61,7 +60,7 @@ struct TextureResource : BufferResource {
         const auto desc = rhi::newTextureDesc(size, initial);
         const auto visibility = hostVisible ? rhi::DescriptorSet::Visibility::eHostVisible : rhi::DescriptorSet::Visibility::eDeviceOnly;
 
-        buffer = device.newTexture(desc, visibility, kLetterBox);
+        buffer = device.newTexture(desc, visibility, kClearColour);
         device.createTextureBufferView(get(), heap.cpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture));
 
         buffer.rename(getName());
@@ -96,15 +95,42 @@ private:
 struct GlobalPass final : Pass {
     GlobalPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         rtvResource = getParent()->addResource<RenderTargetResource>("rtv");
+        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
+
         renderTargetOut = newOutput<Source>("rtv", State::ePresent, rtvResource);
+        sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
     void execute(Context& ctx) override { 
         ctx.beginFrame();
     }
 
+    void imgui(Context& ctx) override {
+        ImGui::Text("Total frames: %zu", ctx.getFrames());
+        ImGui::Text("Frame: %zu", ctx.currentFrame());
+
+        auto [wx, wy] = ctx.windowSize();
+        ImGui::Text("Present resolution: %zu x %zu", wx, wy);
+
+        auto [sx, sy] = ctx.sceneSize();
+        ImGui::Text("Scene resolution: %zu x %zu", sx, sy);
+
+        auto& heap = ctx.getHeap();
+        ImGui::Text("CBV Heap: %zu/%zu", heap.getUsed(), heap.getSize());
+
+        if (ImGui::BeginListBox("Slots")) {
+            for (size_t i = 0; i < heap.getUsed(); i++) {
+                ImGui::Text("Slot %zu: %s", i, getSlotName(heap.getBit(i)));
+            }
+            ImGui::EndListBox();
+        }
+    }
+
     RenderTargetResource *rtvResource;
+    SceneTargetResource *sceneTargetResource;
+
     Output *renderTargetOut;
+    Output *sceneTargetOut;
 };
 
 struct PresentPass final : Pass {
@@ -124,15 +150,19 @@ struct PresentPass final : Pass {
 
 struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
-        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
-        sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
+        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
+        sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn);
     }
 
-    void execute(Context&) override {
-        
+    void execute(Context& ctx) override {
+        auto& cmd = ctx.getCommands(CommandSlot::eScene);
+
+        OutputDebugStringA("here\n");
+        cmd.clearRenderTarget(sceneTargetIn->rtvHandle(), kClearColour);
+        OutputDebugStringA("there\n");
     }
 
-    SceneTargetResource *sceneTargetResource;
+    WireHandle<Input, SceneTargetResource> sceneTargetIn;
     Output *sceneTargetOut;
 };
 
@@ -172,6 +202,7 @@ struct PostPass final : Pass {
 
 private:
     void initView(Context& ctx) {
+        // TODO: how did this get off centerd?
         auto [sceneWidth, sceneHeight] = ctx.sceneSize();
         auto [windowWidth, windowHeight] = ctx.windowSize();
 
@@ -187,10 +218,10 @@ private:
             y = heightRatio / widthRatio;
         }
 
-        view.viewport.TopLeftX = windowHeight * (1.f - x) / 2.f;
+        view.viewport.TopLeftX = windowWidth * (1.f - x) / 2.f;
         view.viewport.TopLeftY = windowHeight * (1.f - y) / 2.f;
         view.viewport.Width = x * windowWidth;
-        view.viewport.Height = y * windowWidth;
+        view.viewport.Height = y * windowHeight;
 
         view.scissor.left = LONG(view.viewport.TopLeftX);
         view.scissor.right = LONG(view.viewport.TopLeftX + view.viewport.Width);
@@ -220,7 +251,7 @@ private:
         vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
         iboView = {
             .buffer = ibo.gpuAddress(),
-            .length = std::size(kScreenQuad),
+            .length = std::size(kScreenQuadIndices),
             .format = rhi::Format::uint32
         };
 
@@ -292,6 +323,14 @@ struct ImGuiPass final : Pass {
         ImGui::SetNextFrameWantCaptureMouse(true);
         
         ImGui::ShowDemoWindow();
+
+        for (auto& [name, pass] : getParent()->passes) {
+            if (ImGui::Begin(name)) {
+                pass->imgui(ctx);
+            }
+            ImGui::End();
+        }
+
         cmd.imguiFrame();
     }
 
@@ -308,12 +347,12 @@ WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
     auto imgui = addPass<ImGuiPass>("imgui");
     auto present = addPass<PresentPass>("present");
 
-    // global (render target) -> post -> imgui -> present
-    // scene (scene target) ----^
-
     // post.renderTarget <= global.renderTarget
-    // post.sceneTarget <= scene.sceneTarget
+    // scene.sceneTarget <= global.sceneTarget
     link(post->renderTargetIn, global->renderTargetOut);
+    link(scene->sceneTargetIn, global->sceneTargetOut);
+
+    // post.sceneTarget <= scene.sceneTarget
     link(post->sceneTargetIn, scene->sceneTargetOut);
 
     // imgui.renderTarget <= post.renderTarget

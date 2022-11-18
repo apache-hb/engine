@@ -101,6 +101,7 @@ namespace simcoe::render {
         WireHandle(TWire *wire = nullptr) : wire(wire) { }
 
         TResource *get() { return static_cast<TResource*>(wire->resource); }
+        TResource *operator->() { return get(); }
 
         operator TWire *() { return wire; }
 
@@ -122,6 +123,8 @@ namespace simcoe::render {
 
         virtual void init(Context&) { }
         virtual void deinit(Context&) { }
+
+        virtual void imgui(Context&) { }
 
         virtual void execute(Context& ctx) = 0;
 
