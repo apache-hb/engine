@@ -320,7 +320,16 @@ struct ScenePass final : Pass, assets::IWorldSink {
     }
 
     size_t addTexture(const assets::Texture& texture) override {
-        // TODO: actually upload and create textureViews for the data
+        auto& queue = getContext().getCopyQueue();
+        auto& heap = getContext().getHeap();
+        auto thread = queue.getThread();
+
+        while (!thread.valid()) {
+            thread = queue.getThread();
+        }
+        thread.uploadTexture(texture.data.data(), texture.data.size(), heap.cpuHandle(textureHeapOffset, 1, DescriptorSlot::eTexture), texture.size);
+        queue.submit(thread);
+
         textures.push_back({
             .data = texture,
             .heapOffset = textureHeapOffset++

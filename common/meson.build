@@ -3,7 +3,8 @@ src = [
     'src/base/io/io.cpp', 
     'src/base/logging.cpp', 
     'src/base/util.cpp',
-    'src/base/win32.cpp'
+    'src/base/win32.cpp',
+    'src/base/mutex.cpp'
 ]
 
 libbase = library('base', src,

@@ -5,6 +5,7 @@
 #include "engine/base/util.h"
 #include "engine/base/logging.h"
 #include "engine/base/container/com/com.h"
+#include "engine/base/container/handle.h"
 
 #include <span>
 #include <string_view>
@@ -24,14 +25,6 @@ namespace simcoe::rhi {
         }
     };
     
-    struct HandleDeleter {
-        void operator()(HANDLE handle) const {
-            CloseHandle(handle);
-        }
-    };
-
-    using UniqueHandle = UniqueResource<HANDLE, INVALID_HANDLE_VALUE, HandleDeleter>;
-
     enum struct CpuHandle : std::size_t { Invalid = SIZE_MAX };
     enum struct GpuHandle : std::size_t { Invalid = SIZE_MAX };
 
