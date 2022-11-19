@@ -174,7 +174,7 @@ namespace {
 
 rhi::Fence Device::newFence() {
     ID3D12Fence *fence;
-    DX_CHECK(get()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    HR_CHECK(get()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
 
     return rhi::Fence(fence);
 }
@@ -185,22 +185,22 @@ rhi::CommandQueue Device::newQueue(rhi::CommandList::Type type) {
     };
 
     ID3D12CommandQueue *queue;
-    DX_CHECK(get()->CreateCommandQueue(&kDesc, IID_PPV_ARGS(&queue)));
+    HR_CHECK(get()->CreateCommandQueue(&kDesc, IID_PPV_ARGS(&queue)));
 
     return rhi::CommandQueue(queue);
 }
 
 rhi::CommandList Device::newCommandList(rhi::Allocator &allocator, rhi::CommandList::Type type) {
     ID3D12GraphicsCommandList *commands;
-    DX_CHECK(get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator.get(), nullptr, IID_PPV_ARGS(&commands)));
-    DX_CHECK(commands->Close());
+    HR_CHECK(get()->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE(type), allocator.get(), nullptr, IID_PPV_ARGS(&commands)));
+    HR_CHECK(commands->Close());
 
     return rhi::CommandList(commands);
 }
 
 rhi::Allocator Device::newAllocator(rhi::CommandList::Type type) {
     ID3D12CommandAllocator *allocator;
-    DX_CHECK(get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
+    HR_CHECK(get()->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE(type), IID_PPV_ARGS(&allocator)));
 
     return rhi::Allocator(allocator);
 }
@@ -214,7 +214,7 @@ rhi::DescriptorSet Device::newDescriptorSet(size_t count, rhi::DescriptorSet::Ty
     };
 
     ID3D12DescriptorHeap *rtvHeap;
-    DX_CHECK(get()->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+    HR_CHECK(get()->CreateDescriptorHeap(&kRtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
     UINT stride = get()->GetDescriptorHandleIncrementSize(kHeapType);
 
     return rhi::DescriptorSet(rtvHeap, stride);
@@ -259,7 +259,7 @@ rhi::Buffer Device::newBuffer(size_t size, rhi::DescriptorSet::Visibility visibi
     const auto kBufferSize = CD3DX12_RESOURCE_DESC::Buffer(size);
 
     ID3D12Resource *resource;
-    DX_CHECK(get()->CreateCommittedResource(
+    HR_CHECK(get()->CreateCommittedResource(
         getHeapProps(visibility),
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &kBufferSize,
@@ -278,7 +278,7 @@ rhi::Buffer Device::newTexture(const rhi::TextureDesc& desc, rhi::DescriptorSet:
     };
 
     ID3D12Resource *resource;
-    DX_CHECK(get()->CreateCommittedResource(
+    HR_CHECK(get()->CreateCommittedResource(
         getHeapProps(visibility),
         D3D12_HEAP_FLAG_NONE,
         &desc.resourceDesc,
@@ -315,7 +315,7 @@ rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::Descri
     };
 
     ID3D12Resource *resource;
-    DX_CHECK(get()->CreateCommittedResource(
+    HR_CHECK(get()->CreateCommittedResource(
         getHeapProps(visibility),
         D3D12_HEAP_FLAG_NONE,
         &kTextureDesc,
@@ -361,7 +361,7 @@ rhi::Buffer Device::newDepthStencil(TextureSize size, CpuHandle handle) {
 
     ID3D12Resource *resource;
 
-    DX_CHECK(get()->CreateCommittedResource(
+    HR_CHECK(get()->CreateCommittedResource(
         &kDefaultProps,
         D3D12_HEAP_FLAG_NONE,
         &kDepthTextureDesc,
@@ -391,7 +391,7 @@ rhi::PipelineState Device::newPipelineState(const rhi::PipelineBinding& bindings
 ID3D12RootSignature *Device::createRootSignature(ID3DBlob *signature) {
     ID3D12RootSignature *root;
 
-    DX_CHECK(get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)));
+    HR_CHECK(get()->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root)));
 
     return root;
 }
@@ -419,7 +419,7 @@ ID3D12PipelineState *Device::createPipelineState(ID3D12RootSignature *root, D3D1
     };
 
     ID3D12PipelineState *pipeline;
-    DX_CHECK(get()->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline)));
+    HR_CHECK(get()->CreateGraphicsPipelineState(&kDesc, IID_PPV_ARGS(&pipeline)));
     return pipeline;
 }
 

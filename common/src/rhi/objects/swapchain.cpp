@@ -11,19 +11,19 @@ SwapChain::SwapChain(IDXGISwapChain3 *swapchain, bool tearing)
 { }
 
 void SwapChain::present() {
-    DX_CHECK(get()->Present(0, presentFlags));
+    HR_CHECK(get()->Present(0, presentFlags));
 }
 
 rhi::Buffer SwapChain::getBuffer(size_t index) {
     ID3D12Resource *resource;
-    DX_CHECK(get()->GetBuffer(UINT(index), IID_PPV_ARGS(&resource)));
+    HR_CHECK(get()->GetBuffer(UINT(index), IID_PPV_ARGS(&resource)));
 
     return rhi::Buffer(resource);
 }
 
 void SwapChain::resize(TextureSize resolution, size_t frames) {
     auto [width, height] = resolution;
-    DX_CHECK(get()->ResizeBuffers(
+    HR_CHECK(get()->ResizeBuffers(
         UINT(frames), 
         UINT(width), UINT(height), 
         DXGI_FORMAT_R8G8B8A8_UNORM, 

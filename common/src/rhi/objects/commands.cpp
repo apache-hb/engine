@@ -25,11 +25,11 @@ namespace {
 void CommandList::beginRecording(rhi::Allocator &allocator) {
     allocator.reset();
 
-    DX_CHECK(get()->Reset(allocator.get(), nullptr));
+    HR_CHECK(get()->Reset(allocator.get(), nullptr));
 }
 
 void CommandList::endRecording() {
-    DX_CHECK(get()->Close());
+    HR_CHECK(get()->Close());
 }
 
 void CommandList::setRenderTarget(rhi::CpuHandle rtv, rhi::CpuHandle dsv, const math::float4 &colour) {

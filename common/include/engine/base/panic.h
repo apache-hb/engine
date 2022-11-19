@@ -28,3 +28,8 @@ namespace simcoe {
 
 #define ASSERTM(expr, msg) ASSERTF(expr, msg)
 #define ASSERT(expr) ASSERTM(expr, #expr)
+
+#define HR_CHECK(expr) do { \
+        HRESULT hr = (expr); \
+        ASSERTF(SUCCEEDED(hr), #expr " => {}", simcoe::win32::hrErrorString(hr)); \
+    } while (0)

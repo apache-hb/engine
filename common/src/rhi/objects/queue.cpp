@@ -27,7 +27,7 @@ rhi::SwapChain CommandQueue::newSwapChain(Window *window, size_t buffers) {
     };
 
     IDXGISwapChain1 *swapchain;
-    DX_CHECK(gFactory->CreateSwapChainForHwnd(
+    HR_CHECK(gFactory->CreateSwapChainForHwnd(
         get(),
         handle,
         &kDesc,
@@ -36,17 +36,17 @@ rhi::SwapChain CommandQueue::newSwapChain(Window *window, size_t buffers) {
         &swapchain
     ));
 
-    DX_CHECK(gFactory->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER));
+    HR_CHECK(gFactory->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER));
 
     IDXGISwapChain3 *swapchain3;
-    DX_CHECK(swapchain->QueryInterface(IID_PPV_ARGS(&swapchain3)));
+    HR_CHECK(swapchain->QueryInterface(IID_PPV_ARGS(&swapchain3)));
     ASSERT(swapchain->Release() == 1);
 
     return rhi::SwapChain(swapchain3, tearing);
 }
 
 void CommandQueue::signal(rhi::Fence &fence, size_t value) {
-    DX_CHECK(get()->Signal(fence.get(), value));
+    HR_CHECK(get()->Signal(fence.get(), value));
 }
 
 void CommandQueue::execute(std::span<ID3D12CommandList*> lists) {

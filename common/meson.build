@@ -167,3 +167,19 @@ render2 = declare_dependency(
     dependencies : [ base, rhi, window, memory ],
     include_directories : 'include'
 )
+
+src = [
+    'src/audio/audio.cpp'
+]
+
+libaudio = library('audio', src,
+    cpp_args : args,
+    dependencies : [ base, memory ],
+    include_directories : 'include'
+)
+
+audio = declare_dependency(
+    link_with : libaudio,
+    dependencies : [ base, memory ],
+    include_directories : 'include'
+)

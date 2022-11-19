@@ -8,7 +8,7 @@ using namespace simcoe::rhi;
 rhi::Device rhi::getDevice() {
     auto &channel = logging::get(logging::eRender);
 
-    DX_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
+    HR_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
 
     UINT factoryFlags = 0;
 
@@ -16,10 +16,10 @@ rhi::Device rhi::getDevice() {
         gDxDebug->EnableDebugLayer();
         factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
     } else {
-        channel.warn("faield to get d3d12 debug interface: {}", simcoe::hrErrorString(hr));
+        channel.warn("faield to get d3d12 debug interface: {}", simcoe::win32::hrErrorString(hr));
     }
 
-    DX_CHECK(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&gFactory)));
+    HR_CHECK(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&gFactory)));
 
     IDXGIAdapter1 *adapter;
     for (UINT i = 0; SUCCEEDED(gFactory->EnumAdapters1(i, &adapter)); i++) {
@@ -32,7 +32,7 @@ rhi::Device rhi::getDevice() {
     }
 
     ID3D12Device *device;
-    DX_CHECK(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+    HR_CHECK(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
 
     D3D12_FEATURE_DATA_SHADER_MODEL shaderModel = { D3D_SHADER_MODEL_6_0 };
     if (FAILED(device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(D3D12_FEATURE_DATA_SHADER_MODEL))) || shaderModel.HighestShaderModel < D3D_SHADER_MODEL_6_0) {

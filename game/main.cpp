@@ -8,15 +8,19 @@
 
 #include "engine/locale/locale.h"
 
+#include "engine/math/consts.h"
 #include "engine/render-new/scene.h"
 
 #include "engine/ui/ui.h"
+
+#include "engine/audio/audio.h"
 
 #include "imgui.h"
 
 using namespace simcoe;
 using namespace simcoe::math;
 using namespace simcoe::input;
+using namespace simcoe::audio;
 
 int commonMain() {
     win32::init();  

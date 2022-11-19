@@ -4,5 +4,5 @@
 using namespace simcoe;
 
 void rhi::Allocator::reset() {
-    DX_CHECK(get()->Reset());
+    HR_CHECK(get()->Reset());
 }

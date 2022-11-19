@@ -13,7 +13,7 @@ void Buffer::write(const void *src, size_t size) {
 void *Buffer::map() {
     void *ptr;
     CD3DX12_RANGE range(0, 0);
-    DX_CHECK(get()->Map(0, &range, &ptr));
+    HR_CHECK(get()->Map(0, &range, &ptr));
     return ptr;
 }
 

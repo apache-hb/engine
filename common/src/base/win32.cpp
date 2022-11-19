@@ -1,7 +1,11 @@
 #include "engine/base/win32.h"
 
+#include "engine/base/panic.h"
+
+#include <objbase.h>
 #include <stdlib.h>
 #include <dbghelp.h>
+#include <comdef.h>
 
 using namespace simcoe;
 
@@ -18,6 +22,9 @@ void win32::init() {
     
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
+
+    // required for xaudio2
+    HR_CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 }
 
 void win32::showCursor(bool show) {
@@ -31,4 +38,9 @@ void win32::showCursor(bool show) {
     } else {
         while (ShowCursor(false) >= 0 && limit++ < kLoopLimit);
     }
+}
+
+std::string win32::hrErrorString(HRESULT hr) {
+    _com_error err(hr);
+    return err.ErrorMessage();
 }

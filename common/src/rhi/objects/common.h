@@ -11,8 +11,6 @@
 #include <dxgidebug.h>
 
 namespace simcoe {
-    std::string hrErrorString(HRESULT hr);
-
     extern IDXGIFactory5 *gFactory;
     extern ID3D12Debug *gDxDebug;
     extern IDXGIDebug *gDebug;
@@ -30,5 +28,3 @@ namespace simcoe {
         }
     }
 }
-
-#define DX_CHECK(expr) do { HRESULT hr = (expr); ASSERTF(SUCCEEDED(hr), #expr " => {}", simcoe::hrErrorString(hr)); } while (0)
