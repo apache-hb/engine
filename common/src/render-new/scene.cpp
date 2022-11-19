@@ -102,11 +102,12 @@ struct GlobalPass final : Pass {
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
-    void execute(Context& ctx) override { 
+    void execute() override { 
+        auto& ctx = getContext();
         ctx.beginFrame();
     }
 
-    void init(Context&) override {
+    void init() override {
         ImNodes::CreateContext();
 
         auto& passes = getParent()->passes;
@@ -131,11 +132,12 @@ struct GlobalPass final : Pass {
         }
     }
 
-    void deinit(Context&) override {
+    void deinit() override {
         ImNodes::DestroyContext();
     }
 
-    void imgui(Context& ctx) override {
+    void imgui() override {
+        auto& ctx = getContext();
         if (ImGui::Begin("Context state")) {
             ImGui::Text("Total frames: %zu", ctx.getFrames());
             ImGui::Text("Frame: %zu", ctx.currentFrame());
@@ -218,7 +220,8 @@ struct PresentPass final : Pass {
         sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
     }
 
-    void execute(Context& ctx) override {
+    void execute() override {
+        auto& ctx = getContext();
         ctx.endFrame();
         ctx.present();
     }
@@ -237,7 +240,8 @@ struct ScenePass final : Pass, assets::IWorldSink {
         loadGltfAsync(path);
     }
 
-    void init(Context& ctx) override { 
+    void init() override { 
+        auto& ctx = getContext();
         auto& device = ctx.getDevice();
         auto& heap = ctx.getHeap();
 
@@ -256,7 +260,8 @@ struct ScenePass final : Pass, assets::IWorldSink {
         textureHeapOffset = heap.alloc(DescriptorSlot::eTexture, kMaxTextures);
     }
 
-    void execute(Context& ctx) override {
+    void execute() override {
+        auto& ctx = getContext();
         auto& cmd = ctx.getCommands(CommandSlot::eScene);
 
         auto [width, height] = ctx.sceneSize().as<float>();
@@ -270,7 +275,7 @@ struct ScenePass final : Pass, assets::IWorldSink {
     constexpr static uint8_t kMaxColumns = 8;
     constexpr static size_t kMaxTextures = 128;
 
-    void imgui(Context&) override {
+    void imgui() override {
         if (ImGui::Begin("Scene data")) {
             ImGui::Text("Texture budget: %zu/%zu", usedTextures.load(), kMaxTextures);
             ImGui::SameLine();
@@ -345,6 +350,7 @@ private:
     struct TextureHandle {
         assets::Texture data;
         size_t heapOffset;
+        rhi::Buffer buffer;
     };
 
     std::vector<assets::VertexBuffer> vbos;
@@ -402,12 +408,13 @@ struct PostPass final : Pass {
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
 
-    void init(Context& ctx) override {
-        initView(ctx);
-        initScreenQuad(ctx);
+    void init() override {
+        initView();
+        initScreenQuad();
     }
 
-    void execute(Context& ctx) override {
+    void execute() override {
+        auto& ctx = getContext();
         auto& cmd = ctx.getCommands(getSlot());
         auto *sceneTarget = sceneTargetIn.get();
         auto *renderTarget = renderTargetIn.get();
@@ -428,7 +435,8 @@ struct PostPass final : Pass {
     Output *sceneTargetOut;
 
 private:
-    void initView(Context& ctx) {
+    void initView() {
+        auto& ctx = getContext();
         // TODO: how did this get off centerd?
         auto [sceneWidth, sceneHeight] = ctx.sceneSize();
         auto [windowWidth, windowHeight] = ctx.windowSize();
@@ -456,7 +464,8 @@ private:
         view.scissor.bottom = LONG(view.viewport.TopLeftY + view.viewport.Height);
     }
 
-    void initScreenQuad(Context& ctx) {
+    void initScreenQuad() {
+        auto& ctx = getContext();
         auto& device = ctx.getDevice();
         auto& copy = ctx.getCopyQueue();
         auto pending = copy.getThread();
@@ -532,17 +541,20 @@ struct ImGuiPass final : Pass {
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
     
-    void init(Context& ctx) override {
+    void init() override {
+        auto& ctx = getContext();
         imguiHeapOffset = ctx.getHeap().alloc(DescriptorSlot::eImGui);
         ctx.imguiInit(imguiHeapOffset);
     }
 
-    void deinit(Context& ctx) override {
+    void deinit() override {
+        auto& ctx = getContext();
         ctx.imguiShutdown();
         ctx.getHeap().release(DescriptorSlot::eImGui, imguiHeapOffset);
     }
 
-    void execute(Context& ctx) override {
+    void execute() override {
+        auto& ctx = getContext();
         auto& cmd = ctx.getCommands(getSlot());
         // imgui work
 
@@ -552,7 +564,7 @@ struct ImGuiPass final : Pass {
         update();
 
         for (auto& [name, pass] : getParent()->passes) {
-            pass->imgui(ctx);
+            pass->imgui();
         }
 
         cmd.imguiFrame();

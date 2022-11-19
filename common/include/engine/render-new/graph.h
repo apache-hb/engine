@@ -121,12 +121,12 @@ namespace simcoe::render {
 
         virtual ~Pass() = default;
 
-        virtual void init(Context&) { }
-        virtual void deinit(Context&) { }
+        virtual void init() { }
+        virtual void deinit() { }
 
-        virtual void imgui(Context&) { }
+        virtual void imgui() { }
 
-        virtual void execute(Context& ctx) = 0;
+        virtual void execute() = 0;
 
         template<typename T, typename... A>  requires (std::is_base_of_v<Input, T>)
         T *newInput(const char *name, A&&... args) {

@@ -1,4 +1,5 @@
 #include "engine/render-new/render.h"
+#include "engine/rhi/rhi.h"
 
 using namespace simcoe;
 using namespace simcoe::render;
@@ -32,8 +33,29 @@ rhi::Buffer ThreadHandle::uploadData(const void* data, size_t size) {
     upload.write(data, size);
     list.copyBuffer(result, upload, size);
 
-    std::lock_guard lock(parent->stagingMutex);
-    parent->stagingBuffers.push_back(std::move(upload));
+    parent->addBuffer(std::move(upload));
+
+    return result;
+}
+
+rhi::Buffer ThreadHandle::uploadTexture(const void* data, size_t size, rhi::CpuHandle handle, rhi::TextureSize resolution) {
+    auto& device = parent->ctx.getDevice();
+    auto& list = cmd();
+    
+    const rhi::TextureDesc desc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCopyDst);
+    
+    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
+    rhi::Buffer result = device.newTexture(desc, rhi::DescriptorSet::Visibility::eDeviceOnly);
+
+    upload.rename("texture upload buffer");
+    result.rename("texture upload result");
+
+    upload.write(data, size);
+    list.copyTexture(result, upload, data, resolution);
+
+    device.createTextureBufferView(result, handle);
+
+    parent->addBuffer(std::move(upload));
 
     return result;
 }

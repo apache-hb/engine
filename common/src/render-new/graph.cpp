@@ -58,7 +58,7 @@ namespace {
 
             wireBarriers(ctx, graph, pass);
 
-            pass->execute(ctx);
+            pass->execute();
         }
 
     private:
@@ -96,7 +96,7 @@ void Relay::update(Barriers &barriers, Input *other) {
 
 void Graph::init() {
     for (auto& [name, pass] : passes) {
-        pass->init(ctx);
+        pass->init();
         channel.info("initialized pass: {}", name);
     }
     
@@ -105,7 +105,7 @@ void Graph::init() {
 
 void Graph::deinit() {
     for (auto& [name, pass] : passes) {
-        pass->deinit(ctx);
+        pass->deinit();
         channel.info("deinitialized pass: {}", name);
     }
 }

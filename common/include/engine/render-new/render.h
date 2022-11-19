@@ -70,6 +70,7 @@ namespace simcoe::render {
         rhi::CommandList& cmd();
 
         rhi::Buffer uploadData(const void* data, size_t size);
+        rhi::Buffer uploadTexture(const void* data, size_t size, rhi::CpuHandle handle, rhi::TextureSize resolution);
 
     private:
         friend CopyQueue;
@@ -110,6 +111,11 @@ namespace simcoe::render {
         memory::AtomicSlotMap<State, eAvailable> alloc;
         UniquePtr<rhi::CommandList[]> lists;
         UniquePtr<rhi::Allocator[]> allocators;
+
+        void addBuffer(rhi::Buffer&& buffer) {
+            std::lock_guard lock(stagingMutex);
+            stagingBuffers.push_back(std::move(buffer));
+        }
 
         std::mutex stagingMutex;
         std::vector<rhi::Buffer> stagingBuffers;
