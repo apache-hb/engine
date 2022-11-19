@@ -2,8 +2,6 @@
 #include "engine/render-new/render.h"
 
 #include "engine/assets/assets.h"
-
-#include "engine/rhi/rhi.h"
 #include "imgui/imgui.h"
 #include "imnodes/imnodes.h"
 
@@ -124,11 +122,12 @@ struct GlobalPass final : Pass {
             }
         }
 
+        int l = 0;
         for (auto& [source, dst] : getParent()->wires) {
             auto from = wireIds[source];
             auto to = wireIds[dst];
 
-            links[from] = to;
+            links[l++] = { from, to };
         }
     }
 
@@ -185,9 +184,9 @@ struct GlobalPass final : Pass {
                 ImNodes::EndNode();
             }
 
-            int i = 0;
-            for (auto& [from, to] : links) {
-                ImNodes::Link(i++, from, to);
+            for (auto& [id, link] : links) {
+                auto [from, to] = link;
+                ImNodes::Link(id, from, to);
             }
 
             ImNodes::EndNodeEditor();
@@ -203,9 +202,14 @@ struct GlobalPass final : Pass {
     Output *sceneTargetOut;
 
 private:
+    struct Link {
+        int source;
+        int destination;
+    };
+
     std::unordered_map<Pass*, int> passIds;
     std::unordered_map<Wire*, int> wireIds;
-    std::unordered_map<int, int> links;
+    std::unordered_map<int, Link> links;
 };
 
 struct PresentPass final : Pass {
@@ -223,14 +227,19 @@ struct PresentPass final : Pass {
     Input *sceneTargetIn;
 };
 
-struct ScenePass final : Pass {
+struct ScenePass final : Pass, assets::IWorldSink {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
         sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn);
     }
 
+    void addWorld(const char* path) {
+        loadGltfAsync(path);
+    }
+
     void init(Context& ctx) override { 
         auto& device = ctx.getDevice();
+        auto& heap = ctx.getHeap();
 
         vs = loadShader("resources/shaders/scene-shader.vs.pso");
         ps = loadShader("resources/shaders/scene-shader.ps.pso");
@@ -243,6 +252,8 @@ struct ScenePass final : Pass {
             .vs = vs,
             .depth = true
         });
+
+        textureHeapOffset = heap.alloc(DescriptorSlot::eTexture, kMaxTextures);
     }
 
     void execute(Context& ctx) override {
@@ -255,14 +266,96 @@ struct ScenePass final : Pass {
         cmd.clearRenderTarget(sceneTargetIn->rtvHandle(), kClearColour);
     }
 
+    constexpr static uint8_t kMinColumns = 2;
+    constexpr static uint8_t kMaxColumns = 8;
+    constexpr static size_t kMaxTextures = 128;
+
+    void imgui(Context&) override {
+        if (ImGui::Begin("Scene data")) {
+            ImGui::Text("Texture budget: %zu/%zu", usedTextures.load(), kMaxTextures);
+            ImGui::SameLine();
+            ImGui::SliderScalar("Columns", ImGuiDataType_U8, &columns, &kMinColumns, &kMaxColumns);
+
+            if (ImGui::BeginTable("Textures", columns)) {
+                ImVec2 avail = ImGui::GetContentRegionAvail();
+                for (size_t i = 0; i < usedTextures; i++) {
+                    ImGui::TableNextColumn();
+                    ImGui::Button("Button", ImVec2(avail.x / columns, avail.x / columns));
+                    auto [x, y] = textures[i].data.size;
+                    ImGui::Text("%s (%zu) (%zu x %zu)", textures[i].data.name.c_str(), i, x, y);
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    }
+
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
     Output *sceneTargetOut;
+
+    bool reserveTextures(size_t size) override {
+        if (textures.size() + size > kMaxTextures) {
+            return false;
+        }
+
+        textures.reserve(textures.size() + size);
+        return true;
+    }
+
+    bool reserveNodes(size_t) override {
+        return true;
+    }
+
+    size_t addVertexBuffer(assets::VertexBuffer&&) override {
+        return 0;
+    }
+
+    size_t addIndexBuffer(assets::IndexBuffer&&) override {
+        return 0;
+    }
+
+    size_t addTexture(const assets::Texture& texture) override {
+        // TODO: actually upload and create textureViews for the data
+        textures.push_back({
+            .data = texture,
+            .heapOffset = textureHeapOffset++
+        });
+
+        return usedTextures++;
+    }
+
+    size_t addPrimitive(const assets::Primitive&) override {
+        return 0;
+    }
+
+    size_t addNode(const assets::Node&) override {
+        return 0;
+    }
 
 private:
     Shader vs;
     Shader ps;
 
     rhi::PipelineState pso;
+
+    uint8_t columns = 4;
+
+    std::atomic_size_t textureHeapOffset = 0;
+
+    struct TextureHandle {
+        assets::Texture data;
+        size_t heapOffset;
+    };
+
+    std::vector<assets::VertexBuffer> vbos;
+    std::vector<assets::IndexBuffer> ibos;
+
+    std::atomic_size_t usedTextures = 0;
+    std::vector<TextureHandle> textures;
+
+    std::vector<assets::Primitive> primitives;
+
+    std::vector<assets::Node> nodes;
 
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
@@ -431,7 +524,10 @@ private:
 };
 
 struct ImGuiPass final : Pass {
-    ImGuiPass(const Info& info) : Pass(info, CommandSlot::ePost) {
+    ImGuiPass(const Info& info, ImGuiUpdate update) 
+        : Pass(info, CommandSlot::ePost) 
+        , update(update) 
+    {
         renderTargetIn = newInput<Input>("rtv", State::eRenderTarget);
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
     }
@@ -453,10 +549,7 @@ struct ImGuiPass final : Pass {
         ctx.imguiFrame();
         ImGui::NewFrame();
 
-        ImGui::SetNextFrameWantCaptureKeyboard(true);
-        ImGui::SetNextFrameWantCaptureMouse(true);
-        
-        ImGui::ShowDemoWindow();
+        update();
 
         for (auto& [name, pass] : getParent()->passes) {
             pass->imgui(ctx);
@@ -465,17 +558,19 @@ struct ImGuiPass final : Pass {
         cmd.imguiFrame();
     }
 
-    size_t imguiHeapOffset;
-
     WireHandle<Input, RenderTargetResource> renderTargetIn;
     Output *renderTargetOut;
+
+private:
+    size_t imguiHeapOffset;
+    ImGuiUpdate update;
 };
 
-WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
+WorldGraph::WorldGraph(const WorldGraphInfo& info) : Graph(info.ctx) {
     auto global = addPass<GlobalPass>("global");
     auto scene = addPass<ScenePass>("scene");
     auto post = addPass<PostPass>("post");
-    auto imgui = addPass<ImGuiPass>("imgui");
+    auto imgui = addPass<ImGuiPass>("imgui", info.update);
     auto present = addPass<PresentPass>("present");
 
     // post.renderTarget <= global.renderTarget
@@ -494,5 +589,11 @@ WorldGraph::WorldGraph(Context& ctx) : Graph(ctx) {
     link(present->renderTargetIn, imgui->renderTargetOut);
     link(present->sceneTargetIn, post->sceneTargetOut);
 
-    primary = present;
+    this->primary = present;
+    this->scene = scene;
+}
+
+void WorldGraph::addWorld(const char* path) {
+    auto *world = static_cast<ScenePass*>(scene);
+    world->addWorld(path);
 }

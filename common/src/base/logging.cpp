@@ -111,6 +111,6 @@ void logging::init() {
     kSinks[eLocale] = kSinks[eGeneral];
 }
 
-Channel &logging::get(Sink sink) {
-    return *kSinks[sink];
+Channel &logging::get(Category category) {
+    return *kSinks[category];
 }

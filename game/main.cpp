@@ -42,15 +42,26 @@ int commonMain() {
 
     input::Manager manager { { &keyboard, &gamepad0, &gamepad1 }, { } };
 
+    audio::Audio audio;
+
     render::ContextInfo info {
         .window = window.get(),
         .frames = 2,
         .resolution = { 640, 480 },
     };
     render::Context context { info };
-    render::WorldGraph world { context };
+
+    render::WorldGraphInfo worldInfo {
+        .ctx = context,
+        .update = [&] { 
+            ImGui::ShowDemoWindow();
+        }
+    };
+
+    render::WorldGraph world { worldInfo };
 
     world.init();
+    world.addWorld("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
 
     while (window->poll(&keyboard)) {
         manager.poll();

@@ -150,6 +150,22 @@ render = declare_dependency(
 )
 
 src = [
+    'src/assets/gltf.cpp'
+]
+
+libassets = library('assets', src,
+    cpp_args : args,
+    dependencies : [ base, memory, rhi, gltf ],
+    include_directories : 'include'
+)
+
+assets = declare_dependency(
+    link_with : libassets,
+    dependencies : [ base, memory, gltf ],
+    include_directories : 'include'
+)
+
+src = [
     'src/render-new/queue.cpp',
     'src/render-new/render.cpp',
     'src/render-new/graph.cpp',
@@ -158,7 +174,7 @@ src = [
 
 librender2 = library('render2', src,
     cpp_args : args,
-    dependencies : [ base, rhi, window, memory, gltf, widgets ],
+    dependencies : [ base, rhi, window, memory, gltf, widgets, assets ],
     include_directories : 'include'
 )
 

@@ -64,8 +64,6 @@ CopyQueue::CopyQueue(Context& ctx, const ContextInfo& info)
 }
 
 ThreadHandle CopyQueue::getThread() {
-    std::lock_guard lock(mutex);
-
     size_t index = alloc.alloc(eRecording);
     if (index == SIZE_MAX) { return { SIZE_MAX, nullptr }; }
     
@@ -74,20 +72,16 @@ ThreadHandle CopyQueue::getThread() {
 }
 
 void CopyQueue::submit(ThreadHandle thread) {
-    std::lock_guard lock(mutex);
-
     lists[thread.index].endRecording();
     alloc.update(thread.index, eSubmitting);
 }
 
 void CopyQueue::wait() {
-    std::lock_guard lock(mutex);
-
     std::vector<ID3D12CommandList*> lists;
     for (size_t i = 0; i < alloc.getSize(); i++) {
-        if (alloc.checkBit(i, eSubmitting)) {
-            alloc.release(eSubmitting, i);
+        if (alloc.testBit(i, eSubmitting)) {
             lists.push_back(this->lists[i].get());
+            alloc.release(eSubmitting, i);
         }
     }
 

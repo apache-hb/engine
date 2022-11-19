@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "engine/math/math.h"
 
@@ -38,8 +39,15 @@ namespace simcoe::render {
         std::vector<Primitive> primitives;
     };
 
+    using ImGuiUpdate = std::function<void()>;
+
+    struct WorldGraphInfo {
+        Context& ctx;
+        ImGuiUpdate update;
+    };
+
     struct WorldGraph : Graph {
-        WorldGraph(Context& ctx);
+        WorldGraph(const WorldGraphInfo& info);
 
         void execute() { Graph::execute(primary); }
 

@@ -51,7 +51,7 @@ namespace simcoe::logging {
         std::string_view name;
     };
 
-    enum Sink {
+    enum Category {
         eGeneral,
         eInput,
         eRender,
@@ -61,5 +61,5 @@ namespace simcoe::logging {
     };
 
     void init();
-    Channel &get(Sink sink = eGeneral);
+    Channel &get(Category category = eGeneral);
 }

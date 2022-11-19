@@ -333,7 +333,7 @@ void BasicScene::updateObject(size_t index, math::float4x4 parent) {
 
 rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().checkBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        ctx->getAlloc().testBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
         "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
         objectBufferOffset, index
@@ -343,7 +343,7 @@ rhi::GpuHandle BasicScene::getObjectBufferGpuHandle(size_t index) {
 
 rhi::CpuHandle BasicScene::getObjectBufferCpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().checkBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
+        ctx->getAlloc().testBit(objectBufferOffset + index, DescriptorSlot::eObjectBuffer), 
         "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eObjectBuffer),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(objectBufferOffset + index)), 
         objectBufferOffset, index
@@ -353,7 +353,7 @@ rhi::CpuHandle BasicScene::getObjectBufferCpuHandle(size_t index) {
 
 rhi::GpuHandle BasicScene::getTextureGpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().checkBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        ctx->getAlloc().testBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
         "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
         textureBufferOffset, index
@@ -363,7 +363,7 @@ rhi::GpuHandle BasicScene::getTextureGpuHandle(size_t index) {
 
 rhi::CpuHandle BasicScene::getTextureCpuHandle(size_t index) {
     ASSERTF(
-        ctx->getAlloc().checkBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
+        ctx->getAlloc().testBit(textureBufferOffset + index, DescriptorSlot::eTexture), 
         "expecting {} found {} instead at {}+{}", DescriptorSlot::getSlotName(DescriptorSlot::eTexture),
         DescriptorSlot::getSlotName(ctx->getAlloc().getBit(textureBufferOffset + index)), 
         textureBufferOffset, index

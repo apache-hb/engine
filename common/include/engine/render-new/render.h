@@ -102,13 +102,12 @@ namespace simcoe::render {
         };
         
         size_t threads;
-        std::mutex mutex;
 
         Context& ctx;
 
         rhi::CommandQueue queue;
 
-        memory::SlotMap<State, eAvailable> alloc;
+        memory::AtomicSlotMap<State, eAvailable> alloc;
         UniquePtr<rhi::CommandList[]> lists;
         UniquePtr<rhi::Allocator[]> allocators;
 
@@ -155,7 +154,7 @@ namespace simcoe::render {
 
         rhi::CpuHandle cpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
             ASSERTF(
-                checkBit(offset, type), 
+                testBit(offset, type), 
                 "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
                 DescriptorSlot::getSlotName(getBit(offset)), 
                 offset, length
@@ -165,7 +164,7 @@ namespace simcoe::render {
 
         rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
             ASSERTF(
-                checkBit(offset, type), 
+                testBit(offset, type), 
                 "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
                 DescriptorSlot::getSlotName(getBit(offset)), 
                 offset, length

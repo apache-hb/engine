@@ -58,7 +58,6 @@ namespace {
 
             wireBarriers(ctx, graph, pass);
 
-            graph.channel.info("executing pass `{}`", pass->getName());
             pass->execute(ctx);
         }
 
@@ -116,5 +115,4 @@ void Graph::execute(Pass *root) {
     auto tree = builder.build(*this, root);
     
     builder.execute(ctx, *this, tree);
-    channel.info("executed graph");
 }

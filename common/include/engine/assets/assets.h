@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine/math/math.h"
+#include "engine/rhi/rhi.h"
 
 #include <vector>
 
@@ -11,9 +12,23 @@ namespace simcoe::assets {
         math::float2 uv;
     };
 
+    using VertexBuffer = std::vector<Vertex>;
+    using IndexBuffer = std::vector<uint32_t>;
+
+    struct Texture {
+        std::string name;
+        rhi::TextureSize size;
+        std::vector<uint8_t> data;
+    };
+
+    struct Primitive {
+        size_t texture;
+        size_t verts;
+        size_t indices;
+    };
+
     struct Node {
         std::string name;
-        size_t index; // cbv index
 
         math::float3 position;
         math::float4 rotation;
@@ -23,21 +38,19 @@ namespace simcoe::assets {
         std::vector<size_t> primitives; // all primitives that comprise this node
     };
 
-    struct Texture {
-        std::string name;
-        size_t index; // srv index
-    };
+    struct IWorldSink {
+        virtual ~IWorldSink() = default;
 
-    struct Primitive {
-        size_t texture;
-        size_t verts;
-        size_t indices;
-    };
+        void loadGltfAsync(const char* path);
 
-    // basic scene graph system
-    struct World {
-        std::vector<Node> nodes;
-        std::vector<Texture> textures;
-        std::vector<Primitive> primitives;
+        virtual bool reserveTextures(size_t total) = 0;
+        virtual bool reserveNodes(size_t total) = 0;
+
+        virtual size_t addVertexBuffer(VertexBuffer&& verts) = 0;
+        virtual size_t addIndexBuffer(IndexBuffer&& indices) = 0;
+
+        virtual size_t addTexture(const Texture& texture) = 0;
+        virtual size_t addPrimitive(const Primitive& primitive) = 0;
+        virtual size_t addNode(const Node& node) = 0;
     };
 }

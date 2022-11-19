@@ -1,20 +1,16 @@
-#include "engine/render/assets/assets.h"
-
-#include "engine/math/consts.h"
-
+#include "engine/assets/assets.h"
 #include "engine/base/logging.h"
-#include "engine/base/util.h"
+#include "engine/rhi/rhi.h"
 
-#include <algorithm>
-#include <unordered_map>
-
-#include "engine/render/scene.h"
 #include "tinygltf/tinygltf.h"
 
-namespace gltf = tinygltf;
+#include <unordered_map>
 
 using namespace simcoe;
-using namespace math;
+using namespace simcoe::math;
+using namespace simcoe::assets;
+
+namespace gltf = tinygltf;
 
 template<typename T>
 struct std::hash<math::Vec3<T>> {
@@ -147,22 +143,22 @@ namespace {
         }
     }
 
-    constexpr uint8_t kDefaultImage[] = {
+    constexpr auto kDefaultImage = std::to_array<uint8_t>({
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    };
+    });
 
     struct Sink {
-        Sink(const gltf::Model& model, render::BasicScene *scene)
+        Sink(const gltf::Model& model, IWorldSink *scene)
             : scene(scene) 
             , model(model) 
         { 
             assets::Texture it = {
                 .name = "default",
                 .size = { 2, 2 },
-                .data = { (std::byte*)kDefaultImage, (std::byte*)kDefaultImage + sizeof(kDefaultImage) }
+                .data = std::vector<uint8_t>(kDefaultImage.begin(), kDefaultImage.end()),
             };
             defaultTexture = scene->addTexture(it);
         }
@@ -307,8 +303,8 @@ namespace {
 
             return { 
                 .texture = texture == SIZE_MAX ? defaultTexture : texture,
-                .verts = addVertexBuffer(vertexBuffer),
-                .indices = addIndexBuffer(indexBuffer)
+                .verts = addVertexBuffer(std::move(vertexBuffer)),
+                .indices = addIndexBuffer(std::move(indexBuffer))
             };
         }
 
@@ -316,15 +312,29 @@ namespace {
             return scene->addPrimitive(prim);
         }
 
-        size_t addVertexBuffer(assets::VertexBuffer buffer) {
-            return scene->addVertexBuffer(buffer);
+        size_t addVertexBuffer(assets::VertexBuffer&& buffer) {
+            return scene->addVertexBuffer(std::move(buffer));
         }
 
-        size_t addIndexBuffer(assets::IndexBuffer buffer) {
-            return scene->addIndexBuffer(buffer);
+        size_t addIndexBuffer(assets::IndexBuffer&& buffer) {
+            return scene->addIndexBuffer(std::move(buffer));
         }
 
-        render::BasicScene *scene;
+        void addTextures() {
+            for (size_t i = 0; i < model.textures.size(); i++) {
+                auto& image = model.images[i];
+                Texture it = {
+                    .name = image.name,
+                    .size = { size_t(image.width), size_t(image.height) },
+                    .data = image.image
+                };
+
+                textureIndices[i] = scene->addTexture(it);
+                log.info("uploaded texture {}", i);
+            }
+        }
+
+        IWorldSink *scene;
         size_t defaultTexture;
         const gltf::Model& model;
         logging::Channel& log = logging::get(logging::eRender);
@@ -332,61 +342,33 @@ namespace {
     };
 }
 
-void assets::loadGltf(render::BasicScene *scene, const char *path) {
-    auto &channel = logging::get(logging::eRender);
+void IWorldSink::loadGltfAsync(const char* path) {
+    std::thread([this, path] {
+        auto &channel = logging::get(logging::eRender);
+        channel.info("loading gltf model {}", path);
 
-    gltf::Model model;
-    gltf::TinyGLTF loader;
+        gltf::Model model;
+        gltf::TinyGLTF loader;
 
-    std::string err;
-    std::string warn;
+        std::string err;
+        std::string warn;
 
-    auto result = loader.LoadASCIIFromFile(&model, &err, &warn, path);
-    if (!warn.empty()) { channel.warn("{}", warn); }
-    if (!err.empty()) { channel.fatal("{}", err); }
+        auto result = loader.LoadASCIIFromFile(&model, &err, &warn, path);
+        if (!warn.empty()) { channel.warn("{}", warn); }
+        if (!err.empty()) { channel.fatal("{}", err); }
+        if (!result) { channel.fatal("failed to load gltf"); return; }
 
-    if (!result) { return; }
+        if (!this->reserveTextures(model.textures.size())) { 
+            channel.fatal("failed to reserve {} textures", model.textures.size());
+            return;
+        }
 
-    Sink sink{model, scene};
+        if (!this->reserveNodes(model.nodes.size())) {
+            channel.fatal("failed to reserve nodes");
+            return;
+        }
 
-    for (size_t i = 0; i < model.textures.size(); i++) {
-        auto& image =  model.images[i];
-        Texture it = {
-            .name = image.name,
-            .size = { size_t(image.width), size_t(image.height) }
-        };
-
-        it.data.resize(image.image.size());
-        memcpy(it.data.data(), image.image.data(), it.data.size());
-
-        sink.textureIndices[i] = scene->addTexture(it);
-    }
-
-    for (const auto& node : model.nodes) {
-        Node it = {
-            .name = node.name,
-            .transform = createTransform(node),
-            .children = loadChildren(node.children),
-            .primitives = sink.getPrimitives(node.mesh)
-        };
-
-        scene->addNode(it);
-    }
-
-    channel.info("finished loading gltf `{}`", path);
-}
-
-void assets::World::makeDirty(size_t node) {
-    auto& it = nodes[node];
-    it.dirty = true;
-    for (auto child : it.children) {
-        makeDirty(child);
-    }
-}
-
-bool assets::World::clearDirty(size_t node) {
-    auto& it = nodes[node];
-    bool dirty = it.dirty;
-    it.dirty = false;
-    return dirty;
+        Sink sink{model, this};
+        sink.addTextures();
+    }).detach();
 }
