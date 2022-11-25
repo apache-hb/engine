@@ -1,7 +1,5 @@
 # TODO
-* convert to our own format
-* object culling
-    * mipmaps
-    * lod system
-    * asset streaming
-* basic scene system
+* rework render system again
+    * rework render graph again
+* move to gameinput for all input handling
+* proper audio work
