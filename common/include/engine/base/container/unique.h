@@ -1,32 +1,9 @@
 #pragma once
 
+#include "engine/base/container/common.h"
 #include "engine/base/container/resource.h"
 
 namespace simcoe {
-    template<typename T>
-    struct DefaultDelete {
-        void operator()(T *ptr) {
-            delete ptr;
-        }
-    };
-
-    template<typename T>
-    struct DefaultDelete<T[]> {
-        void operator()(T *ptr) {
-            delete[] ptr;
-        }
-    };
-
-    template<typename T>
-    struct RemoveArray {
-        using Type = T;
-    };
-
-    template<typename T>
-    struct RemoveArray<T[]> {
-        using Type = T;
-    };
-
     template<typename T, typename Delete = DefaultDelete<T>>
     struct UniquePtr : public UniqueResource<typename RemoveArray<T>::Type*, nullptr, Delete> {
         using Super = UniqueResource<typename RemoveArray<T>::Type*, nullptr, Delete>;

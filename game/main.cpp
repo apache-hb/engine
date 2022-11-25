@@ -61,7 +61,7 @@ int commonMain() {
     render::WorldGraph world { worldInfo };
 
     world.init();
-    world.addWorld("D:\\assets\\glTF-Sample-Models-master\\2.0\\Sponza\\glTF\\Sponza.gltf");
+    world.addWorld("C:\\Users\\elliot\\Desktop\\glTF-Sample-Models-master\\2.0\\Avocado\\glTF\\Avocado.gltf");
 
     while (window->poll(&keyboard)) {
         manager.poll();

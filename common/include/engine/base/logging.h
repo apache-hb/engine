@@ -47,6 +47,8 @@ namespace simcoe::logging {
 
         Level level;
 
+        const char *getName() const { return name.data(); }
+
     protected:
         std::string_view name;
     };

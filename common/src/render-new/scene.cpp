@@ -276,6 +276,7 @@ struct ScenePass final : Pass, assets::IWorldSink {
     constexpr static size_t kMaxTextures = 128;
 
     void imgui() override {
+#if 0
         if (ImGui::Begin("Scene data")) {
             ImGui::Text("Texture budget: %zu/%zu", usedTextures.load(), kMaxTextures);
             ImGui::SameLine();
@@ -293,18 +294,14 @@ struct ScenePass final : Pass, assets::IWorldSink {
             }
         }
         ImGui::End();
+#endif
     }
 
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
     Output *sceneTargetOut;
 
-    bool reserveTextures(size_t size) override {
-        if (textures.size() + size > kMaxTextures) {
-            return false;
-        }
-
-        textures.reserve(textures.size() + size);
-        return true;
+    bool reserveTextures(size_t) override {
+        return false;
     }
 
     bool reserveNodes(size_t) override {
@@ -319,23 +316,8 @@ struct ScenePass final : Pass, assets::IWorldSink {
         return 0;
     }
 
-    size_t addTexture(const assets::Texture& texture) override {
-        auto& queue = getContext().getCopyQueue();
-        auto& heap = getContext().getHeap();
-        auto thread = queue.getThread();
-
-        while (!thread.valid()) {
-            thread = queue.getThread();
-        }
-        thread.uploadTexture(texture.data.data(), texture.data.size(), heap.cpuHandle(textureHeapOffset, 1, DescriptorSlot::eTexture), texture.size);
-        queue.submit(thread);
-
-        textures.push_back({
-            .data = texture,
-            .heapOffset = textureHeapOffset++
-        });
-
-        return usedTextures++;
+    size_t addTexture(const assets::Texture&) override {
+        return 0;
     }
 
     size_t addPrimitive(const assets::Primitive&) override {
@@ -352,25 +334,9 @@ private:
 
     rhi::PipelineState pso;
 
-    uint8_t columns = 4;
+    // uint8_t columns = 4;
 
-    std::atomic_size_t textureHeapOffset = 0;
-
-    struct TextureHandle {
-        assets::Texture data;
-        size_t heapOffset;
-        rhi::Buffer buffer;
-    };
-
-    std::vector<assets::VertexBuffer> vbos;
-    std::vector<assets::IndexBuffer> ibos;
-
-    std::atomic_size_t usedTextures = 0;
-    std::vector<TextureHandle> textures;
-
-    std::vector<assets::Primitive> primitives;
-
-    std::vector<assets::Node> nodes;
+    std::atomic_size_t textureHeapOffset = SIZE_MAX;
 
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
@@ -446,7 +412,6 @@ struct PostPass final : Pass {
 private:
     void initView() {
         auto& ctx = getContext();
-        // TODO: how did this get off centerd?
         auto [sceneWidth, sceneHeight] = ctx.sceneSize();
         auto [windowWidth, windowHeight] = ctx.windowSize();
 
@@ -477,7 +442,6 @@ private:
         auto& ctx = getContext();
         auto& device = ctx.getDevice();
         auto& copy = ctx.getCopyQueue();
-        auto pending = copy.getThread();
 
         auto ps = loadShader("resources/shaders/post-shader.ps.pso");
         auto vs = loadShader("resources/shaders/post-shader.vs.pso");
@@ -490,24 +454,24 @@ private:
             .vs = vs
         });
 
-        vbo = pending.uploadData(kScreenQuad, sizeof(kScreenQuad));
-        ibo = pending.uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
+        vboCopy = copy.uploadData(kScreenQuad, sizeof(kScreenQuad));
+        iboCopy = copy.uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
 
-        vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
+        vboView = rhi::newVertexBufferView(vboCopy->data().gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
         iboView = {
-            .buffer = ibo.gpuAddress(),
+            .buffer = iboCopy->data().gpuAddress(),
             .length = std::size(kScreenQuadIndices),
             .format = rhi::Format::uint32
         };
-
-        copy.submit(pending);
     }
 
     rhi::View view;
     
     rhi::PipelineState pso;
-    rhi::Buffer vbo;
-    rhi::Buffer ibo;
+    
+    CopyResult vboCopy;
+    CopyResult iboCopy;
+
     rhi::VertexBufferView vboView;
     rhi::IndexBufferView iboView;
 

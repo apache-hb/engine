@@ -131,25 +131,6 @@ rhi = declare_dependency(
     include_directories : 'include'
 )
 
-src = [ 
-    'src/render/render.cpp', 
-    'src/render/camera.cpp', 
-    'src/render/scene.cpp', 
-    'src/render/assets/assets.cpp'
-]
-
-librender = library('render', src,
-    cpp_args : args,
-    dependencies : [ base, rhi, window, memory, gltf ],
-    include_directories : 'include'
-)
-
-render = declare_dependency(
-    link_with : librender,
-    dependencies : [ base, rhi, window, memory ],
-    include_directories : 'include'
-)
-
 src = [
     'src/assets/gltf.cpp'
 ]
@@ -173,15 +154,15 @@ src = [
     'src/render-new/scene.cpp'
 ]
 
-librender2 = library('render2', src,
+librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, window, memory, gltf, widgets, assets ],
+    dependencies : [ base, rhi, window, memory, gltf, widgets, assets, queue ],
     include_directories : 'include'
 )
 
-render2 = declare_dependency(
-    link_with : librender2,
-    dependencies : [ base, rhi, window, memory ],
+render = declare_dependency(
+    link_with : librender,
+    dependencies : [ base, rhi, window, memory, queue ],
     include_directories : 'include'
 )
 

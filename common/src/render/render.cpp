@@ -306,13 +306,13 @@ void Context::waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fe
     fence.wait(value);
 }
 
-rhi::Buffer Context::uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size, std::span<const std::byte> data) {
+rhi::Buffer Context::uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size) {
     auto result = device.newTexture(size, rhi::DescriptorSet::Visibility::eDeviceOnly, BufferState::eCopyDst);
     auto upload = device.newBuffer(result.uploadSize, rhi::DescriptorSet::Visibility::eHostVisible, BufferState::eUpload);
 
     pendingTransitions.push_back(rhi::newStateTransition(result.buffer, BufferState::eCopyDst, BufferState::ePixelShaderResource));
 
-    copyCommands.copyTexture(result.buffer, upload, data.data(), size);
+    copyCommands.copyTexture(result.buffer, upload);
 
     pendingCopies.push_back(std::move(upload));
 

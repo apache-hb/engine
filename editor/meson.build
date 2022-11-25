@@ -14,9 +14,9 @@ shaders = declare_dependency(
     link_with : libshaders
 )
 
-executable('editor', 'main.cpp',
-    include_directories : 'include',
-    dependencies : [ input, render, ui, imgui, shaders ],
-    cpp_args : args,
-    win_subsystem : 'console'
-)
+# executable('editor', 'main.cpp',
+#     include_directories : 'include',
+#     dependencies : [ input, render, ui, imgui, shaders ],
+#     cpp_args : args,
+#     win_subsystem : 'console'
+# )

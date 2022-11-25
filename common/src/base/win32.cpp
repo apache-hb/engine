@@ -1,6 +1,7 @@
 #include "engine/base/win32.h"
 
 #include "engine/base/panic.h"
+#include "engine/base/logging.h"
 
 #include <objbase.h>
 #include <stdlib.h>

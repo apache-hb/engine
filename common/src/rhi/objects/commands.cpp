@@ -63,14 +63,27 @@ void CommandList::copyBuffer(Buffer &dst, Buffer &src, size_t size) {
     get()->CopyBufferRegion(dst.get(), 0, src.get(), 0, size);
 }
 
-void CommandList::copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size) {
-    const D3D12_SUBRESOURCE_DATA kUpdate {
-        .pData = ptr,
-        .RowPitch = LONG_PTR(size.width * 4),
-        .SlicePitch = LONG_PTR(size.width * 4 * size.height)
+void CommandList::copyTexture(Buffer &dst, Buffer &src) {
+    ID3D12Device *pDevice = nullptr;
+    HR_CHECK(get()->GetDevice(IID_PPV_ARGS(&pDevice)));
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+    auto desc = src->GetDesc();
+    pDevice->GetCopyableFootprints(&desc, 0, 1, 0, &footprint, nullptr, nullptr, nullptr);
+    
+    const D3D12_TEXTURE_COPY_LOCATION kDst {
+        .pResource = dst.get(),
+        .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+        .SubresourceIndex = 0
     };
 
-    UpdateSubresources(get(), dst.get(), src.get(), 0, 0, 1, &kUpdate);
+    const D3D12_TEXTURE_COPY_LOCATION kSrc {
+        .pResource = src.get(),
+        .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+        .PlacedFootprint = footprint
+    };
+
+    get()->CopyTextureRegion(&kDst, 0, 0, 0, &kSrc, nullptr);
 }
 
 void CommandList::transition(std::span<const StateTransition> barriers) {

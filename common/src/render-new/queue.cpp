@@ -10,113 +10,95 @@ namespace {
     }
 }
 
-// thread primitive
+struct AsyncBufferCopy final : AsyncCopy {
+    AsyncBufferCopy(rhi::Buffer upload, rhi::Buffer result, size_t size)
+        : AsyncCopy(std::move(upload), std::move(result))
+        , size(size)
+    { }
 
-bool ThreadHandle::valid() const {
-    return index != SIZE_MAX && parent != nullptr;
-}
+    void apply(rhi::CommandList& list) override {
+        list.copyBuffer(result, upload, size);
+    }
 
-rhi::CommandList& ThreadHandle::cmd() {
-    ASSERT(valid());
-    return parent->lists[index];
-}
+private:
+    size_t size;
+};
 
-rhi::Buffer ThreadHandle::uploadData(const void* data, size_t size) {
-    auto& device = parent->ctx.getDevice();
-    auto& list = cmd();
-    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    rhi::Buffer result = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCopyDst);
+struct AsyncTextureCopy final : AsyncCopy {
+    AsyncTextureCopy(rhi::Buffer upload, rhi::Buffer result)
+        : AsyncCopy(std::move(upload), std::move(result))
+    { }
 
-    upload.rename("upload");
-    result.rename("upload result");
+    void apply(rhi::CommandList& list) override {
+        list.copyTexture(result, upload);
+    }
+};
 
-    upload.write(data, size);
-    list.copyBuffer(result, upload, size);
+// async copy queue
 
-    parent->addBuffer(std::move(upload));
-
-    return result;
-}
-
-rhi::Buffer ThreadHandle::uploadTexture(const void* data, size_t size, rhi::CpuHandle handle, rhi::TextureSize resolution) {
-    auto& device = parent->ctx.getDevice();
-    auto& list = cmd();
-    
-    const rhi::TextureDesc desc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCopyDst);
-    
-    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    rhi::Buffer result = device.newTexture(desc, rhi::DescriptorSet::Visibility::eDeviceOnly);
-
-    upload.rename("texture upload buffer");
-    result.rename("texture upload result");
-
-    upload.write(data, size);
-    list.copyTexture(result, upload, data, resolution);
-
-    device.createTextureBufferView(result, handle);
-
-    parent->addBuffer(std::move(upload));
-
-    return result;
-}
-
-// copy queue
-
-CopyQueue::CopyQueue(Context& ctx, const ContextInfo& info) 
-    : threads(info.threads) 
-    , ctx(ctx)
+AsyncCopyQueue::AsyncCopyQueue(Context& ctx)
+    : ctx(ctx)
     , queue(ctx.getDevice().newQueue(rhi::CommandList::Type::eCopy))
-    , alloc(info.threads)
+    , alloc(ctx.getDevice().newAllocator(rhi::CommandList::Type::eCopy))
+    , list(ctx.getDevice().newCommandList(alloc, rhi::CommandList::Type::eCopy))
     , fence(ctx.getDevice().newFence())
-{
-    auto& device = ctx.getDevice();
-    lists = new rhi::CommandList[threads];
-    allocators = new rhi::Allocator[threads];
-
+{ 
     queue.rename("copy queue");
-    fence.rename("copy queue fence");
-
-    for (size_t i = 0; i < threads; ++i) {
-        allocators[i] = device.newAllocator(rhi::CommandList::Type::eCopy);
-        lists[i] = device.newCommandList(allocators[i], rhi::CommandList::Type::eCopy);
-        
-        allocators[i].rename(std::format("copy allocator {}", i));
-        lists[i].rename(std::format("copy queue {}", i));
-    }
+    alloc.rename("copy allocator");
+    list.rename("copy list");
+    fence.rename("copy fence");
 }
 
-ThreadHandle CopyQueue::getThread() {
-    size_t index = alloc.alloc(eRecording);
-    if (index == SIZE_MAX) { return { SIZE_MAX, nullptr }; }
+CopyResult AsyncCopyQueue::uploadData(const void* data, size_t size) {
+    auto& device = ctx.getDevice();
+
+    rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
+    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
+    buffer.write(data, size);
+
+    buffer.rename("upload buffer");
+    upload.rename("upload texture");
+
+    auto result = std::make_shared<AsyncBufferCopy>(std::move(buffer), std::move(upload), size);
+    pending.enqueue(result);
+    return result;
+}
+
+CopyResult AsyncCopyQueue::uploadTexture(const void* data, size_t size, rhi::TextureSize resolution) {
+    auto& device = ctx.getDevice();
+
+    rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
+    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
+    buffer.writeTexture(data, resolution); // TODO: this is suspect
+
+    buffer.rename("upload buffer");
+    upload.rename("upload texture");
+
+    auto result = std::make_shared<AsyncTextureCopy>(std::move(buffer), std::move(upload));
+    pending.enqueue(result);
+    return result;
+}
+
+void AsyncCopyQueue::wait() {
+    std::vector<CopyResult> results;
     
-    lists[index].beginRecording(allocators[index]);
-    return { index, this };
-}
-
-void CopyQueue::submit(ThreadHandle thread) {
-    lists[thread.index].endRecording();
-    alloc.update(thread.index, eSubmitting);
-}
-
-void CopyQueue::wait() {
-    std::vector<ID3D12CommandList*> lists;
-    for (size_t i = 0; i < alloc.getSize(); i++) {
-        if (alloc.testBit(i, eSubmitting)) {
-            lists.push_back(this->lists[i].get());
-            alloc.release(eSubmitting, i);
-        }
+    CopyResult copy;
+    while (pending.try_dequeue(copy)) {
+        results.push_back(copy);
     }
 
-    if (lists.empty()) { return; }
+    if (results.empty()) { return; }
+
+    list.beginRecording(alloc);
+    for (const auto& result : results) {
+        result->apply(list);
+    }
+    list.endRecording();
+
+    ID3D12CommandList* lists[] = { list.get() };
     queue.execute(lists);
-    
     queue.signal(fence, index);
-    fence.wait(index);
-
-    index += 1;
-
-    std::lock_guard stagingLock(stagingMutex);
-    stagingBuffers.clear();
+    fence.wait(index++);
 }
 
 // present queue

@@ -6,6 +6,11 @@
 #include "engine/memory/slotmap.h"
 #include "engine/window/window.h"
 
+#include "concurrentqueue.h"
+#include <functional>
+
+namespace camel = moodycamel;
+
 namespace simcoe::render {
     struct ThreadHandle;
     struct CopyQueue;
@@ -60,65 +65,44 @@ namespace simcoe::render {
         rhi::TextureSize resolution = { 1280, 720 }; // internal resolution
 
         /// tuning parameters
-        size_t threads = 4; // number of worker threads
         size_t maxTextures = 512;
         size_t maxObjects = 512;
     };
 
-    struct ThreadHandle {
-        bool valid() const;
-        rhi::CommandList& cmd();
-
-        rhi::Buffer uploadData(const void* data, size_t size);
-        rhi::Buffer uploadTexture(const void* data, size_t size, rhi::CpuHandle handle, rhi::TextureSize resolution);
-
-    private:
-        friend CopyQueue;
-
-        ThreadHandle(size_t index, CopyQueue *parent)
-            : index(index)
-            , parent(parent)
+    struct AsyncCopy {
+        AsyncCopy(rhi::Buffer upload, rhi::Buffer result)
+            : upload(std::move(upload))
+            , result(std::move(result))
         { }
 
-        size_t index;
-        CopyQueue *parent;
+        virtual ~AsyncCopy() = default;
+        virtual void apply(rhi::CommandList& list) = 0;
+
+        rhi::Buffer& data() { return result; }
+
+    protected:
+        rhi::Buffer upload;
+        rhi::Buffer result;
     };
 
-    // multithreaded upload queue
-    struct CopyQueue {
-        CopyQueue(Context& ctx, const ContextInfo& info);
+    using CopyResult = std::shared_ptr<AsyncCopy>;
 
-        ThreadHandle getThread();
-        void submit(ThreadHandle thread);
+    struct AsyncCopyQueue {
+        AsyncCopyQueue(Context& ctx);
+
+        CopyResult uploadData(const void* data, size_t size);
+        CopyResult uploadTexture(const void* data, size_t size, rhi::TextureSize resolution);
 
         void wait();
-
     private:
-        friend ThreadHandle;
-
-        enum State : unsigned {
-            eAvailable, // this list is available
-            eRecording, // this list is recording commands
-            eSubmitting // this list is being submitted
-        };
-        
-        size_t threads;
-
         Context& ctx;
+
+        camel::ConcurrentQueue<CopyResult> pending;
 
         rhi::CommandQueue queue;
 
-        memory::AtomicSlotMap<State, eAvailable> alloc;
-        UniquePtr<rhi::CommandList[]> lists;
-        UniquePtr<rhi::Allocator[]> allocators;
-
-        void addBuffer(rhi::Buffer&& buffer) {
-            std::lock_guard lock(stagingMutex);
-            stagingBuffers.push_back(std::move(buffer));
-        }
-
-        std::mutex stagingMutex;
-        std::vector<rhi::Buffer> stagingBuffers;
+        rhi::Allocator alloc;
+        rhi::CommandList list;
 
         rhi::Fence fence;
         size_t index = 0;
@@ -203,7 +187,7 @@ namespace simcoe::render {
         // trivial getters
         rhi::Device &getDevice() { return device; }
         PresentQueue& getPresentQueue() { return presentQueue; }
-        CopyQueue& getCopyQueue() { return copyQueue; }
+        AsyncCopyQueue& getCopyQueue() { return copyQueue; }
         HeapAllocator& getHeap() { return cbvHeap; }
 
         rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
@@ -227,7 +211,7 @@ namespace simcoe::render {
         rhi::Device device;
 
         PresentQueue presentQueue;
-        CopyQueue copyQueue;
+        AsyncCopyQueue copyQueue;
 
         rhi::DescriptorSet dsvHeap;
         HeapAllocator cbvHeap;

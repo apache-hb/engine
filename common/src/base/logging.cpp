@@ -2,6 +2,7 @@
 #include "engine/base/io/io.h"
 #include "engine/base/container/unique.h"
 #include "engine/base/win32.h"
+#include "vendor/imgui/imgui.h"
 
 #include <ranges>
 #include <iostream>

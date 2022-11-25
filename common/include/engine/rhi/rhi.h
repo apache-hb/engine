@@ -161,6 +161,7 @@ namespace simcoe::rhi {
         using Super::Super;
 
         enum State {
+            eCommon = D3D12_RESOURCE_STATE_COMMON,
             eUpload = D3D12_RESOURCE_STATE_GENERIC_READ,
             eCopyDst = D3D12_RESOURCE_STATE_COPY_DEST,
 
@@ -177,6 +178,7 @@ namespace simcoe::rhi {
         };
 
         void write(const void *src, size_t size);
+        void writeTexture(const void* src, rhi::TextureSize size);
         
         void *map();
         void unmap();
@@ -284,7 +286,7 @@ namespace simcoe::rhi {
         void bindConst(size_t index, size_t offset, uint32_t value);
 
         void copyBuffer(Buffer &dst, Buffer &src, size_t size);
-        void copyTexture(Buffer &dst, Buffer &src, const void *ptr, TextureSize size);
+        void copyTexture(Buffer &dst, Buffer &src);
 
         void setVertexBuffers(std::span<const VertexBufferView> buffers);
 
@@ -320,11 +322,6 @@ namespace simcoe::rhi {
 
         void signal(Fence &fence, size_t value);
         void execute(std::span<ID3D12CommandList*> lists);
-    };
-
-    struct TextureCreate {
-        Buffer buffer;
-        size_t uploadSize;
     };
 
     struct TextureDesc {
@@ -375,7 +372,6 @@ namespace simcoe::rhi {
         Buffer newDepthStencil(TextureSize size, CpuHandle handle);
 
         rhi::Buffer newTexture(const TextureDesc& desc, DescriptorSet::Visibility visibility, math::float4 clear = math::float4::of(0.f));
-        TextureCreate newTexture(TextureSize size, DescriptorSet::Visibility visibility, Buffer::State state, math::float4 clear = math::float4::of(0.f));
 
         PipelineState newPipelineState(const PipelineBinding& bindings);
 

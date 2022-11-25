@@ -290,47 +290,6 @@ rhi::Buffer Device::newTexture(const rhi::TextureDesc& desc, rhi::DescriptorSet:
     return rhi::Buffer(resource);
 }
 
-rhi::TextureCreate Device::newTexture(math::Resolution<size_t> size, rhi::DescriptorSet::Visibility visibility, rhi::Buffer::State state, math::float4 clear) {
-    ASSERT(size.width > 0 && size.height > 0);
-
-    const D3D12_CLEAR_VALUE kClear { 
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .Color = { clear.x, clear.y, clear.z, clear.w }
-    };
-    const auto kState = D3D12_RESOURCE_STATES(state);
-    const D3D12_RESOURCE_DESC kTextureDesc {
-        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        .Alignment = 0,
-        .Width = UINT(size.width),
-        .Height = UINT(size.height),
-        .DepthOrArraySize = 1,
-        .MipLevels = 1,
-        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
-        .SampleDesc = {
-            .Count = 1,
-            .Quality = 0
-        },
-        .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        .Flags = (kState & D3D12_RESOURCE_STATE_RENDER_TARGET) ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE
-    };
-
-    ID3D12Resource *resource;
-    HR_CHECK(get()->CreateCommittedResource(
-        getHeapProps(visibility),
-        D3D12_HEAP_FLAG_NONE,
-        &kTextureDesc,
-        kState,
-        (kState & D3D12_RESOURCE_STATE_RENDER_TARGET) ? &kClear : nullptr,
-        IID_PPV_ARGS(&resource)
-    ));
-
-    // get the size needed for the destination buffer
-    UINT64 requiredSize = 0;
-    get()->GetCopyableFootprints(&kTextureDesc, 0, 1, 0, nullptr, nullptr, nullptr, &requiredSize);
-
-    return { rhi::Buffer(resource), requiredSize };
-}
-
 rhi::Buffer Device::newDepthStencil(TextureSize size, CpuHandle handle) {
     const D3D12_CPU_DESCRIPTOR_HANDLE kHandle { size_t(handle) };
 

@@ -25,7 +25,7 @@ Context::Context(const ContextInfo& info)
     : info(info)
     , device(rhi::getDevice())
     , presentQueue(device, info)
-    , copyQueue(*this, info)
+    , copyQueue(*this)
     , cbvHeap(device, getMaxHeapSize(info), rhi::DescriptorSet::Type::eConstBuffer, true)
 { 
     createFrameData();
@@ -60,6 +60,8 @@ void Context::imguiShutdown() {
 }
 
 void Context::present() {
+    copyQueue.wait();
+    
     ID3D12CommandList *lists[CommandSlot::eTotal] = { };
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
         lists[i] = commands[i].get();

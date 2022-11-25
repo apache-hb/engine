@@ -23,6 +23,7 @@ args = [
 
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gltf = subproject('tinygltf').get_variable('gltf')
+queue = subproject('atomic-queue').get_variable('queue')
 
 # compile libraries that are shared between game and editor
 subdir('common')
