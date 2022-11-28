@@ -43,7 +43,7 @@ namespace {
 
             if (barriers.empty()) { return; }
 
-            ctx.transition(CommandSlot::ePost, barriers);
+            ctx.transition(pass->getSlot(), barriers);
         }
 
         void execute(Context& ctx, Graph& graph, Tree& tree) {
@@ -56,10 +56,8 @@ namespace {
                 execute(ctx, graph, dep);
             }
 
-            logging::get(logging::eRender).info("wireBarriers");
             wireBarriers(ctx, graph, pass);
             
-            logging::get(logging::eRender).info("execute {}", pass->getName());
             pass->execute();
         }
 
