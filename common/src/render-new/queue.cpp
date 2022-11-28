@@ -49,7 +49,9 @@ void CopyQueue::wait() {
     ID3D12CommandList* lists[] = { list.get() };
     queue.execute(lists);
     queue.signal(fence, index);
-    fence.wait(index++);
+    fence.wait(index);
+
+    index += 1;
 
     for (const auto& [_, complete] : results) {
         complete();

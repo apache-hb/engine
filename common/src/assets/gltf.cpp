@@ -358,16 +358,6 @@ void IWorldSink::loadGltfAsync(const char* path) {
         if (!err.empty()) { channel.fatal("{}", err); }
         if (!result) { channel.fatal("failed to load gltf"); return; }
 
-        if (!this->reserveTextures(model.textures.size())) { 
-            channel.fatal("failed to reserve {} textures", model.textures.size());
-            return;
-        }
-
-        if (!this->reserveNodes(model.nodes.size())) {
-            channel.fatal("failed to reserve nodes");
-            return;
-        }
-
         Sink sink{model, this};
         sink.addTextures();
     }).detach();

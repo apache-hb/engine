@@ -43,9 +43,6 @@ namespace simcoe::assets {
 
         void loadGltfAsync(const char* path);
 
-        virtual bool reserveTextures(size_t total) = 0;
-        virtual bool reserveNodes(size_t total) = 0;
-
         virtual size_t addVertexBuffer(VertexBuffer&& verts) = 0;
         virtual size_t addIndexBuffer(IndexBuffer&& indices) = 0;
 

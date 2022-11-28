@@ -100,10 +100,7 @@ struct GlobalPass final : Pass {
         renderTargetOut = newOutput<Source>("rtv", State::ePresent, rtvResource);
     }
 
-    void execute() override { 
-        auto& ctx = getContext();
-        ctx.beginFrame(CommandSlot::ePost);
-    }
+    void execute() override { }
 
     void init() override {
         ImNodes::CreateContext();
@@ -138,7 +135,6 @@ struct GlobalPass final : Pass {
         auto& ctx = getContext();
         if (ImGui::Begin("Context state")) {
             ImGui::Text("Total frames: %zu", ctx.getFrames());
-            ImGui::Text("Frame: %zu", ctx.currentFrame());
 
             auto [wx, wy] = ctx.windowSize();
             ImGui::Text("Present resolution: %zu x %zu", wx, wy);
@@ -149,11 +145,22 @@ struct GlobalPass final : Pass {
             auto& heap = ctx.getHeap();
             ImGui::Text("CBV Heap: %zu/%zu", heap.getUsed(), heap.getSize());
 
-            if (ImGui::BeginListBox("Slots")) {
+            if (ImGui::BeginTable("Slots", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoHostExtendX)) {
+                ImGui::TableSetupColumn("Index");
+                ImGui::TableSetupColumn("Type");
+                ImGui::TableHeadersRow();
+
                 for (size_t i = 0; i < heap.getUsed(); i++) {
-                    ImGui::Text("Slot %zu: %s", i, getSlotName(heap.getBit(i)));
+                    ImGui::TableNextRow();
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%zu", i);
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", getSlotName(heap.getBit(i)));
                 }
-                ImGui::EndListBox();
+
+                ImGui::EndTable();
             }
         }
 
@@ -225,29 +232,119 @@ struct PresentPass final : Pass {
     Input *sceneTargetIn;
 };
 
-struct ScenePass final : Pass {
+struct ScenePass final : Pass, assets::IWorldSink {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
 
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
+    void init() override {
+        auto& ctx = getContext();
+        auto& device = ctx.getDevice();
+        auto& heap = ctx.getHeap();
+        auto& copy = ctx.getCopyQueue();
+
+        defaultTextureOffset = heap.alloc(DescriptorSlot::eTexture);
+        auto texUpload = copy.beginTextureUpload(kDefaultImage.data(), kDefaultImage.size(), { 2, 2 });
+
+        copy.submit(texUpload, [this, texUpload] {
+            auto& ctx = getContext();
+            auto& device = ctx.getDevice();
+            auto& heap = ctx.getHeap();
+
+            defaultTexture = texUpload->getBuffer();
+
+            device.createTextureBufferView(defaultTexture, heap.cpuHandle(defaultTextureOffset, 1, DescriptorSlot::eTexture));
+        });
+
+        auto ps = loadShader("resources\\shaders\\scene-shader.ps.pso");
+        auto vs = loadShader("resources\\shaders\\scene-shader.vs.pso");
+
+        pso = device.newPipelineState({
+            .samplers = kSamplers,
+            .bindings = kSceneBindings,
+            .input = kInputLayout,
+            .ps = ps,
+            .vs = vs
+        });
+    }
+
     void execute() override {
         auto& ctx = getContext();
-        auto& cmd = ctx.getCommands(CommandSlot::eScene);
+        auto& cmd = getCommands();
 
         auto [width, height] = ctx.sceneSize().as<float>();
 
-        ctx.beginFrame(CommandSlot::eScene);
-        
         cmd.setViewAndScissor(rhi::View(0, 0, width, height));
         cmd.clearRenderTarget(sceneTargetResource->rtvHandle(), kClearColour);
+
+        cmd.setPipeline(pso);
+    }
+
+    size_t addVertexBuffer(assets::VertexBuffer&&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addIndexBuffer(assets::IndexBuffer&&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addTexture(const assets::Texture& texture) override {
+        auto& ctx = getContext();
+        auto& device = ctx.getDevice();
+        auto& heap = ctx.getHeap();
+        auto& copy = ctx.getCopyQueue();
+
+        size_t slot = heap.alloc(DescriptorSlot::eTexture);
+        if (slot == SIZE_MAX) { return SIZE_MAX; }
+
+        device.createTextureBufferView(defaultTexture, heap.cpuHandle(defaultTextureOffset, 1, DescriptorSlot::eTexture));
+
+        auto handle = copy.beginTextureUpload(texture.data.data(), texture.data.size(), texture.size);
+
+        copy.submit(handle, [this, slot, handle] {
+            auto& ctx = getContext();
+            auto& device = ctx.getDevice();
+            auto& heap = ctx.getHeap();
+
+            auto buffer = handle->getBuffer();
+
+            device.createTextureBufferView(buffer, heap.cpuHandle(slot, 1, DescriptorSlot::eTexture));
+            textures.push_back(std::move(buffer));
+        });
+
+        // TODO: make threadsafe
+        return slot;
+    }
+
+    size_t addPrimitive(const assets::Primitive&) override {
+        // TODO: make threadsafe
+        return SIZE_MAX;
+    }
+
+    size_t addNode(const assets::Node&) override {
+        // TODO: make threadsafe
+        return SIZE_MAX;
     }
 
     SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 
 private:
+    rhi::PipelineState pso;
+
+    size_t defaultTextureOffset;
+    rhi::Buffer defaultTexture;
+    std::vector<rhi::Buffer> textures;
+
+    constexpr static auto kDefaultImage = std::to_array<uint8_t>({
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    });
+
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
     });
@@ -299,8 +396,7 @@ struct PostPass final : Pass {
     }
 
     void execute() override {
-        auto& ctx = getContext();
-        auto& cmd = ctx.getCommands(getSlot());
+        auto& cmd = getCommands();
         auto *sceneTarget = sceneTargetIn.get();
         auto *renderTarget = renderTargetIn.get();
 
@@ -367,10 +463,6 @@ private:
         auto vboCopy = copy.beginDataUpload(kScreenQuad, sizeof(kScreenQuad));
         auto iboCopy = copy.beginDataUpload(kScreenQuadIndices, sizeof(kScreenQuadIndices));
 
-        // TODO: this should all be done by the context
-        actions.push_back(vboCopy);
-        actions.push_back(iboCopy);
-
         auto batchCopy = copy.beginBatchUpload({ vboCopy, iboCopy });
 
         copy.submit(batchCopy, [&, vboCopy, iboCopy] {
@@ -385,9 +477,6 @@ private:
             };
         });
     }
-
-    // TODO: why cant this be erased?
-    std::vector<AsyncAction> actions;
 
     rhi::View view;
 
@@ -452,7 +541,7 @@ struct ImGuiPass final : Pass {
 
     void execute() override {
         auto& ctx = getContext();
-        auto& cmd = ctx.getCommands(getSlot());
+        auto& cmd = getCommands();
         // imgui work
 
         ctx.imguiFrame();

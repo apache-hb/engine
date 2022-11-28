@@ -52,6 +52,12 @@ namespace {
             if (pass == nullptr || executed[pass]) { return; }
             executed[pass] = true;
 
+            auto slot = pass->getSlot();
+            if (!slots[slot]) {
+                ctx.beginFrame(slot);
+                slots[slot] = true;
+            }
+
             for (auto& dep : deps) {
                 execute(ctx, graph, dep);
             }
@@ -64,6 +70,7 @@ namespace {
     private:
         std::unordered_map<Output*, Resource*> resources;
         std::unordered_map<Pass*, bool> executed;
+        bool slots[CommandSlot::eTotal] = { false };
     };
 }
 
@@ -83,6 +90,7 @@ Context& Resource::getContext() const { return getParent()->getContext(); }
 Graph *Pass::getParent() const { return info.parent; }
 const char *Pass::getName() const { return info.name; }
 Context& Pass::getContext() const { return getParent()->getContext(); }
+rhi::CommandList& Pass::getCommands() { return getContext().getCommands(getSlot()); }
 
 void Output::update(Barriers& barriers, Input* input) { 
     ASSERTF(resource != nullptr, "output `{}:{}` was null", getName(), getPass()->getName());

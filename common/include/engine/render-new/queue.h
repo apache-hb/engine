@@ -49,7 +49,7 @@ namespace simcoe::render {
         rhi::CommandList list;
 
         rhi::Fence fence;
-        size_t index = 0;
+        size_t index = 1;
     };
 
     struct PresentQueue {
@@ -75,7 +75,7 @@ namespace simcoe::render {
         rhi::DescriptorSet rtvHeap;
         UniquePtr<rhi::Buffer[]> renderTargets;
 
-        size_t frameIndex = 0;
+        size_t frameIndex = 1;
         rhi::Fence fence;
     };
 }

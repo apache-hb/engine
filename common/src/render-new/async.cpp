@@ -77,11 +77,15 @@ AsyncAction CopyQueue::beginDataUpload(const void* data, size_t size) {
     return std::make_shared<AsyncBufferCopy>(std::move(buffer), std::move(upload), size);
 }
 
-AsyncAction CopyQueue::beginTextureUpload(const void* data, size_t size, rhi::TextureSize resolution) {
+AsyncAction CopyQueue::beginTextureUpload(const void* data, UNUSED size_t size, rhi::TextureSize resolution) {
     auto& device = ctx.getDevice();
 
-    rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
+    // TODO: busted
+    auto uploadDesc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCommon);
+    auto targetDesc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCopyDst);
+
+    rhi::Buffer buffer = device.newTexture(uploadDesc, rhi::DescriptorSet::Visibility::eHostVisible);
+    rhi::Buffer upload = device.newTexture(targetDesc, rhi::DescriptorSet::Visibility::eDeviceOnly);
     buffer.writeTexture(data, resolution);
 
     buffer.rename("upload texture");

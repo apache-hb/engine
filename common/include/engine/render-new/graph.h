@@ -150,6 +150,9 @@ namespace simcoe::render {
         Context& getContext() const;
         CommandSlot::Slot getSlot() const { return slot; }
 
+    protected:
+        rhi::CommandList& getCommands();
+
     private:
         Info info;
         CommandSlot::Slot slot;
