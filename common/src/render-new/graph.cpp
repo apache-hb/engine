@@ -56,8 +56,10 @@ namespace {
                 execute(ctx, graph, dep);
             }
 
+            logging::get(logging::eRender).info("wireBarriers");
             wireBarriers(ctx, graph, pass);
-
+            
+            logging::get(logging::eRender).info("execute {}", pass->getName());
             pass->execute();
         }
 

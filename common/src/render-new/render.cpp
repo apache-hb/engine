@@ -72,13 +72,11 @@ void Context::present() {
     presentQueue.present(*this);
 }
 
-void Context::beginFrame() {
+void Context::beginFrame(CommandSlot::Slot slot) {
     auto kDescriptors = std::to_array({ getHeap().get() });
 
-    for (size_t i = 0; i < CommandSlot::eTotal; i++) {
-        commands[i].beginRecording(getAllocator(currentFrame(), CommandSlot::Slot(i)));
-        commands[i].bindDescriptors(kDescriptors);
-    }
+    commands[slot].beginRecording(getAllocator(currentFrame(), slot));
+    commands[slot].bindDescriptors(kDescriptors);
 }
 
 void Context::endFrame() {

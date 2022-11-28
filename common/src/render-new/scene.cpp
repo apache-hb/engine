@@ -96,15 +96,13 @@ private:
 struct GlobalPass final : Pass {
     GlobalPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         rtvResource = getParent()->addResource<RenderTargetResource>("rtv");
-        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
 
         renderTargetOut = newOutput<Source>("rtv", State::ePresent, rtvResource);
-        sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
     void execute() override { 
         auto& ctx = getContext();
-        ctx.beginFrame();
+        ctx.beginFrame(CommandSlot::ePost);
     }
 
     void init() override {
@@ -198,10 +196,7 @@ struct GlobalPass final : Pass {
     }
 
     RenderTargetResource *rtvResource;
-    SceneTargetResource *sceneTargetResource;
-
     Output *renderTargetOut;
-    Output *sceneTargetOut;
 
 private:
     struct Link {
@@ -232,8 +227,9 @@ struct PresentPass final : Pass {
 
 struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
-        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
-        sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn);
+        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
+
+        sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
     void execute() override {
@@ -242,11 +238,13 @@ struct ScenePass final : Pass {
 
         auto [width, height] = ctx.sceneSize().as<float>();
 
+        ctx.beginFrame(CommandSlot::eScene);
+        
         cmd.setViewAndScissor(rhi::View(0, 0, width, height));
-        cmd.clearRenderTarget(sceneTargetIn->rtvHandle(), kClearColour);
+        cmd.clearRenderTarget(sceneTargetResource->rtvHandle(), kClearColour);
     }
 
-    WireHandle<Input, SceneTargetResource> sceneTargetIn;
+    SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 
 private:
@@ -487,7 +485,6 @@ WorldGraph::WorldGraph(const WorldGraphInfo& info) : Graph(info.ctx) {
     // post.renderTarget <= global.renderTarget
     // scene.sceneTarget <= global.sceneTarget
     link(post->renderTargetIn, global->renderTargetOut);
-    link(scene->sceneTargetIn, global->sceneTargetOut);
 
     // post.sceneTarget <= scene.sceneTarget
     link(post->sceneTargetIn, scene->sceneTargetOut);

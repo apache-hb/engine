@@ -64,7 +64,7 @@ namespace {
         };
 
         while (getFrame(&frame, &ctx, hThread)) {
-            char name[kSymbolSize] = {};
+            char name[kSymbolSize] = { 0 };
 
             SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol);
             UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);

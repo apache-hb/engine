@@ -98,7 +98,7 @@ namespace simcoe::render {
         void update(const ContextInfo& info);
         void present();
 
-        void beginFrame();
+        void beginFrame(CommandSlot::Slot slot);
         void endFrame();
         void transition(CommandSlot::Slot slot, std::span<const rhi::StateTransition> barriers);
 
