@@ -6,10 +6,10 @@
 #include "engine/memory/slotmap.h"
 #include "engine/window/window.h"
 
-#include "concurrentqueue.h"
-#include <functional>
+#include "engine/render-new/queue.h"
 
-namespace camel = moodycamel;
+#include <functional>
+#include <thread>
 
 namespace simcoe::render {
     struct ThreadHandle;
@@ -58,83 +58,6 @@ namespace simcoe::render {
     }
 
     using SlotMap = memory::SlotMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
-
-    struct ContextInfo {
-        Window *window;
-        size_t frames = 2; // number of backbuffers
-        rhi::TextureSize resolution = { 1280, 720 }; // internal resolution
-
-        /// tuning parameters
-        size_t maxTextures = 512;
-        size_t maxObjects = 512;
-    };
-
-    struct AsyncCopy {
-        AsyncCopy(rhi::Buffer upload, rhi::Buffer result)
-            : upload(std::move(upload))
-            , result(std::move(result))
-        { }
-
-        virtual ~AsyncCopy() = default;
-        virtual void apply(rhi::CommandList& list) = 0;
-
-        rhi::Buffer& data() { return result; }
-
-    protected:
-        rhi::Buffer upload;
-        rhi::Buffer result;
-    };
-
-    using CopyResult = std::shared_ptr<AsyncCopy>;
-
-    struct AsyncCopyQueue {
-        AsyncCopyQueue(Context& ctx);
-
-        CopyResult uploadData(const void* data, size_t size);
-        CopyResult uploadTexture(const void* data, size_t size, rhi::TextureSize resolution);
-
-        void wait();
-    private:
-        Context& ctx;
-
-        camel::ConcurrentQueue<CopyResult> pending;
-
-        rhi::CommandQueue queue;
-
-        rhi::Allocator alloc;
-        rhi::CommandList list;
-
-        rhi::Fence fence;
-        size_t index = 0;
-    };
-
-    // singlethreaded access only
-    struct PresentQueue {
-        PresentQueue(rhi::Device& device, const ContextInfo& info);
-
-        void present(Context& ctx);
-        void execute(std::span<ID3D12CommandList*> lists);
-
-        size_t currentFrame() const { return current; }
-
-        rhi::CpuHandle getFrameHandle(size_t frame) { return rtvHeap.cpuHandle(frame + 1); }
-        rhi::CpuHandle getSceneHandle() { return rtvHeap.cpuHandle(0); }
-
-        rhi::Buffer& getRenderTarget() { return renderTargets[current]; }
-
-    private:
-        size_t frames;
-        size_t current;
-
-        rhi::CommandQueue queue;
-        rhi::SwapChain swapchain;
-
-        rhi::DescriptorSet rtvHeap;
-        UniquePtr<rhi::Buffer[]> renderTargets;
-
-        size_t frameIndex = 0;
-        rhi::Fence fence;
-    };
 
     struct HeapAllocator : SlotMap {
         HeapAllocator(rhi::Device& device, size_t size, rhi::DescriptorSet::Type type, bool shaderVisible) 
@@ -187,7 +110,7 @@ namespace simcoe::render {
         // trivial getters
         rhi::Device &getDevice() { return device; }
         PresentQueue& getPresentQueue() { return presentQueue; }
-        AsyncCopyQueue& getCopyQueue() { return copyQueue; }
+        CopyQueue& getCopyQueue() { return copyQueue; }
         HeapAllocator& getHeap() { return cbvHeap; }
 
         rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
@@ -211,7 +134,9 @@ namespace simcoe::render {
         rhi::Device device;
 
         PresentQueue presentQueue;
-        AsyncCopyQueue copyQueue;
+        
+        CopyQueue copyQueue;
+        std::unique_ptr<std::jthread> copyThread;
 
         rhi::DescriptorSet dsvHeap;
         HeapAllocator cbvHeap;

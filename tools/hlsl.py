@@ -17,9 +17,9 @@ shader_model = argv[4]
 debug = '--debug' in argv
 
 for target in targets.split(','):
-    entry = target + 'Main'
-    target_model = target + '_' + shader_model
-    output_name = output + '.' + target + '.pso'
+    entry = f'{target}Main'
+    target_model = f'{target}_{shader_model}'
+    output_name = f'{output}.{target}.pso'
     args = [dxc, '-T' + target_model, '-E' + entry, '-Fo' + output_name, '-WX']
     if debug:
         args += [ '-Zi', '-DDEBUG=1', '-Qembed_debug' ]
@@ -29,5 +29,5 @@ for target in targets.split(','):
 
     result = run(args)
     if result.returncode != 0:
-        print('Error compiling ' + target + ' shader')
+        print(f'Error compiling {target} shader')
         exit(result.returncode)

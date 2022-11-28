@@ -51,10 +51,7 @@ namespace simcoe::render {
 
         void execute() { Graph::execute(primary); }
 
-        void addWorld(const char *path);
-
     private:
         Pass *primary;
-        Pass *scene;
     };
 }

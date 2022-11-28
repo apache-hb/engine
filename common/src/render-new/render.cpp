@@ -30,6 +30,10 @@ Context::Context(const ContextInfo& info)
 { 
     createFrameData();
     createCommands();
+
+    copyThread = std::make_unique<std::jthread>([this](auto token) { 
+        while (!token.stop_requested()) { copyQueue.wait(); }
+    });
 }
 
 void Context::createFrameData() {
@@ -60,8 +64,6 @@ void Context::imguiShutdown() {
 }
 
 void Context::present() {
-    copyQueue.wait();
-    
     ID3D12CommandList *lists[CommandSlot::eTotal] = { };
     for (size_t i = 0; i < CommandSlot::eTotal; i++) {
         lists[i] = commands[i].get();

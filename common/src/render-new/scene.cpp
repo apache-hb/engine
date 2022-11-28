@@ -230,34 +230,10 @@ struct PresentPass final : Pass {
     Input *sceneTargetIn;
 };
 
-struct ScenePass final : Pass, assets::IWorldSink {
+struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
         sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn);
-    }
-
-    void addWorld(const char* path) {
-        loadGltfAsync(path);
-    }
-
-    void init() override { 
-        auto& ctx = getContext();
-        auto& device = ctx.getDevice();
-        auto& heap = ctx.getHeap();
-
-        vs = loadShader("resources/shaders/scene-shader.vs.pso");
-        ps = loadShader("resources/shaders/scene-shader.ps.pso");
-
-        pso = device.newPipelineState({
-            .samplers = kSamplers,
-            .bindings = kSceneBindings,
-            .input = kInputLayout,
-            .ps = ps,
-            .vs = vs,
-            .depth = true
-        });
-
-        textureHeapOffset = heap.alloc(DescriptorSlot::eTexture, kMaxTextures);
     }
 
     void execute() override {
@@ -266,78 +242,14 @@ struct ScenePass final : Pass, assets::IWorldSink {
 
         auto [width, height] = ctx.sceneSize().as<float>();
 
-        cmd.setPipeline(pso);
         cmd.setViewAndScissor(rhi::View(0, 0, width, height));
         cmd.clearRenderTarget(sceneTargetIn->rtvHandle(), kClearColour);
-    }
-
-    constexpr static uint8_t kMinColumns = 2;
-    constexpr static uint8_t kMaxColumns = 8;
-    constexpr static size_t kMaxTextures = 128;
-
-    void imgui() override {
-#if 0
-        if (ImGui::Begin("Scene data")) {
-            ImGui::Text("Texture budget: %zu/%zu", usedTextures.load(), kMaxTextures);
-            ImGui::SameLine();
-            ImGui::SliderScalar("Columns", ImGuiDataType_U8, &columns, &kMinColumns, &kMaxColumns);
-
-            if (ImGui::BeginTable("Textures", columns)) {
-                ImVec2 avail = ImGui::GetContentRegionAvail();
-                for (size_t i = 0; i < usedTextures; i++) {
-                    ImGui::TableNextColumn();
-                    ImGui::Button("Button", ImVec2(avail.x / columns, avail.x / columns));
-                    auto [x, y] = textures[i].data.size;
-                    ImGui::Text("%s (%zu) (%zu x %zu)", textures[i].data.name.c_str(), i, x, y);
-                }
-                ImGui::EndTable();
-            }
-        }
-        ImGui::End();
-#endif
     }
 
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
     Output *sceneTargetOut;
 
-    bool reserveTextures(size_t) override {
-        return false;
-    }
-
-    bool reserveNodes(size_t) override {
-        return true;
-    }
-
-    size_t addVertexBuffer(assets::VertexBuffer&&) override {
-        return 0;
-    }
-
-    size_t addIndexBuffer(assets::IndexBuffer&&) override {
-        return 0;
-    }
-
-    size_t addTexture(const assets::Texture&) override {
-        return 0;
-    }
-
-    size_t addPrimitive(const assets::Primitive&) override {
-        return 0;
-    }
-
-    size_t addNode(const assets::Node&) override {
-        return 0;
-    }
-
 private:
-    Shader vs;
-    Shader ps;
-
-    rhi::PipelineState pso;
-
-    // uint8_t columns = 4;
-
-    std::atomic_size_t textureHeapOffset = SIZE_MAX;
-
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
     });
@@ -454,32 +366,46 @@ private:
             .vs = vs
         });
 
-        vboCopy = copy.uploadData(kScreenQuad, sizeof(kScreenQuad));
-        iboCopy = copy.uploadData(kScreenQuadIndices, sizeof(kScreenQuadIndices));
+        auto vboCopy = copy.beginDataUpload(kScreenQuad, sizeof(kScreenQuad));
+        auto iboCopy = copy.beginDataUpload(kScreenQuadIndices, sizeof(kScreenQuadIndices));
 
-        vboView = rhi::newVertexBufferView(vboCopy->data().gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
-        iboView = {
-            .buffer = iboCopy->data().gpuAddress(),
-            .length = std::size(kScreenQuadIndices),
-            .format = rhi::Format::uint32
-        };
+        // TODO: this should all be done by the context
+        actions.push_back(vboCopy);
+        actions.push_back(iboCopy);
+
+        auto batchCopy = copy.beginBatchUpload({ vboCopy, iboCopy });
+
+        copy.submit(batchCopy, [&, vboCopy, iboCopy] {
+            vbo = vboCopy->getBuffer();
+            ibo = iboCopy->getBuffer();
+
+            vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
+            iboView = {
+                .buffer = ibo.gpuAddress(),
+                .length = std::size(kScreenQuadIndices),
+                .format = rhi::Format::uint32
+            };
+        });
     }
 
+    // TODO: why cant this be erased?
+    std::vector<AsyncAction> actions;
+
     rhi::View view;
-    
+
     rhi::PipelineState pso;
     
-    CopyResult vboCopy;
-    CopyResult iboCopy;
+    rhi::Buffer vbo;
+    rhi::Buffer ibo;
 
     rhi::VertexBufferView vboView;
     rhi::IndexBufferView iboView;
 
     constexpr static assets::Vertex kScreenQuad[] = {
         { .position = { -1.0f, -1.0f, 0.0f }, .uv = { 0.0f, 1.0f } }, // bottom left
-        { .position = { -1.0f, 1.0f, 0.0f },  .uv = { 0.0f, 0.0f } },  // top left
+        { .position = { -1.0f, 1.0f,  0.0f }, .uv = { 0.0f, 0.0f } },  // top left
         { .position = { 1.0f,  -1.0f, 0.0f }, .uv = { 1.0f, 1.0f } },  // bottom right
-        { .position = { 1.0f,  1.0f, 0.0f },  .uv = { 1.0f, 0.0f } } // top right
+        { .position = { 1.0f,  1.0f,  0.0f }, .uv = { 1.0f, 0.0f } } // top right
     };
 
     constexpr static uint32_t kScreenQuadIndices[] = {
@@ -489,7 +415,7 @@ private:
     
     constexpr static auto kInput = std::to_array<rhi::InputElement>({
         { "POSITION", rhi::Format::float32x3, offsetof(assets::Vertex, position) },
-        { "TEXCOORD", rhi::Format::float32x2 , offsetof(assets::Vertex, uv) }
+        { "TEXCOORD", rhi::Format::float32x2, offsetof(assets::Vertex, uv) }
     });
 
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
@@ -574,11 +500,5 @@ WorldGraph::WorldGraph(const WorldGraphInfo& info) : Graph(info.ctx) {
     link(present->renderTargetIn, imgui->renderTargetOut);
     link(present->sceneTargetIn, post->sceneTargetOut);
 
-    this->primary = present;
-    this->scene = scene;
-}
-
-void WorldGraph::addWorld(const char* path) {
-    auto *world = static_cast<ScenePass*>(scene);
-    world->addWorld(path);
+    primary = present;
 }

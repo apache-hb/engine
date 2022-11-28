@@ -151,7 +151,8 @@ src = [
     'src/render-new/queue.cpp',
     'src/render-new/render.cpp',
     'src/render-new/graph.cpp',
-    'src/render-new/scene.cpp'
+    'src/render-new/scene.cpp',
+    'src/render-new/async.cpp'
 ]
 
 librender = library('render', src,

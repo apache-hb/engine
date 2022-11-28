@@ -266,10 +266,10 @@ int commonMain() {
     return 0;
 }
 
-int WINAPI WinMain(UNUSED HINSTANCE hInstance, UNUSED HINSTANCE hPrevInstance, UNUSED LPSTR CmdLine, UNUSED int nCmdShow) {
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     return commonMain();
 }
 
-int main(UNUSED int argc, UNUSED const char **argv) {
+int main(int, const char **) {
     return commonMain();
 }

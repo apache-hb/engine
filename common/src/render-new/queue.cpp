@@ -10,33 +10,9 @@ namespace {
     }
 }
 
-struct AsyncBufferCopy final : AsyncCopy {
-    AsyncBufferCopy(rhi::Buffer upload, rhi::Buffer result, size_t size)
-        : AsyncCopy(std::move(upload), std::move(result))
-        , size(size)
-    { }
-
-    void apply(rhi::CommandList& list) override {
-        list.copyBuffer(result, upload, size);
-    }
-
-private:
-    size_t size;
-};
-
-struct AsyncTextureCopy final : AsyncCopy {
-    AsyncTextureCopy(rhi::Buffer upload, rhi::Buffer result)
-        : AsyncCopy(std::move(upload), std::move(result))
-    { }
-
-    void apply(rhi::CommandList& list) override {
-        list.copyTexture(result, upload);
-    }
-};
-
 // async copy queue
 
-AsyncCopyQueue::AsyncCopyQueue(Context& ctx)
+CopyQueue::CopyQueue(Context& ctx)
     : ctx(ctx)
     , queue(ctx.getDevice().newQueue(rhi::CommandList::Type::eCopy))
     , alloc(ctx.getDevice().newAllocator(rhi::CommandList::Type::eCopy))
@@ -49,49 +25,24 @@ AsyncCopyQueue::AsyncCopyQueue(Context& ctx)
     fence.rename("copy fence");
 }
 
-CopyResult AsyncCopyQueue::uploadData(const void* data, size_t size) {
-    auto& device = ctx.getDevice();
-
-    rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
-    buffer.write(data, size);
-
-    buffer.rename("upload buffer");
-    upload.rename("upload texture");
-
-    auto result = std::make_shared<AsyncBufferCopy>(std::move(buffer), std::move(upload), size);
-    pending.enqueue(result);
-    return result;
+void CopyQueue::submit(AsyncAction action, AsyncCallback complete) {
+    PendingAction it = { action, complete };
+    pending.enqueue(it);
 }
 
-CopyResult AsyncCopyQueue::uploadTexture(const void* data, size_t size, rhi::TextureSize resolution) {
-    auto& device = ctx.getDevice();
-
-    rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
-    rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
-    buffer.writeTexture(data, resolution); // TODO: this is suspect
-
-    buffer.rename("upload buffer");
-    upload.rename("upload texture");
-
-    auto result = std::make_shared<AsyncTextureCopy>(std::move(buffer), std::move(upload));
-    pending.enqueue(result);
-    return result;
-}
-
-void AsyncCopyQueue::wait() {
-    std::vector<CopyResult> results;
+void CopyQueue::wait() {
+    std::vector<PendingAction> results;
     
-    CopyResult copy;
-    while (pending.try_dequeue(copy)) {
-        results.push_back(copy);
+    PendingAction action;
+    while (pending.try_dequeue(action)) {
+        results.push_back(action);
     }
 
     if (results.empty()) { return; }
 
     list.beginRecording(alloc);
-    for (const auto& result : results) {
-        result->apply(list);
+    for (const auto& [action, _] : results) {
+        action->apply(list);
     }
     list.endRecording();
 
@@ -99,6 +50,10 @@ void AsyncCopyQueue::wait() {
     queue.execute(lists);
     queue.signal(fence, index);
     fence.wait(index++);
+
+    for (const auto& [_, complete] : results) {
+        complete();
+    }
 }
 
 // present queue
