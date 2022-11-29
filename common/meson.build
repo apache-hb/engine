@@ -148,11 +148,11 @@ assets = declare_dependency(
 )
 
 src = [
-    'src/render-new/queue.cpp',
-    'src/render-new/render.cpp',
-    'src/render-new/graph.cpp',
-    'src/render-new/scene.cpp',
-    'src/render-new/async.cpp'
+    'src/render/queue.cpp',
+    'src/render/render.cpp',
+    'src/render/graph.cpp',
+    'src/render/scene.cpp',
+    'src/render/async.cpp'
 ]
 
 librender = library('render', src,

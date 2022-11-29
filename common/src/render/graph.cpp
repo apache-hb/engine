@@ -1,6 +1,6 @@
-#include "engine/render-new/graph.h"
+#include "engine/render/graph.h"
 #include "engine/base/logging.h"
-#include "engine/render-new/render.h"
+#include "engine/render/render.h"
 #include "engine/rhi/rhi.h"
 
 using namespace simcoe;

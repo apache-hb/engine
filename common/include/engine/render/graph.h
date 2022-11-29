@@ -1,7 +1,7 @@
 #pragma once
 
 #include "engine/base/logging.h"
-#include "engine/render-new/render.h"
+#include "engine/render/render.h"
 
 #include <unordered_map>
 

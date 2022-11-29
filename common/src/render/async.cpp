@@ -1,6 +1,6 @@
-#include "engine/render-new/async.h"
-#include "engine/render-new/queue.h"
-#include "engine/render-new/render.h"
+#include "engine/render/async.h"
+#include "engine/render/queue.h"
+#include "engine/render/render.h"
 
 using namespace simcoe;
 using namespace simcoe::render;

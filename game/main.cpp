@@ -9,7 +9,7 @@
 #include "engine/locale/locale.h"
 
 #include "engine/math/consts.h"
-#include "engine/render-new/scene.h"
+#include "engine/render/scene.h"
 
 #include "engine/ui/ui.h"
 
@@ -61,7 +61,7 @@ int commonMain() {
     render::WorldGraph world { worldInfo };
 
     world.init();
-    
+
     while (window->poll(&keyboard)) {
         manager.poll();
         world.execute();

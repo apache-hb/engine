@@ -1,34 +1,33 @@
 #pragma once
 
-#include "engine/base/container/unique.h"
+#include "engine/rhi/rhi.h"
 
 #include "engine/memory/bitmap.h"
-
-#include "engine/base/logging.h"
 #include "engine/memory/slotmap.h"
-#include "engine/rhi/rhi.h"
 #include "engine/window/window.h"
 
-#include "engine/render/world.h"
-#include "engine/render/camera.h"
+#include "engine/render/queue.h"
+
+#include <functional>
+#include <thread>
 
 namespace simcoe::render {
-    constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
-    constexpr size_t kHeapSize = 0x1000;
-
-    std::vector<std::byte> loadShader(std::string_view path);
-
+    struct ThreadHandle;
+    struct CopyQueue;
+    struct PresentQueue;
     struct Context;
 
-    struct RenderScene {
-        RenderScene(rhi::TextureSize resolution) : resolution(resolution) { }
+    using Shader = std::vector<std::byte>;
 
-        virtual ID3D12CommandList *populate() = 0;
-        virtual ID3D12CommandList *attach(Context *ctx) = 0;
-        virtual ~RenderScene() = default;
+    Shader loadShader(std::string_view path);
 
-        rhi::TextureSize resolution;
-    };
+    namespace CommandSlot {
+        enum Slot : unsigned {
+            ePost,
+            eScene,
+            eTotal
+        };
+    }
 
     namespace DescriptorSlot {
         enum Slot : unsigned {
@@ -60,108 +59,93 @@ namespace simcoe::render {
 
     using SlotMap = memory::SlotMap<DescriptorSlot::Slot, DescriptorSlot::eEmpty>;
 
+    struct HeapAllocator : SlotMap {
+        HeapAllocator(rhi::Device& device, size_t size, rhi::DescriptorSet::Type type, bool shaderVisible) 
+            : SlotMap(size)
+            , heap(device.newDescriptorSet(size, type, shaderVisible))
+        { }
+
+        rhi::CpuHandle cpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
+            ASSERTF(
+                testBit(offset, type), 
+                "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
+                DescriptorSlot::getSlotName(getBit(offset)), 
+                offset, length
+            );
+            return heap.cpuHandle(offset);
+        }
+
+        rhi::GpuHandle gpuHandle(size_t offset, size_t length, DescriptorSlot::Slot type) {
+            ASSERTF(
+                testBit(offset, type), 
+                "expecting {} found {} instead at {}..{}", DescriptorSlot::getSlotName(type),
+                DescriptorSlot::getSlotName(getBit(offset)), 
+                offset, length
+            );
+            return heap.gpuHandle(offset);
+        }
+        
+        rhi::DescriptorSet& getHeap() { return heap; }
+        ID3D12DescriptorHeap *get() { return heap.get(); }
+    private:
+        rhi::DescriptorSet heap;
+    };
+
     struct Context {
-        struct Create {
-            Window *window; // window to attach to
-            RenderScene *scene; // scene to display
-            size_t frames = 2;
-        };
+        Context(const ContextInfo& info);
 
-        Context(Create &&info);
-        ~Context();
+        // external api
+        void update(const ContextInfo& info);
+        void present();
 
-        // end api
-        void begin();
-        void end();
+        void beginFrame(CommandSlot::Slot slot);
+        void endFrame();
+        void transition(CommandSlot::Slot slot, std::span<const rhi::StateTransition> barriers);
 
-        void resizeScene(rhi::TextureSize size);
-        void resizeOutput(rhi::TextureSize size);
+        // imgui related functions
+        void imguiInit(size_t offset);
+        void imguiFrame();
+        void imguiShutdown();
 
-        // accessors
-        size_t currentFrame() const { return frameIndex; }
-        size_t frameCount() const { return frames; }
+        // trivial getters
         rhi::Device &getDevice() { return device; }
+        PresentQueue& getPresentQueue() { return presentQueue; }
+        CopyQueue& getCopyQueue() { return copyQueue; }
+        HeapAllocator& getHeap() { return cbvHeap; }
 
-        rhi::Buffer uploadData(const void *ptr, size_t size);
-        rhi::Buffer uploadTexture(rhi::CpuHandle handle, rhi::TextureSize size, std::span<const std::byte> data);
+        rhi::Buffer& getRenderTarget() { return presentQueue.getRenderTarget(); }
+        rhi::CpuHandle getRenderTargetHandle() { return presentQueue.getFrameHandle(currentFrame()); }
 
-        rhi::CpuHandle getRenderTarget() { return renderTargetSet.cpuHandle(frames); }
+        rhi::CommandList &getCommands(CommandSlot::Slot slot) { return commands[slot]; }
 
-        rhi::CpuHandle getCbvCpuHandle(size_t offset) { return cbvHeap.cpuHandle(offset); }
-        rhi::GpuHandle getCbvGpuHandle(size_t offset) { return cbvHeap.gpuHandle(offset); }
+        size_t getFrames() const { return info.frames; }
+        size_t currentFrame() const { return presentQueue.currentFrame(); }
 
-        SlotMap& getAlloc() { return cbvAlloc; }
-        rhi::DescriptorSet &getHeap() { return cbvHeap; }
-
-        void executeCopy(size_t signal);
-
-        void beginCopy();
-        size_t endCopy(); // return the value to wait for to signal that all copies are complete
+        // getters
+        rhi::TextureSize windowSize() { return info.window->size().as<size_t>(); }
+        rhi::TextureSize sceneSize() { return info.resolution; }
 
     private:
-        Window *window;
-        RenderScene *scene;
-        size_t frames;
+        void createFrameData();
+        void createCommands();
 
-        // output resolution
-        rhi::TextureSize resolution;
-
-        void create();
-        void createRenderTargets();
-
-        void createScene();
-
-        void updateViewports(rhi::TextureSize post, rhi::TextureSize scene);
-
-        void waitForFrame();
-        void waitOnQueue(rhi::CommandQueue &queue, size_t value, rhi::Fence& fence);
-
-        void beginPost();
-        void endPost();
+        ContextInfo info;
 
         rhi::Device device;
 
-        // presentation queue
-        rhi::CommandQueue directQueue;
-        rhi::SwapChain swapchain;
+        PresentQueue presentQueue;
+        
+        CopyQueue copyQueue;
+        std::unique_ptr<std::jthread> copyThread;
 
-        rhi::DescriptorSet renderTargetSet;
-        UniquePtr<rhi::Buffer[]> renderTargets;
+        rhi::DescriptorSet dsvHeap;
+        HeapAllocator cbvHeap;
 
-        UniquePtr<rhi::Allocator[]> postAllocators;
+        rhi::Allocator &getAllocator(size_t index, CommandSlot::Slot slot) {
+            return allocators[(index * getFrames()) + slot];
+        }
 
-        rhi::CommandList postCommands;
-        rhi::View postView;
-
-        // fullscreen quad
-        rhi::PipelineState pso;
-        rhi::Buffer vertexBuffer;
-        rhi::Buffer indexBuffer;
-        rhi::VertexBufferView vertexBufferView;
-        rhi::IndexBufferView indexBufferView;
-
-        rhi::Buffer intermediateTarget;
-
-        // copy commands
-        rhi::CommandQueue copyQueue;
-        rhi::CommandList copyCommands;
-        UniquePtr<rhi::Allocator[]> copyAllocators;
-        std::vector<rhi::Buffer> pendingCopies;
-        std::vector<rhi::StateTransition> pendingTransitions;
-        size_t currentCopy = 0;
-        rhi::Fence copyFence;
-
-        // scene data set
-        // contains texture, imgui data, and the camera buffer
-        rhi::DescriptorSet cbvHeap;
-        SlotMap cbvAlloc;
-
-        // sync objects
-        rhi::Fence directFence;
-        std::atomic_size_t fenceValue = 0;
-        std::atomic_size_t frameIndex;
-
-        size_t intermediateHeapOffset;
-        size_t imguiHeapOffset;
+        UniquePtr<rhi::Allocator[]> allocators;
+        rhi::CommandList commands[CommandSlot::eTotal];
     };
 }
