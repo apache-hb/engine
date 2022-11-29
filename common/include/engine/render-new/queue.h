@@ -5,6 +5,7 @@
 #include "concurrentqueue.h"
 
 #include <functional>
+#include <condition_variable>
 
 namespace camel = moodycamel;
 
@@ -34,6 +35,9 @@ namespace simcoe::render {
 
         void wait();
     private:
+        bool waitForPendingWork();
+        void signalPendingWork();
+
         Context& ctx;
 
         struct PendingAction {
@@ -41,6 +45,8 @@ namespace simcoe::render {
             AsyncCallback complete;
         };
 
+        std::mutex mutex;
+        std::condition_variable hasPendingWork;
         camel::ConcurrentQueue<PendingAction> pending;
 
         rhi::CommandQueue queue;

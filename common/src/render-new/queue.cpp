@@ -1,6 +1,8 @@
 #include "engine/render-new/render.h"
 #include "engine/rhi/rhi.h"
 
+using namespace std::chrono_literals;
+
 using namespace simcoe;
 using namespace simcoe::render;
 
@@ -28,9 +30,16 @@ CopyQueue::CopyQueue(Context& ctx)
 void CopyQueue::submit(AsyncAction action, AsyncCallback complete) {
     PendingAction it = { action, complete };
     pending.enqueue(it);
+
+    signalPendingWork();
 }
 
 void CopyQueue::wait() {
+    if (!waitForPendingWork()) { 
+        return; // no pending work
+    }
+
+    // collect pending work
     std::vector<PendingAction> results;
     
     PendingAction action;
@@ -38,14 +47,19 @@ void CopyQueue::wait() {
         results.push_back(action);
     }
 
+    // if theres no work bail
     if (results.empty()) { return; }
 
+    logging::get(logging::eRender).info("copy(pending={})", results.size());
+
+    // submit all the work
     list.beginRecording(alloc);
     for (const auto& [action, _] : results) {
         action->apply(list);
     }
     list.endRecording();
 
+    // wait for the work to complete
     ID3D12CommandList* lists[] = { list.get() };
     queue.execute(lists);
     queue.signal(fence, index);
@@ -53,9 +67,21 @@ void CopyQueue::wait() {
 
     index += 1;
 
+    // signal completion
     for (const auto& [_, complete] : results) {
         complete();
     }
+}
+
+bool CopyQueue::waitForPendingWork() {
+    std::unique_lock lock(mutex);
+    return hasPendingWork.wait_for(lock, 10ms, [&] {
+        return pending.size_approx() > 0;
+    });
+}
+
+void CopyQueue::signalPendingWork() {
+    hasPendingWork.notify_one();
 }
 
 // present queue

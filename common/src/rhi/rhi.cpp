@@ -102,6 +102,7 @@ rhi::Device rhi::getDevice() {
         HR_CHECK(pInfo->RegisterMessageCallback(rhiDebugCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &cookie));
 
         channel.info("registered d3d12 debug callback (cookie={})", cookie);
+        pInfo->Release();
     } else {
         channel.warn("failed to get info queue: {}", simcoe::win32::hrErrorString(err));
     }

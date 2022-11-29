@@ -61,7 +61,7 @@ int commonMain() {
     render::WorldGraph world { worldInfo };
 
     world.init();
-
+    
     while (window->poll(&keyboard)) {
         manager.poll();
         world.execute();

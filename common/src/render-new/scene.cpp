@@ -232,43 +232,14 @@ struct PresentPass final : Pass {
     Input *sceneTargetIn;
 };
 
-struct ScenePass final : Pass, assets::IWorldSink {
+struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
 
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
 
-    void init() override {
-        auto& ctx = getContext();
-        auto& device = ctx.getDevice();
-        auto& heap = ctx.getHeap();
-        auto& copy = ctx.getCopyQueue();
-
-        defaultTextureOffset = heap.alloc(DescriptorSlot::eTexture);
-        auto texUpload = copy.beginTextureUpload(kDefaultImage.data(), kDefaultImage.size(), { 2, 2 });
-
-        copy.submit(texUpload, [this, texUpload] {
-            auto& ctx = getContext();
-            auto& device = ctx.getDevice();
-            auto& heap = ctx.getHeap();
-
-            defaultTexture = texUpload->getBuffer();
-
-            device.createTextureBufferView(defaultTexture, heap.cpuHandle(defaultTextureOffset, 1, DescriptorSlot::eTexture));
-        });
-
-        auto ps = loadShader("resources\\shaders\\scene-shader.ps.pso");
-        auto vs = loadShader("resources\\shaders\\scene-shader.vs.pso");
-
-        pso = device.newPipelineState({
-            .samplers = kSamplers,
-            .bindings = kSceneBindings,
-            .input = kInputLayout,
-            .ps = ps,
-            .vs = vs
-        });
-    }
+    void init() override { }
 
     void execute() override {
         auto& ctx = getContext();
@@ -278,73 +249,12 @@ struct ScenePass final : Pass, assets::IWorldSink {
 
         cmd.setViewAndScissor(rhi::View(0, 0, width, height));
         cmd.clearRenderTarget(sceneTargetResource->rtvHandle(), kClearColour);
-
-        cmd.setPipeline(pso);
-    }
-
-    size_t addVertexBuffer(assets::VertexBuffer&&) override {
-        return SIZE_MAX;
-    }
-
-    size_t addIndexBuffer(assets::IndexBuffer&&) override {
-        return SIZE_MAX;
-    }
-
-    size_t addTexture(const assets::Texture& texture) override {
-        auto& ctx = getContext();
-        auto& device = ctx.getDevice();
-        auto& heap = ctx.getHeap();
-        auto& copy = ctx.getCopyQueue();
-
-        size_t slot = heap.alloc(DescriptorSlot::eTexture);
-        if (slot == SIZE_MAX) { return SIZE_MAX; }
-
-        device.createTextureBufferView(defaultTexture, heap.cpuHandle(defaultTextureOffset, 1, DescriptorSlot::eTexture));
-
-        auto handle = copy.beginTextureUpload(texture.data.data(), texture.data.size(), texture.size);
-
-        copy.submit(handle, [this, slot, handle] {
-            auto& ctx = getContext();
-            auto& device = ctx.getDevice();
-            auto& heap = ctx.getHeap();
-
-            auto buffer = handle->getBuffer();
-
-            device.createTextureBufferView(buffer, heap.cpuHandle(slot, 1, DescriptorSlot::eTexture));
-            textures.push_back(std::move(buffer));
-        });
-
-        // TODO: make threadsafe
-        return slot;
-    }
-
-    size_t addPrimitive(const assets::Primitive&) override {
-        // TODO: make threadsafe
-        return SIZE_MAX;
-    }
-
-    size_t addNode(const assets::Node&) override {
-        // TODO: make threadsafe
-        return SIZE_MAX;
     }
 
     SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 
 private:
-    rhi::PipelineState pso;
-
-    size_t defaultTextureOffset;
-    rhi::Buffer defaultTexture;
-    std::vector<rhi::Buffer> textures;
-
-    constexpr static auto kDefaultImage = std::to_array<uint8_t>({
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-    });
-
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
     });
