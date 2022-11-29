@@ -278,7 +278,7 @@ void Context::beginPost() {
 
     postCommands.setVertexBuffers(kVerts);
     postCommands.setRenderTarget(renderTargetSet.cpuHandle(frameIndex), rhi::CpuHandle::Invalid, kLetterBox);
-    postCommands.drawMesh(indexBufferView);
+    postCommands.drawIndexed(indexBufferView);
 }
 
 void Context::endPost() {

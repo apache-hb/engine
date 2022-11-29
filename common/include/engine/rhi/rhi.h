@@ -290,7 +290,7 @@ namespace simcoe::rhi {
 
         void setVertexBuffers(std::span<const VertexBufferView> buffers);
 
-        void drawMesh(const IndexBufferView &indexView);
+        void drawIndexed(const IndexBufferView &indexView);
 
         void transition(std::span<const StateTransition> barriers);
 

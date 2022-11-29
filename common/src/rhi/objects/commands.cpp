@@ -114,7 +114,7 @@ void CommandList::setVertexBuffers(std::span<const rhi::VertexBufferView> buffer
     get()->IASetVertexBuffers(0, UINT(buffers.size()), buffers.data());
 }
 
-void CommandList::drawMesh(const rhi::IndexBufferView &indexView) {
+void CommandList::drawIndexed(const rhi::IndexBufferView &indexView) {
     const D3D12_INDEX_BUFFER_VIEW kIndexBufferView = {
         .BufferLocation = D3D12_GPU_VIRTUAL_ADDRESS(indexView.buffer),
         .SizeInBytes = UINT(indexView.length * getElementSize(indexView.format)),

@@ -76,7 +76,7 @@ void CopyQueue::wait() {
 bool CopyQueue::waitForPendingWork() {
     std::unique_lock lock(mutex);
     return hasPendingWork.wait_for(lock, 10ms, [&] {
-        return pending.size_approx() > 0;
+        return pending.size_approx() == 0;
     });
 }
 

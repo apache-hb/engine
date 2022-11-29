@@ -264,7 +264,7 @@ ID3D12CommandList *BasicScene::populate() {
 
             auto kBuffer = std::to_array({ vertexBufferViews[primitive.verts] });
             commands.setVertexBuffers(kBuffer);
-            commands.drawMesh(indexBufferViews[primitive.indices]);
+            commands.drawIndexed(indexBufferViews[primitive.indices]);
         }
     }
 

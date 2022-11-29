@@ -312,11 +312,11 @@ struct PostPass final : Pass {
 
         cmd.setViewAndScissor(view);
         cmd.setRenderTarget(renderTarget->rtvCpuHandle(), rhi::CpuHandle::Invalid, kLetterBox);
+        
         cmd.setPipeline(pso);
-
         cmd.bindTable(0, sceneTarget->cbvGpuHandle());
         cmd.setVertexBuffers(std::to_array({ vboView }));
-        cmd.drawMesh(iboView);
+        cmd.drawIndexed(iboView);
     }
 
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
@@ -385,6 +385,8 @@ private:
                 .length = std::size(kScreenQuadIndices),
                 .format = rhi::Format::uint32
             };
+
+            // TODO: this races with exeucte
         });
     }
 
