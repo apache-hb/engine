@@ -15,7 +15,7 @@ namespace simcoe::com {
     };
 
     template<IsComObject T>
-    struct UniqueComPtr : UniquePtr<T, ComDeleter<T>> {
+    struct UniqueComPtr : public UniquePtr<T, ComDeleter<T>> {
         using Super = UniquePtr<T, ComDeleter<T>>;
         using Super::Super;
 

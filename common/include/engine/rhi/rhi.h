@@ -15,7 +15,7 @@
 
 namespace simcoe::rhi {
     template<typename T>
-    struct UniqueObject : com::UniqueComPtr<T> {
+    struct UniqueObject : public com::UniqueComPtr<T> {
         using Super = com::UniqueComPtr<T>;
         using Super::Super;
 
@@ -156,7 +156,7 @@ namespace simcoe::rhi {
         void reset();
     };
 
-    struct Buffer final : UniqueObject<ID3D12Resource> {
+    struct Buffer final : public UniqueObject<ID3D12Resource> {
         using Super = UniqueObject<ID3D12Resource>;
         using Super::Super;
 

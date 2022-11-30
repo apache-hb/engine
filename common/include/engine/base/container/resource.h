@@ -6,6 +6,8 @@
 namespace simcoe {
     template<typename T, T Invalid, typename Delete> requires (std::is_trivially_copy_constructible<T>::value)
     struct UniqueResource {
+        using Self = UniqueResource<T, Invalid, Delete>;
+
         UniqueResource(T object = Invalid) { 
             init(object);
         }
@@ -15,6 +17,18 @@ namespace simcoe {
         }
 
         UniqueResource &operator=(UniqueResource &&other) {
+            destroy();
+            init(other.claim());
+            return *this;
+        }
+
+        template<typename O> requires (std::is_base_of<Self, O>::value)
+        UniqueResource(O &&other) {
+            init(other.claim());
+        }
+
+        template<typename O> requires (std::is_base_of<Self, O>::value)
+        UniqueResource &operator=(O &&other) {
             destroy();
             init(other.claim());
             return *this;

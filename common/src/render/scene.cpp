@@ -232,6 +232,24 @@ struct PresentPass final : Pass {
     Input *sceneTargetIn;
 };
 
+struct AsyncDraw {
+    using Action = std::function<void()>;
+    void add(Action action) {
+        std::lock_guard lock(mutex);
+        commands.push_back(std::move(action));
+    }
+
+    void apply() {
+        std::lock_guard lock(mutex);
+        for (auto& command : commands) {
+            command();
+        }
+    }
+private:
+    std::mutex mutex;
+    std::vector<Action> commands;
+};
+
 struct ScenePass final : Pass {
     ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
         sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
@@ -294,7 +312,7 @@ private:
 struct PostPass final : Pass {
     PostPass(const Info& info) : Pass(info, CommandSlot::ePost) {
         sceneTargetIn = newInput<Input>("scene-target", State::ePixelShaderResource);
-        sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn); // TODO: this is also a hack, graph code should be able to handle this
+        sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn); 
         
         renderTargetIn = newInput<Input>("rtv", State::eRenderTarget);
         renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
@@ -307,16 +325,12 @@ struct PostPass final : Pass {
 
     void execute() override {
         auto& cmd = getCommands();
-        auto *sceneTarget = sceneTargetIn.get();
         auto *renderTarget = renderTargetIn.get();
 
         cmd.setViewAndScissor(view);
         cmd.setRenderTarget(renderTarget->rtvCpuHandle(), rhi::CpuHandle::Invalid, kLetterBox);
         
-        cmd.setPipeline(pso);
-        cmd.bindTable(0, sceneTarget->cbvGpuHandle());
-        cmd.setVertexBuffers(std::to_array({ vboView }));
-        cmd.drawIndexed(iboView);
+        draws.apply();
     }
 
     WireHandle<Input, SceneTargetResource> sceneTargetIn;
@@ -379,26 +393,32 @@ private:
             vbo = vboCopy->getBuffer();
             ibo = iboCopy->getBuffer();
 
-            vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
-            iboView = {
+            rhi::VertexBufferView vboView = rhi::newVertexBufferView(vbo.gpuAddress(), std::size(kScreenQuad), sizeof(assets::Vertex));
+            rhi::IndexBufferView iboView = {
                 .buffer = ibo.gpuAddress(),
                 .length = std::size(kScreenQuadIndices),
                 .format = rhi::Format::uint32
             };
 
-            // TODO: this races with exeucte
+            draws.add([&, vboView, iboView] {
+                auto& cmd = getCommands();
+                auto* sceneTarget = sceneTargetIn.get();
+
+                cmd.setPipeline(pso);
+                cmd.bindTable(0, sceneTarget->cbvGpuHandle());
+                cmd.setVertexBuffers(std::to_array({ vboView }));
+                cmd.drawIndexed(iboView);
+            });
         });
     }
 
     rhi::View view;
 
     rhi::PipelineState pso;
-    
     rhi::Buffer vbo;
     rhi::Buffer ibo;
 
-    rhi::VertexBufferView vboView;
-    rhi::IndexBufferView iboView;
+    AsyncDraw draws;
 
     constexpr static assets::Vertex kScreenQuad[] = {
         { .position = { -1.0f, -1.0f, 0.0f }, .uv = { 0.0f, 1.0f } }, // bottom left
