@@ -1,8 +1,6 @@
 #include "engine/render/render.h"
 #include "engine/rhi/rhi.h"
 
-using namespace std::chrono_literals;
-
 using namespace simcoe;
 using namespace simcoe::render;
 
@@ -14,13 +12,15 @@ namespace {
 
 // async copy queue
 
-CopyQueue::CopyQueue(Context& ctx)
-    : ctx(ctx)
-    , queue(ctx.getDevice().newQueue(rhi::CommandList::Type::eCopy))
-    , alloc(ctx.getDevice().newAllocator(rhi::CommandList::Type::eCopy))
-    , list(ctx.getDevice().newCommandList(alloc, rhi::CommandList::Type::eCopy))
-    , fence(ctx.getDevice().newFence())
+CopyQueue::CopyQueue(rhi::Device& device, const ContextInfo& info)
+    : device(device)
+    , waitPeriod(info.copyQueueWaitPeroid)
 { 
+    queue = device.newQueue(rhi::CommandList::Type::eCopy);
+    alloc = device.newAllocator(rhi::CommandList::Type::eCopy);
+    list = device.newCommandList(alloc, rhi::CommandList::Type::eCopy);
+    fence = device.newFence();
+
     queue.rename("copy queue");
     alloc.rename("copy allocator");
     list.rename("copy list");
@@ -75,7 +75,7 @@ void CopyQueue::wait() {
 
 bool CopyQueue::waitForPendingWork() {
     std::unique_lock lock(mutex);
-    return hasPendingWork.wait_for(lock, 10ms, [&] {
+    return hasPendingWork.wait_for(lock, waitPeriod, [&] {
         return pending.size_approx() > 0;
     });
 }
@@ -103,7 +103,7 @@ PresentQueue::PresentQueue(rhi::Device& device, const ContextInfo& info)
     current = swapchain.currentBackBuffer();
 }
 
-void PresentQueue::present(UNUSED Context& ctx) {
+void PresentQueue::present() {
     swapchain.present();
 
     queue.signal(fence, frameIndex);

@@ -25,7 +25,7 @@ Context::Context(const ContextInfo& info)
     : info(info)
     , device(rhi::getDevice())
     , presentQueue(device, info)
-    , copyQueue(*this)
+    , copyQueue(device, info)
     , cbvHeap(device, getMaxHeapSize(info), rhi::DescriptorSet::Type::eConstBuffer, true)
 { 
     createFrameData();
@@ -69,7 +69,7 @@ void Context::present() {
         lists[i] = commands[i].get();
     }
     presentQueue.execute(lists);
-    presentQueue.present(*this);
+    presentQueue.present();
 }
 
 void Context::beginFrame(CommandSlot::Slot slot) {

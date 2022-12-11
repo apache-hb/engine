@@ -9,6 +9,8 @@
 
 namespace camel = moodycamel;
 
+using namespace std::chrono_literals;
+
 namespace simcoe::render {
     struct Context;
 
@@ -20,12 +22,13 @@ namespace simcoe::render {
         /// tuning parameters
         size_t maxTextures = 512;
         size_t maxObjects = 512;
+        std::chrono::nanoseconds copyQueueWaitPeroid = 10ms; 
     };
 
     using AsyncCallback = std::function<void()>;
 
     struct CopyQueue {
-        CopyQueue(Context& ctx);
+        CopyQueue(rhi::Device& device, const ContextInfo& info);
  
         AsyncAction beginDataUpload(const void* data, size_t size);
         AsyncAction beginTextureUpload(const void* data, size_t size, rhi::TextureSize resolution);
@@ -38,15 +41,17 @@ namespace simcoe::render {
         bool waitForPendingWork();
         void signalPendingWork();
 
-        Context& ctx;
-
         struct PendingAction {
             AsyncAction action;
             AsyncCallback complete;
         };
 
+        rhi::Device& device;
+
         std::mutex mutex;
         std::condition_variable hasPendingWork;
+        std::chrono::nanoseconds waitPeriod;
+
         camel::ConcurrentQueue<PendingAction> pending;
 
         rhi::CommandQueue queue;
@@ -61,7 +66,7 @@ namespace simcoe::render {
     struct PresentQueue {
         PresentQueue(rhi::Device& device, const ContextInfo& info);
 
-        void present(Context& ctx);
+        void present();
         void execute(std::span<ID3D12CommandList*> lists);
 
         size_t currentFrame() const { return current; }

@@ -65,8 +65,6 @@ private:
 };
 
 AsyncAction CopyQueue::beginDataUpload(const void* data, size_t size) {
-    auto& device = ctx.getDevice();
-
     rhi::Buffer buffer = device.newBuffer(size, rhi::DescriptorSet::Visibility::eHostVisible, rhi::Buffer::State::eUpload);
     rhi::Buffer upload = device.newBuffer(size, rhi::DescriptorSet::Visibility::eDeviceOnly, rhi::Buffer::State::eCommon);
     buffer.write(data, size);
@@ -78,8 +76,6 @@ AsyncAction CopyQueue::beginDataUpload(const void* data, size_t size) {
 }
 
 AsyncAction CopyQueue::beginTextureUpload(const void* data, UNUSED size_t size, rhi::TextureSize resolution) {
-    auto& device = ctx.getDevice();
-
     // TODO: busted
     auto uploadDesc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCommon);
     auto targetDesc = rhi::newTextureDesc(resolution, rhi::Buffer::State::eCopyDst);
