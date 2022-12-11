@@ -23,9 +23,9 @@ namespace {
     }
 }
 
-struct IoChannel final : Channel {
+struct IoChannel final : IChannel {
     IoChannel(std::string_view name, std::string_view path, Level level = eFatal)
-        : Channel(name, level)
+        : IChannel(name, level)
         , io(Io::open(path, Io::eWrite))
     { }
 
@@ -38,20 +38,20 @@ private:
     UniquePtr<Io> io;
 };
 
-struct ConsoleChannel final : Channel {
+struct ConsoleChannel final : IChannel {
     ConsoleChannel(std::string_view name, Level level = eInfo)
-        : Channel(name, level)
+        : IChannel(name, level)
     { }
 
 protected:
     void send(Level reportLevel, const std::string_view message) override {
-        std::cout << std::format("[{}:{}]: {}", name, levelName(reportLevel), message) << std::endl;
+        std::cout << std::format("[{}:{}]: {}\n", name, levelName(reportLevel), message);
     }
 };
 
-struct DebugChannel final : Channel {
+struct DebugChannel final : IChannel {
     DebugChannel(std::string_view name, Level level = eInfo)
-        : Channel(name, level)
+        : IChannel(name, level)
     { }
 
 protected:
@@ -61,9 +61,9 @@ protected:
 };
 
 template<size_t N>
-struct MultiChannel final : Channel {
-    MultiChannel(std::string_view name, std::array<Channel*, N> channels, Level level = eDebug)
-        : Channel(name, level)
+struct MultiChannel final : IChannel {
+    MultiChannel(std::string_view name, std::array<IChannel*, N> channels, Level level = eDebug)
+        : IChannel(name, level)
         , channels(channels)
     { }
 
@@ -75,10 +75,10 @@ protected:
     }
 
 private:
-    std::array<Channel*, N> channels;
+    std::array<IChannel*, N> channels;
 };
 
-void Channel::process(Level reportLevel, std::string_view message) {
+void IChannel::process(Level reportLevel, std::string_view message) {
     if (level > reportLevel) { return; }
 
     for (const auto part : std::views::split(message, "\n")) {
@@ -89,14 +89,14 @@ void Channel::process(Level reportLevel, std::string_view message) {
 }
 
 namespace {
-    std::vector<Channel*> channels;
+    std::vector<IChannel*> channels;
 
-    Channel *addChannel(Channel *it) {
+    IChannel *addChannel(IChannel *it) {
         channels.push_back(it);
         return it;
     }
 
-    Channel *kSinks[eTotal];
+    IChannel *kSinks[eTotal];
 }
 
 void logging::init() {
@@ -104,7 +104,7 @@ void logging::init() {
     auto *consoleLogger = addChannel(new ConsoleChannel("general", eDebug));
     auto *debugLogger = addChannel(new DebugChannel("general", eDebug));
 
-    Channel *generalChannels[] { fileLogger, consoleLogger, debugLogger };
+    IChannel *generalChannels[] { fileLogger, consoleLogger, debugLogger };
 
     kSinks[eGeneral] = addChannel(new MultiChannel<3>("general", std::to_array(generalChannels)));
     kSinks[eInput] = kSinks[eGeneral];
@@ -112,6 +112,6 @@ void logging::init() {
     kSinks[eLocale] = kSinks[eGeneral];
 }
 
-Channel &logging::get(Category category) {
+IChannel &logging::get(Category category) {
     return *kSinks[category];
 }

@@ -31,7 +31,7 @@ Context::Context(const ContextInfo& info)
     createFrameData();
     createCommands();
 
-    copyThread = std::make_unique<std::jthread>([this](auto token) { 
+    copyThread = std::make_unique<std::jthread>([&](auto token) { 
         while (!token.stop_requested()) { copyQueue.wait(); }
     });
 }

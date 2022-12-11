@@ -337,7 +337,7 @@ namespace {
         IWorldSink *scene;
         size_t defaultTexture;
         const gltf::Model& model;
-        logging::Channel& log = logging::get(logging::eRender);
+        logging::IChannel& log = logging::get(logging::eRender);
         std::unordered_map<size_t, size_t> textureIndices;
     };
 }

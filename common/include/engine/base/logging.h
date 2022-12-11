@@ -14,13 +14,13 @@ namespace simcoe::logging {
         eAssert
     };
 
-    struct Channel {
-        Channel(std::string_view name, Level level)
+    struct IChannel {
+        IChannel(std::string_view name, Level level)
             : level(level)
             , name(name)
         { }
 
-        virtual ~Channel() = default;
+        virtual ~IChannel() = default;
 
         template<typename... A>
         void debug(std::string_view message, A&&... args) {
@@ -63,5 +63,5 @@ namespace simcoe::logging {
     };
 
     void init();
-    Channel &get(Category category = eGeneral);
+    IChannel &get(Category category = eGeneral);
 }

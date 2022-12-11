@@ -400,6 +400,7 @@ private:
                 .format = rhi::Format::uint32
             };
 
+            logging::get(logging::eRender).info("adding draw");
             draws.add([&, vboView, iboView] {
                 auto& cmd = getCommands();
                 auto* sceneTarget = sceneTargetIn.get();
