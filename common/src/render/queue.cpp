@@ -88,15 +88,21 @@ void CopyQueue::signalPendingWork() {
 
 PresentQueue::PresentQueue(rhi::Device& device, const ContextInfo& info)
     : frames(info.frames)
-    , queue(device.newQueue(rhi::CommandList::Type::eDirect))
-    , swapchain(queue.newSwapChain(info.window, frames))
-    , rtvHeap(device.newDescriptorSet(getRtvHeapSize(frames), rhi::DescriptorSet::Type::eRenderTarget, false))
-    , fence(device.newFence())
 { 
+    queue = device.newQueue(rhi::CommandList::Type::eDirect);
+    swapchain = queue.newSwapChain(info.window, frames);
+    rtvHeap = device.newDescriptorSet(getRtvHeapSize(frames), rhi::DescriptorSet::Type::eRenderTarget, false);
+    fence = device.newFence();
+
+    queue.rename("present queue");
+    rtvHeap.rename("rtv heap");
+    fence.rename("present fence");
+
     renderTargets = new rhi::Buffer[frames];
     for (size_t i = 0; i < frames; i++) {
         renderTargets[i] = swapchain.getBuffer(i);
         device.createRenderTargetView(renderTargets[i], getFrameHandle(i));
+        
         renderTargets[i].rename(std::format("frame {}", i));
     }
 

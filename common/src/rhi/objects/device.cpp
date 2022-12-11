@@ -133,7 +133,9 @@ namespace {
         std::vector<DxRanges> descriptors;
     };
 
-    rhi::UniqueObject<ID3DBlob> serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<const rhi::Sampler> samplers, std::span<const rhi::Binding> bindings) {
+    using BlobPtr = com::UniqueComPtr<ID3DBlob>;
+
+    BlobPtr serializeRootSignature(D3D_ROOT_SIGNATURE_VERSION version, std::span<const rhi::Sampler> samplers, std::span<const rhi::Binding> bindings) {
         // TODO: make this configurable
         constexpr D3D12_ROOT_SIGNATURE_FLAGS kFlags =
             D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
@@ -150,8 +152,8 @@ namespace {
         CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
         desc.Init_1_1(UINT(bindings.size()), params.get(), UINT(samplerData.size()), samplerData.data(), kFlags);
 
-        rhi::UniqueObject<ID3DBlob> signature;
-        rhi::UniqueObject<ID3DBlob> error;
+        BlobPtr signature;
+        BlobPtr error;
 
         HRESULT err = D3DX12SerializeVersionedRootSignature(&desc, version, &signature, &error);
         ASSERTF(SUCCEEDED(err), "failed to serialize root signature: {}", std::string((char*)error->GetBufferPointer(), error->GetBufferSize()));

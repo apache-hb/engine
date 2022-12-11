@@ -15,6 +15,9 @@
 
 namespace simcoe::rhi {
     template<typename T>
+    concept IsD3D12Object = std::is_base_of_v<ID3D12Object, T>;
+
+    template<IsD3D12Object T>
     struct UniqueObject : public com::UniqueComPtr<T> {
         using Super = com::UniqueComPtr<T>;
         using Super::Super;
@@ -297,8 +300,8 @@ namespace simcoe::rhi {
         void imguiFrame();
     };
     
-    struct SwapChain final : UniqueObject<IDXGISwapChain3> {
-        using Super = UniqueObject<IDXGISwapChain3>;
+    struct SwapChain final : com::UniqueComPtr<IDXGISwapChain3> {
+        using Super = com::UniqueComPtr<IDXGISwapChain3>;
         using Super::Super;
 
         SwapChain(IDXGISwapChain3 *swapchain = nullptr, bool tearing = false);
