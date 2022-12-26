@@ -18,6 +18,11 @@ namespace {
 
 render::Shader render::loadShader(std::string_view path) {
     UniquePtr<Io> io { Io::open(path, Io::eRead) };
+    if (!io->valid()) {
+        logging::get(logging::eGeneral).warn("failed to load shader {}", path);
+        return {};
+    }
+
     return io->read<std::byte>();
 }
 

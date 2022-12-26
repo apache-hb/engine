@@ -36,6 +36,7 @@ namespace simcoe {
         size_t read(void *dst, size_t size);
         size_t write(const void *src, size_t size);
         virtual size_t size() = 0;
+        virtual bool valid() const = 0;
 
         std::string_view name;
         const Mode mode;

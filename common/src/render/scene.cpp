@@ -269,6 +269,18 @@ struct ScenePass final : Pass {
         cmd.clearRenderTarget(sceneTargetResource->rtvHandle(), kClearColour);
     }
 
+    void imgui() override {
+        if (ImGui::Begin("Scene")) {
+            static char path[256] {};
+            ImGui::InputTextWithHint("##", "gltf path", path, sizeof(path));
+            
+            if (ImGui::Button("Load model")) {
+                // todo
+            }
+        }
+        ImGui::End();
+    }
+
     SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 
