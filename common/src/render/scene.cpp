@@ -1,6 +1,10 @@
 #include "engine/render/scene.h"
 #include "engine/render/render.h"
 
+#include "engine/render/resources/resources.h"
+
+#include "engine/render/passes/present.h"
+
 #include "engine/assets/assets.h"
 #include "imgui/imgui.h"
 #include "imnodes/imnodes.h"
@@ -14,84 +18,6 @@ namespace {
     constexpr math::float4 kClearColour = { 0.f, 0.2f, 0.4f, 1.f };
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 }
-
-struct BufferResource : Resource {
-    virtual rhi::Buffer& get() = 0;
-    size_t cbvHandle() const { return cbvOffset; }
-
-protected:
-    BufferResource(const Info& info, size_t handle) 
-        : Resource(info)
-        , cbvOffset(handle) 
-    { }
-
-    void addBarrier(Barriers& barriers, Output* output, Input* input) override {
-        Resource::addBarrier(barriers, output, input);
-
-        auto before = output->getState();
-        auto after = input->getState();
-
-        ASSERT(before != State::eInvalid && after != State::eInvalid);
-        if (before == after) { return; }
-
-        barriers.push_back(rhi::newStateTransition(get(), before, after));
-    }
-
-private:
-    size_t cbvOffset;
-};
-
-struct RenderTargetResource final : BufferResource {
-    RenderTargetResource(const Info& info)
-        : BufferResource(info, SIZE_MAX)
-    { }
-
-    rhi::Buffer& get() override { return getContext().getRenderTarget(); }
-    rhi::CpuHandle rtvCpuHandle() { return getContext().getRenderTargetHandle(); }
-};
-
-struct TextureResource : BufferResource {
-    TextureResource(const Info& info, State initial, rhi::TextureSize size, bool hostVisible)
-        : BufferResource(info, ::getContext(info).getHeap().alloc(DescriptorSlot::eTexture))
-    { 
-        auto& ctx = getContext();
-        auto& heap = ctx.getHeap();
-        auto& device = ctx.getDevice();
-
-        const auto desc = rhi::newTextureDesc(size, initial);
-        const auto visibility = hostVisible ? rhi::DescriptorSet::Visibility::eHostVisible : rhi::DescriptorSet::Visibility::eDeviceOnly;
-
-        buffer = device.newTexture(desc, visibility, kClearColour);
-        device.createTextureBufferView(get(), heap.cpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture));
-
-        buffer.rename(getName());
-    }
-
-    rhi::Buffer& get() override { return buffer; }
-
-    rhi::CpuHandle cbvCpuHandle() const { return getContext().getHeap().cpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture); }
-    rhi::GpuHandle cbvGpuHandle() const { return getContext().getHeap().gpuHandle(cbvHandle(), 1, DescriptorSlot::eTexture); }
-
-private:
-    rhi::Buffer buffer;
-};
-
-struct SceneTargetResource final : TextureResource {
-    SceneTargetResource(const Info& info, State initial)
-        : TextureResource(info, initial, ::getContext(info).sceneSize(), false)
-    { 
-        auto& ctx = getContext();
-        auto& device = ctx.getDevice();
-
-        rtvOffset = ctx.getPresentQueue().getSceneHandle();
-        device.createRenderTargetView(get(), rtvOffset);
-    }
-
-    rhi::CpuHandle rtvHandle() const { return rtvOffset; }
-
-private:
-    rhi::CpuHandle rtvOffset;
-};
 
 struct GlobalPass final : Pass {
     GlobalPass(const Info& info) : Pass(info, CommandSlot::ePost) {
@@ -214,22 +140,6 @@ private:
     std::unordered_map<Pass*, int> passIds;
     std::unordered_map<Wire*, int> wireIds;
     std::unordered_map<int, Link> links;
-};
-
-struct PresentPass final : Pass {
-    PresentPass(const Info& info) : Pass(info, CommandSlot::ePost) {
-        renderTargetIn = newInput<Input>("rtv", State::ePresent);
-        sceneTargetIn = newInput<Input>("scene-target", State::eRenderTarget);
-    }
-
-    void execute() override {
-        auto& ctx = getContext();
-        ctx.endFrame();
-        ctx.present();
-    }
-    
-    Input *renderTargetIn;
-    Input *sceneTargetIn;
 };
 
 struct AsyncDraw {
@@ -460,52 +370,6 @@ private:
     constexpr static auto kBindings = std::to_array<rhi::Binding>({
         rhi::bindTable(rhi::ShaderVisibility::ePixel, kRanges)
     });
-};
-
-struct ImGuiPass final : Pass {
-    ImGuiPass(const Info& info, ImGuiUpdate update) 
-        : Pass(info, CommandSlot::ePost) 
-        , update(update) 
-    {
-        renderTargetIn = newInput<Input>("rtv", State::eRenderTarget);
-        renderTargetOut = newOutput<Relay>("rtv", renderTargetIn);
-    }
-    
-    void init() override {
-        auto& ctx = getContext();
-        imguiHeapOffset = ctx.getHeap().alloc(DescriptorSlot::eImGui);
-        ctx.imguiInit(imguiHeapOffset);
-    }
-
-    void deinit() override {
-        auto& ctx = getContext();
-        ctx.imguiShutdown();
-        ctx.getHeap().release(DescriptorSlot::eImGui, imguiHeapOffset);
-    }
-
-    void execute() override {
-        auto& ctx = getContext();
-        auto& cmd = getCommands();
-        // imgui work
-
-        ctx.imguiFrame();
-        ImGui::NewFrame();
-
-        update();
-
-        for (auto& [name, pass] : getParent()->passes) {
-            pass->imgui();
-        }
-
-        cmd.imguiFrame();
-    }
-
-    WireHandle<Input, RenderTargetResource> renderTargetIn;
-    Output *renderTargetOut;
-
-private:
-    size_t imguiHeapOffset;
-    ImGuiUpdate update;
 };
 
 WorldGraph::WorldGraph(const WorldGraphInfo& info) : Graph(info.ctx) {

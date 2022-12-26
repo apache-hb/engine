@@ -8,6 +8,8 @@
 
 #include "engine/render/graph.h"
 
+#include "engine/render/passes/imgui.h"
+
 namespace simcoe::render {
     struct Node {
         std::string name;
@@ -38,8 +40,6 @@ namespace simcoe::render {
         std::vector<Texture> textures;
         std::vector<Primitive> primitives;
     };
-
-    using ImGuiUpdate = std::function<void()>;
 
     struct WorldGraphInfo {
         Context& ctx;

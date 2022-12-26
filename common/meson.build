@@ -152,7 +152,12 @@ src = [
     'src/render/render.cpp',
     'src/render/graph.cpp',
     'src/render/scene.cpp',
-    'src/render/async.cpp'
+    'src/render/async.cpp',
+
+    'src/render/resources/resources.cpp',
+
+    'src/render/passes/present.cpp',
+    'src/render/passes/imgui.cpp'
 ]
 
 librender = library('render', src,
