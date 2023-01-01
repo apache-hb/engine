@@ -5,7 +5,7 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
-ImGuiPass::ImGuiPass(const Info& info, ImGuiUpdate update) 
+ImGuiPass::ImGuiPass(const GraphObject& info, ImGuiUpdate update) 
     : Pass(info, CommandSlot::ePost) 
     , update(update) 
 {
@@ -35,7 +35,7 @@ void ImGuiPass::execute() {
 
     update();
 
-    for (auto& [name, pass] : getParent()->passes) {
+    for (auto& [name, pass] : getParent().passes) {
         pass->imgui();
     }
 

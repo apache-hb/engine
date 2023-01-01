@@ -15,28 +15,47 @@ namespace simcoe::render {
     using State = rhi::Buffer::State;
     using Barriers = std::vector<rhi::StateTransition>;
 
-    struct Info {
+    struct GraphObject {
+        GraphObject(Graph *parent, const char *name);
+
+        Graph& getParent() const;
+        const char *getName() const;
+        Context& getContext() const;
+
+    private:
         Graph *parent;
         const char *name;
     };
 
-    Context& getContext(const Info& info);
-
-    struct Resource {
-        Resource(const Info& info)
+#if 0
+    struct Handle {
+        Handle(const Info& info)
             : info(info)
+        { }
+
+        virtual ~Handle() = default;
+
+        virtual rhi::Buffer& getBuffer() = 0;
+        virtual rhi::CpuHandle gpuHandle() = 0;
+        virtual rhi::GpuHandle cpuHandle() = 0;
+
+        Graph *getParent() const { return info.parent; }
+        const char *getName() const { return info.name; }
+        Context& getContext() const { return getContext(info); }
+
+    private:
+        Info info;
+    };
+#endif
+
+    struct Resource : GraphObject {
+        Resource(const GraphObject& info)
+            : GraphObject(info)
         { }
 
         virtual ~Resource() = default;
 
         virtual void addBarrier(Barriers& barriers, Output* before, Input* after);
-
-        Graph *getParent() const;
-        const char *getName() const;
-        Context& getContext() const;
-
-    private:
-        Info info;
     };
 
     struct Wire {
@@ -109,13 +128,13 @@ namespace simcoe::render {
         TWire *wire;
     };
 
-    struct Pass {
-        Pass(const Info& info)
+    struct Pass : GraphObject {
+        Pass(const GraphObject& info)
             : Pass(info, CommandSlot::eTotal)
         { }
 
-        Pass(const Info& info, CommandSlot::Slot slot)
-            : info(info)
+        Pass(const GraphObject& info, CommandSlot::Slot slot)
+            : GraphObject(info)
             , slot(slot)
         { }
 
@@ -145,16 +164,12 @@ namespace simcoe::render {
         std::vector<UniquePtr<Input>> inputs;
         std::vector<UniquePtr<Output>> outputs;
 
-        const char *getName() const;
-        Graph *getParent() const;
-        Context& getContext() const;
         CommandSlot::Slot getSlot() const { return slot; }
 
     protected:
         rhi::CommandList& getCommands();
 
     private:
-        Info info;
         CommandSlot::Slot slot;
     };
 

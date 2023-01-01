@@ -3,8 +3,10 @@
 #include "engine/base/container/unique.h"
 #include <stdint.h>
 
+// TODO: extract logic to common base class
+
 namespace simcoe::memory {
-    struct BitMap {
+    struct BitMap final {
         BitMap(size_t size);
 
         size_t alloc(size_t count = 1);
@@ -19,7 +21,26 @@ namespace simcoe::memory {
         void setBit(size_t bit);
         void clearBit(size_t bit);
 
-        size_t size;
+        const size_t size;
         UniquePtr<uint64_t[]> bits;
+    };
+
+    struct AtomicBitMap final {
+        AtomicBitMap(size_t size);
+
+        size_t alloc();
+        void release(size_t index);
+
+        bool testBit(size_t bit) const;
+
+    private:
+        void setBit(size_t bit);
+        void clearBit(size_t bit);
+
+        // set a bit and return true if it was previously clear
+        bool testSetBit(size_t bit);
+
+        const size_t size;
+        UniquePtr<std::atomic_uint64_t[]> bits;
     };
 }

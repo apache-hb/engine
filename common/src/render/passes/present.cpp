@@ -3,7 +3,7 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
-PresentPass::PresentPass(const Info& info)
+PresentPass::PresentPass(const GraphObject& info)
     : Pass(info, CommandSlot::ePost)
 {
     renderTargetIn = newInput<Input>("rtv", State::ePresent);

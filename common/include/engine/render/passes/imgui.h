@@ -6,7 +6,7 @@ namespace simcoe::render {
     using ImGuiUpdate = std::function<void()>;
 
     struct ImGuiPass final : Pass {
-        ImGuiPass(const Info& info, ImGuiUpdate update);
+        ImGuiPass(const GraphObject& info, ImGuiUpdate update);
 
         void init() override;
         void deinit() override;

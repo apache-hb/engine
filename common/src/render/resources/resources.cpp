@@ -8,7 +8,7 @@ namespace {
     constexpr math::float4 kLetterBox = { 0.f, 0.f, 0.f, 1.f };
 }
 
-BufferResource::BufferResource(const Info& info, size_t handle)
+BufferResource::BufferResource(const GraphObject& info, size_t handle)
     : Resource(info)
     , cbvOffset(handle)
 { }
@@ -25,12 +25,12 @@ void BufferResource::addBarrier(Barriers& barriers, Output* output, Input* input
     barriers.push_back(rhi::newStateTransition(get(), before, after));
 }
 
-RenderTargetResource::RenderTargetResource(const Info& info)
+RenderTargetResource::RenderTargetResource(const GraphObject& info)
     : BufferResource(info, SIZE_MAX)
 { }
 
-TextureResource::TextureResource(const Info& info, State initial, rhi::TextureSize size, bool hostVisible)
-    : BufferResource(info, ::getContext(info).getHeap().alloc(DescriptorSlot::eTexture))
+TextureResource::TextureResource(const GraphObject& info, State initial, rhi::TextureSize size, bool hostVisible)
+    : BufferResource(info, info.getContext().getHeap().alloc(DescriptorSlot::eTexture))
 { 
     auto& ctx = getContext();
     auto& heap = ctx.getHeap();
@@ -45,8 +45,8 @@ TextureResource::TextureResource(const Info& info, State initial, rhi::TextureSi
     buffer.rename(getName());
 }
 
-SceneTargetResource::SceneTargetResource(const Info& info, State initial)
-    : TextureResource(info, initial, render::getContext(info).sceneSize(), false)
+SceneTargetResource::SceneTargetResource(const GraphObject& info, State initial)
+    : TextureResource(info, initial, info.getContext().sceneSize(), false)
 { 
     auto& ctx = getContext();
     auto& device = ctx.getDevice();

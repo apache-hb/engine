@@ -5,6 +5,8 @@
 
 #include "engine/render/passes/present.h"
 
+#include "engine/memory/pool.h"
+
 #include "engine/assets/assets.h"
 #include "imgui/imgui.h"
 #include "imnodes/imnodes.h"
@@ -20,8 +22,8 @@ namespace {
 }
 
 struct GlobalPass final : Pass {
-    GlobalPass(const Info& info) : Pass(info, CommandSlot::ePost) {
-        rtvResource = getParent()->addResource<RenderTargetResource>("rtv");
+    GlobalPass(const GraphObject& info) : Pass(info, CommandSlot::ePost) {
+        rtvResource = getParent().addResource<RenderTargetResource>("rtv");
 
         renderTargetOut = newOutput<Source>("rtv", State::ePresent, rtvResource);
     }
@@ -31,7 +33,7 @@ struct GlobalPass final : Pass {
     void init() override {
         ImNodes::CreateContext();
 
-        auto& passes = getParent()->passes;
+        auto& passes = getParent().passes;
         int i = 0;
         for (auto& [name, pass] : passes) {
             passIds[pass.get()] = i++;
@@ -45,7 +47,7 @@ struct GlobalPass final : Pass {
         }
 
         int l = 0;
-        for (auto& [source, dst] : getParent()->wires) {
+        for (auto& [source, dst] : getParent().wires) {
             auto from = wireIds[source];
             auto to = wireIds[dst];
 
@@ -95,7 +97,7 @@ struct GlobalPass final : Pass {
         if (ImGui::Begin("Graph state")) {
             ImNodes::BeginNodeEditor();
 
-            for (auto& [name, pass] : getParent()->passes) {
+            for (auto& [name, pass] : getParent().passes) {
                 ImNodes::BeginNode(passIds[pass.get()]);
                 
                 ImNodes::BeginNodeTitleBar();
@@ -160,9 +162,9 @@ private:
     std::vector<Action> commands;
 };
 
-struct ScenePass final : Pass {
-    ScenePass(const Info& info) : Pass(info, CommandSlot::eScene) {
-        sceneTargetResource = getParent()->addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
+struct ScenePass final : Pass, assets::IWorldSink {
+    ScenePass(const GraphObject& info) : Pass(info, CommandSlot::eScene) {
+        sceneTargetResource = getParent().addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
 
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
     }
@@ -181,11 +183,11 @@ struct ScenePass final : Pass {
 
     void imgui() override {
         if (ImGui::Begin("Scene")) {
-            static char path[256] {};
+            static char path[1024] {};
             ImGui::InputTextWithHint("##", "gltf path", path, sizeof(path));
             
             if (ImGui::Button("Load model")) {
-                // todo
+                loadGltfAsync(path);
             }
         }
         ImGui::End();
@@ -229,10 +231,31 @@ private:
         { "NORMAL", rhi::Format::float32x3, offsetof(assets::Vertex, normal) },
         { "TEXCOORD", rhi::Format::float32x2, offsetof(assets::Vertex, uv) }
     });
+
+public:
+    size_t addVertexBuffer(assets::VertexBuffer&&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addIndexBuffer(assets::IndexBuffer&&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addTexture(const assets::Texture&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addPrimitive(const assets::Primitive&) override {
+        return SIZE_MAX;
+    }
+
+    size_t addNode(const assets::Node&) override {
+        return SIZE_MAX;
+    }
 };
 
 struct PostPass final : Pass {
-    PostPass(const Info& info) : Pass(info, CommandSlot::ePost) {
+    PostPass(const GraphObject& info) : Pass(info, CommandSlot::ePost) {
         sceneTargetIn = newInput<Input>("scene-target", State::ePixelShaderResource);
         sceneTargetOut = newOutput<Relay>("scene-target", sceneTargetIn); 
         

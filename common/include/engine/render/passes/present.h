@@ -4,7 +4,7 @@
 
 namespace simcoe::render {
     struct PresentPass final : Pass {
-        PresentPass(const Info& info);
+        PresentPass(const GraphObject& info);
 
         void execute() override;
 
