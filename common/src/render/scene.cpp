@@ -5,8 +5,6 @@
 
 #include "engine/render/passes/present.h"
 
-#include "engine/memory/pool.h"
-
 #include "engine/assets/assets.h"
 #include "imgui/imgui.h"
 #include "imnodes/imnodes.h"
@@ -157,13 +155,17 @@ struct AsyncDraw {
             command();
         }
     }
+
 private:
     std::mutex mutex;
     std::vector<Action> commands;
 };
 
 struct ScenePass final : Pass, assets::IWorldSink {
-    ScenePass(const GraphObject& info) : Pass(info, CommandSlot::eScene) {
+    ScenePass(const GraphObject& info) 
+        : Pass(info, CommandSlot::eScene) 
+        , textures(512)
+    {
         sceneTargetResource = getParent().addResource<SceneTargetResource>("scene-target", State::eRenderTarget);
 
         sceneTargetOut = newOutput<Source>("scene-target", State::eRenderTarget, sceneTargetResource);
@@ -241,8 +243,25 @@ public:
         return SIZE_MAX;
     }
 
-    size_t addTexture(const assets::Texture&) override {
-        return SIZE_MAX;
+    size_t addTexture(const assets::Texture& texture) override {
+        auto& ctx = getContext();
+        auto& heap = ctx.getHeap();
+
+        size_t slot = heap.alloc(DescriptorSlot::eTexture);
+        if (slot == SIZE_MAX) { return SIZE_MAX; }
+
+        size_t index = textures.alloc(slot);
+        if (index == SIZE_MAX) { return SIZE_MAX; }
+
+        auto& copy = ctx.getCopyQueue();
+
+        // TODO: this doesnt feel right
+        auto& [id, size, data] = texture;
+        auto upload = copy.beginTextureUpload(data.data(), data.size(), size);
+
+        copy.submit(upload);
+
+        return index;
     }
 
     size_t addPrimitive(const assets::Primitive&) override {
@@ -252,6 +271,9 @@ public:
     size_t addNode(const assets::Node&) override {
         return SIZE_MAX;
     }
+
+private:
+    memory::AtomicSlotMap<size_t, SIZE_MAX> textures;
 };
 
 struct PostPass final : Pass {
