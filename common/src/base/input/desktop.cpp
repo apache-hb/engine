@@ -1,5 +1,6 @@
 #include "engine/base/logging.h"
-#include "engine/input/input.h"
+#include "engine/base/input/input.h"
+
 #include <winuser.h>
 
 using namespace simcoe;

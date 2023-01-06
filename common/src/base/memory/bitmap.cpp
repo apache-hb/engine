@@ -1,4 +1,4 @@
-#include "engine/memory/bitmap.h"
+#include "engine/base/memory/bitmap.h"
 
 using namespace simcoe::memory;
 

@@ -273,7 +273,9 @@ public:
     }
 
 private:
-    memory::AtomicSlotMap<size_t, SIZE_MAX> textures;
+    using IndexMap = memory::AtomicSlotMap<size_t, SIZE_MAX>;
+    
+    IndexMap textures;
 };
 
 struct PostPass final : Pass {

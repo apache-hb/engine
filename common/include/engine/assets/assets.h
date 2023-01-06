@@ -1,6 +1,7 @@
 #pragma once
 
-#include "engine/math/math.h"
+#include "engine/base/math/math.h"
+
 #include "engine/rhi/rhi.h"
 
 #include <vector>

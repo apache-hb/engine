@@ -2,9 +2,20 @@
 
 #include "engine/base/io/io.h"
 
+#include "engine/base/container/unique.h"
+
 #include <format>
 #include <span>
+#include <unordered_map>
 
+/**
+ * logging
+ * 
+ * N categories -> M channels
+ * 
+ * categories control which channels messages are sent to
+ * channels are responsible for formatting, filtering, and sending messages
+ */
 namespace simcoe::logging {
     enum Level {
         eDebug,
@@ -14,8 +25,17 @@ namespace simcoe::logging {
         eAssert
     };
 
+    enum Category {
+        eGeneral,
+        eInput,
+        eRender,
+        eLocale,
+
+        eTotal
+    };
+
     struct IChannel {
-        IChannel(std::string_view name, Level level)
+        IChannel(const char* name, Level level)
             : level(level)
             , name(name)
         { }
@@ -47,20 +67,15 @@ namespace simcoe::logging {
 
         Level level;
 
-        const char *getName() const { return name.data(); }
+        const char *getName() const { return name; }
 
     protected:
-        std::string_view name;
+        const char* name;
     };
 
-    enum Category {
-        eGeneral,
-        eInput,
-        eRender,
-        eLocale,
+    using ChannelMap = std::unordered_map<Category, UniquePtr<IChannel>>;
 
-        eTotal
-    };
+    extern ChannelMap channels;
 
     void init();
     IChannel &get(Category category = eGeneral);

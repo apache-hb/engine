@@ -1,87 +1,49 @@
 src = [ 
+    # base
     'src/base/panic.cpp', 
     'src/base/io/io.cpp', 
     'src/base/logging.cpp', 
     'src/base/util.cpp',
     'src/base/win32.cpp',
-    'src/base/mutex.cpp'
+    'src/base/mutex.cpp',
+
+    # memory
+    'src/base/memory/bitmap.cpp',
+
+    # input
+    'src/base/input/input.cpp', 
+    'src/base/input/gamepad.cpp', 
+    'src/base/input/desktop.cpp',
+
+    # locale
+    'src/base/locale/locale.cpp'
 ]
 
 libbase = library('base', src,
     cpp_args : args,
-    link_args : [ 'dbghelp.lib' ],
+    link_args : [ 'dbghelp.lib', 'xinput.lib' ],
     include_directories : 'include'
 )
 
 base = declare_dependency(
     link_with : libbase,
-    link_args : [ 'dbghelp.lib' ],
+    link_args : [ 'dbghelp.lib', 'xinput.lib' ],
     include_directories : 'include'
-)
-
-src = [
-    'src/memory/bitmap.cpp'
-]
-
-libmemory = library('memory', src,
-    cpp_args : args,
-    include_directories : 'include',
-    dependencies : base
-)
-
-memory = declare_dependency(
-    link_with : libmemory,
-    include_directories : 'include',
-    dependencies : base
 )
 
 subdir('vendor')
-
-src = [ 'src/locale/locale.cpp' ]
-
-liblocale = library('locale', src,
-    cpp_args : args,
-    dependencies : base,
-    include_directories : 'include'
-)
-
-locale = declare_dependency(
-    link_with : liblocale,
-    dependencies : base,
-    include_directories : 'include'
-)
-
-src = [ 
-    'src/input/input.cpp', 
-    'src/input/gamepad.cpp', 
-    'src/input/desktop.cpp' 
-]
-
-libinput = library('input', src,
-    cpp_args : args,
-    link_args : [ 'xinput.lib' ],
-    dependencies : [ base, locale ],
-    include_directories : 'include'
-)
-
-input = declare_dependency(
-    link_with : libinput,
-    link_args : [ 'xinput.lib' ],
-    dependencies : base,
-    include_directories : 'include'
-)
 
 src = [ 'src/window/window.cpp' ]
 
 libwindow = library('window', src,
     cpp_args : args,
-    dependencies : [ base, input, imgui ],
+    dependencies : [ base, imgui ],
     include_directories : 'include'
 )
 
 window = declare_dependency(
     link_with : libwindow,
-    dependencies : [ base, input ],
+    dependencies : [ base ],
     include_directories : 'include'
 )
 
@@ -137,13 +99,13 @@ src = [
 
 libassets = library('assets', src,
     cpp_args : args,
-    dependencies : [ base, memory, rhi, gltf ],
+    dependencies : [ base, rhi, gltf ],
     include_directories : 'include'
 )
 
 assets = declare_dependency(
     link_with : libassets,
-    dependencies : [ base, memory, gltf ],
+    dependencies : [ base, gltf ],
     include_directories : 'include'
 )
 
@@ -162,13 +124,13 @@ src = [
 
 librender = library('render', src,
     cpp_args : args,
-    dependencies : [ base, rhi, window, memory, gltf, widgets, assets, queue ],
+    dependencies : [ base, rhi, window, gltf, widgets, assets, queue ],
     include_directories : 'include'
 )
 
 render = declare_dependency(
     link_with : librender,
-    dependencies : [ base, rhi, window, memory, queue ],
+    dependencies : [ base, rhi, window, queue ],
     include_directories : 'include'
 )
 
@@ -178,12 +140,12 @@ src = [
 
 libaudio = library('audio', src,
     cpp_args : args,
-    dependencies : [ base, memory ],
+    dependencies : [ base ],
     include_directories : 'include'
 )
 
 audio = declare_dependency(
     link_with : libaudio,
-    dependencies : [ base, memory ],
+    dependencies : [ base ],
     include_directories : 'include'
 )

@@ -24,7 +24,7 @@ namespace {
 }
 
 struct IoChannel final : IChannel {
-    IoChannel(std::string_view name, std::string_view path, Level level = eFatal)
+    IoChannel(const char* name, std::string_view path, Level level = eFatal)
         : IChannel(name, level)
         , io(Io::open(path, Io::eWrite))
     { }
@@ -39,7 +39,7 @@ private:
 };
 
 struct ConsoleChannel final : IChannel {
-    ConsoleChannel(std::string_view name, Level level = eInfo)
+    ConsoleChannel(const char* name, Level level = eInfo)
         : IChannel(name, level)
     { }
 
@@ -50,7 +50,7 @@ protected:
 };
 
 struct DebugChannel final : IChannel {
-    DebugChannel(std::string_view name, Level level = eInfo)
+    DebugChannel(const char* name, Level level = eInfo)
         : IChannel(name, level)
     { }
 
@@ -62,7 +62,7 @@ protected:
 
 template<size_t N>
 struct MultiChannel final : IChannel {
-    MultiChannel(std::string_view name, std::array<IChannel*, N> channels, Level level = eDebug)
+    MultiChannel(const char* name, std::array<IChannel*, N> channels, Level level = eDebug)
         : IChannel(name, level)
         , channels(channels)
     { }
@@ -89,15 +89,12 @@ void IChannel::process(Level reportLevel, std::string_view message) {
 }
 
 namespace {
-    std::vector<IChannel*> channels;
-
-    IChannel *addChannel(IChannel *it) {
-        channels.push_back(it);
-        return it;
-    }
-
-    IChannel *kSinks[eTotal];
+    auto *kFileChannel = new IoChannel("general", "game.log");
 }
+
+logging::ChannelMap logging::channels = {
+    { eGeneral, }
+};
 
 void logging::init() {
     auto *fileLogger = addChannel(new IoChannel("general", "game.log"));
@@ -113,5 +110,5 @@ void logging::init() {
 }
 
 IChannel &logging::get(Category category) {
-    return *kSinks[category];
+    return *channels[category].get();
 }
