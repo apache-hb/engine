@@ -2,6 +2,9 @@
 #include "engine/base/io/io.h"
 #include "engine/base/container/unique.h"
 #include "engine/base/win32.h"
+
+#include "engine/base/memory/slotmap.h"
+
 #include "vendor/imgui/imgui.h"
 
 #include <ranges>
@@ -12,6 +15,18 @@ using namespace simcoe;
 using namespace simcoe::logging;
 
 namespace {
+    struct CategoryInfo {
+        Category category;
+        std::string_view name;
+    };
+
+    constexpr auto kCategoryInfo = std::to_array<CategoryInfo>({
+        { eGeneral, "general" },
+        { eInput, "input" },
+        { eRender, "render" },
+        { eLocale, "locale" },
+    });
+
     constexpr std::string_view levelName(Level level) {
         switch (level) {
         case eInfo: return "info";
@@ -24,7 +39,7 @@ namespace {
 }
 
 struct IoChannel final : IChannel {
-    IoChannel(const char* name, std::string_view path, Level level = eFatal)
+    IoChannel(std::string_view name, std::string_view path, Level level = eFatal)
         : IChannel(name, level)
         , io(Io::open(path, Io::eWrite))
     { }
@@ -39,7 +54,7 @@ private:
 };
 
 struct ConsoleChannel final : IChannel {
-    ConsoleChannel(const char* name, Level level = eInfo)
+    ConsoleChannel(std::string_view name, Level level = eInfo)
         : IChannel(name, level)
     { }
 
@@ -50,7 +65,7 @@ protected:
 };
 
 struct DebugChannel final : IChannel {
-    DebugChannel(const char* name, Level level = eInfo)
+    DebugChannel(std::string_view name, Level level = eInfo)
         : IChannel(name, level)
     { }
 
@@ -60,12 +75,23 @@ protected:
     }
 };
 
-template<size_t N>
 struct MultiChannel final : IChannel {
-    MultiChannel(const char* name, std::array<IChannel*, N> channels, Level level = eDebug)
+    MultiChannel(std::string_view name, std::vector<IChannel*> input, Level level = eDebug)
         : IChannel(name, level)
-        , channels(channels)
-    { }
+        , channels(16)
+    { 
+        for (auto channel : input) {
+            channels.alloc(channel);
+        }
+    }
+
+    v2::ChannelTag add(IChannel *channel) {
+        return static_cast<v2::ChannelTag>(channels.alloc(channel));
+    }
+
+    void remove(v2::ChannelTag tag) {
+        channels.update(size_t(tag), nullptr);
+    }
 
 protected:
     void send(Level reportLevel, const std::string_view message) override {
@@ -75,7 +101,9 @@ protected:
     }
 
 private:
-    std::array<IChannel*, N> channels;
+    using IndexMap = memory::AtomicSlotMap<IChannel*>;
+
+    IndexMap channels;
 };
 
 void IChannel::process(Level reportLevel, std::string_view message) {
@@ -88,27 +116,50 @@ void IChannel::process(Level reportLevel, std::string_view message) {
     }
 }
 
-namespace {
-    auto *kFileChannel = new IoChannel("general", "game.log");
-}
-
-logging::ChannelMap logging::channels = {
-    { eGeneral, }
-};
-
 void logging::init() {
-    auto *fileLogger = addChannel(new IoChannel("general", "game.log"));
-    auto *consoleLogger = addChannel(new ConsoleChannel("general", eDebug));
-    auto *debugLogger = addChannel(new DebugChannel("general", eDebug));
-
-    IChannel *generalChannels[] { fileLogger, consoleLogger, debugLogger };
-
-    kSinks[eGeneral] = addChannel(new MultiChannel<3>("general", std::to_array(generalChannels)));
-    kSinks[eInput] = kSinks[eGeneral];
-    kSinks[eRender] = kSinks[eGeneral];
-    kSinks[eLocale] = kSinks[eGeneral];
+    
 }
 
-IChannel &logging::get(Category category) {
-    return *channels[category].get();
+namespace simcoe::logging::detail {
+    void info(Category category, std::string_view message) {
+        logging::v2::get(category).process(eInfo, message);
+    }
+
+    void warn(Category category, std::string_view message) {
+        logging::v2::get(category).process(eWarn, message);
+    }
+
+    void fatal(Category category, std::string_view message) {
+        logging::v2::get(category).process(eFatal, message);
+    }
+}
+
+namespace simcoe::logging::v2 {
+    ChannelMap channels = []() -> ChannelMap {
+        ChannelMap result;
+
+        auto *file = new IoChannel("general", "game.log");
+        auto *console = new ConsoleChannel("general", eDebug);
+        auto *debug = new DebugChannel("general", eDebug);
+
+        for (auto [category, name] : kCategoryInfo) {
+            result.emplace(category, new MultiChannel(name, { file, console, debug }));
+        }
+
+        return result;
+    }();
+
+    IChannel& get(Category category) {
+        return *channels[category].get();
+    }
+
+    ChannelTag add(Category category, IChannel *channel) {
+        auto *it = static_cast<MultiChannel*>(channels[category].get());
+        return it->add(channel);
+    }
+
+    void remove(Category category, ChannelTag tag) {
+        auto *it = static_cast<MultiChannel*>(channels[category].get());
+        it->remove(tag);
+    }
 }

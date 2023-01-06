@@ -81,11 +81,11 @@ struct Defer {
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Defer _ { [] { logging::get(logging::eGeneral).info("clean exit from wWinMain"); } };
+    Defer _ { [] { logging::v2::info("clean exit from wWinMain"); } };
     return commonMain();
 }
 
 int main(int, const char **) {
-    Defer _ { [] { logging::get(logging::eGeneral).info("clean exit from main"); } };
+    Defer _ { [] { logging::v2::info("clean exit from main"); } };
     return commonMain();
 }

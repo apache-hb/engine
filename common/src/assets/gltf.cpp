@@ -337,14 +337,14 @@ namespace {
         IWorldSink *scene;
         size_t defaultTexture;
         const gltf::Model& model;
-        logging::IChannel& log = logging::get(logging::eRender);
+        logging::IChannel& log = logging::v2::get(logging::eRender);
         std::unordered_map<size_t, size_t> textureIndices;
     };
 }
 
 void IWorldSink::loadGltfAsync(const char* path) {
     std::thread([this, path] {
-        auto &channel = logging::get(logging::eRender);
+        auto &channel = logging::v2::get(logging::eRender);
         channel.info("loading gltf model {}", path);
 
         gltf::Model model;

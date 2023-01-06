@@ -34,7 +34,7 @@ namespace simcoe {
         [[nodiscard]] Type *operator->() { return Super::get(); }
         [[nodiscard]] const Type *operator->() const { return Super::get(); }
 
-        [[nodiscard]] Type **operator&() { return Super::ref(); }
-        [[nodiscard]] const Type**operator&() const { return Super::ref(); }
+        [[nodiscard]] Type **operator&() { return Super::addr(); }
+        [[nodiscard]] const Type**operator&() const { return Super::addr(); }
     };
 }

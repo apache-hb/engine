@@ -41,7 +41,7 @@ namespace {
     }
 
     void rhiDebugCallback(D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR desc, void *) {
-        auto& channel = logging::get(logging::eRender);
+        auto& channel = logging::v2::get(logging::eRender);
 
         switch (severity) {
         default:
@@ -63,7 +63,7 @@ namespace {
 }
 
 rhi::Device rhi::getDevice() {
-    auto &channel = logging::get(logging::eRender);
+    auto &channel = logging::v2::get(logging::eRender);
 
     HR_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&gDebug)));
 

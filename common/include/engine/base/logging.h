@@ -35,7 +35,7 @@ namespace simcoe::logging {
     };
 
     struct IChannel {
-        IChannel(const char* name, Level level)
+        IChannel(std::string_view name, Level level)
             : level(level)
             , name(name)
         { }
@@ -67,16 +67,55 @@ namespace simcoe::logging {
 
         Level level;
 
-        const char *getName() const { return name; }
+        std::string_view getName() const { return name; }
 
     protected:
-        const char* name;
+        std::string_view name;
     };
-
-    using ChannelMap = std::unordered_map<Category, UniquePtr<IChannel>>;
-
-    extern ChannelMap channels;
 
     void init();
     IChannel &get(Category category = eGeneral);
+
+    namespace detail {
+        void info(Category category, std::string_view message);
+        void warn(Category category, std::string_view message);
+        void fatal(Category category, std::string_view message);
+    }
+
+    namespace v2 {
+        using Channel = UniquePtr<IChannel>;
+        using ChannelMap = std::unordered_map<Category, Channel>;
+
+        enum struct ChannelTag : size_t {};
+
+        extern ChannelMap channels;
+
+        IChannel& get(Category category);
+        ChannelTag add(Category category, Channel channel);
+        void remove(Category category, ChannelTag id);
+
+        void info(Category category, std::string_view message, auto&&... args) {
+            detail::info(category,  std::vformat(message, std::make_format_args(args...)));
+        }
+
+        void warn(Category category, std::string_view message, auto&&... args) {
+            detail::warn(category, std::vformat(message, std::make_format_args(args...)));
+        }
+
+        void fatal(Category category, std::string_view message, auto&&... args) {
+            detail::fatal(category, std::vformat(message, std::make_format_args(args...)));
+        }
+
+        void info(std::string_view message, auto&&... args) {
+            info(eGeneral, message, args...);       
+        }
+
+        void warn(std::string_view message, auto&&... args) {
+            warn(eGeneral, message, args...);
+        }
+
+        void fatal(std::string_view message, auto&&... args) {
+            fatal(eGeneral, message, args...);
+        }
+    }
 }

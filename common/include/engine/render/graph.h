@@ -212,7 +212,7 @@ namespace simcoe::render {
         std::unordered_map<const char*, UniquePtr<Resource>> resources;
         std::unordered_map<Input*, Output*> wires; // map of input to the output it is reading from
     
-        logging::IChannel& channel = logging::get(logging::eRender);
+        logging::IChannel& channel = logging::v2::get(logging::eRender);
 
         Context& getContext() const { return ctx; }
 
