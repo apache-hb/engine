@@ -234,6 +234,7 @@ struct PresentPass final : Pass {
 
 struct AsyncDraw {
     using Action = std::function<void()>;
+
     void add(Action action) {
         std::lock_guard lock(mutex);
         commands.push_back(std::move(action));
@@ -267,12 +268,16 @@ struct ScenePass final : Pass {
 
         cmd.setViewAndScissor(rhi::View(0, 0, width, height));
         cmd.clearRenderTarget(sceneTargetResource->rtvHandle(), kClearColour);
+    
+        draws.apply();
     }
 
     SceneTargetResource *sceneTargetResource;
     Output *sceneTargetOut;
 
 private:
+    AsyncDraw draws;
+
     constexpr static auto kSamplers = std::to_array<rhi::Sampler>({
         { rhi::ShaderVisibility::ePixel }
     });
