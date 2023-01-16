@@ -47,8 +47,8 @@ namespace simcoe {
         [[nodiscard]] T get() { ASSERT(valid()); return data; }
         [[nodiscard]] const T get() const { ASSERT(valid()); return data; }
 
-        [[nodiscard]] T *ref() { return &data; }
-        [[nodiscard]] const T* ref() const { return &data; }
+        [[nodiscard]] T *addr() { return &data; }
+        [[nodiscard]] const T* addr() const { return &data; }
 
     protected:
         void destroy() {

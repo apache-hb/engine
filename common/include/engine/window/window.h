@@ -1,10 +1,10 @@
 #pragma once
 
-#include "engine/math/math.h"
+#include "engine/base/math/math.h"
+#include "engine/base/input/input.h"
+
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
-
-#include "engine/input/input.h"
 
 namespace simcoe {
     struct Window {

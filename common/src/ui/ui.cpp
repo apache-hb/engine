@@ -12,15 +12,17 @@ Window *ui::init(const ui::Create& info) {
     io.IniFilename = info.imgui;
 
     ImGui::StyleColorsDark();
-
+    
     auto [width, height] = info.size;
     auto* window = new Window { width, height, info.title };
-    auto dpi = window->dpi();
+    size_t dpi = window->dpi();
+
+    float size = float(dpi) / (96.f / 13.f);
 
     ImFontConfig config;
-    config.SizePixels = float(dpi) / (96.f / 13.f);
+    config.SizePixels = size;
 
-    io.Fonts->AddFontFromFileTTF(".\\resources\\DroidSans.ttf", float(dpi) / (96.f / 13.f), &config);
+    io.Fonts->AddFontFromFileTTF(".\\resources\\DroidSans.ttf", size, &config);
 
     static const ImWchar polishRanges[] = {
         0x0020, 0x00FF, // Basic Latin + Latin Supplement
@@ -28,7 +30,7 @@ Window *ui::init(const ui::Create& info) {
         0
     };
     config.MergeMode = true;
-    io.Fonts->AddFontFromFileTTF(".\\resources\\DroidSans.ttf", float(dpi) / (96.f / 13.f), &config, polishRanges);
+    io.Fonts->AddFontFromFileTTF(".\\resources\\DroidSans.ttf", size, &config, polishRanges);
     io.DisplayFramebufferScale = { dpi / 96.f, dpi / 96.f };
     io.Fonts->Build();
 

@@ -50,7 +50,7 @@ void CopyQueue::wait() {
     // if theres no work bail
     if (results.empty()) { return; }
 
-    logging::get(logging::eRender).info("copy(pending={})", results.size());
+    logging::v2::info(logging::eRender, "copy(pending={})", results.size());
 
     // submit all the work
     list.beginRecording(alloc);

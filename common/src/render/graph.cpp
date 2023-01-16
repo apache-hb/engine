@@ -79,18 +79,26 @@ void Resource::addBarrier(Barriers &, Output *before, Input *after) {
     after->resource = before->resource;
 }
 
-Context& render::getContext(const Info& info) {
-    return info.parent->getContext();
+GraphObject::GraphObject(Graph *parent, const char *name)
+    : parent(parent)
+    , name(name)
+{ }
+
+Graph& GraphObject::getParent() const { 
+    return *parent; 
 }
 
-Graph *Resource::getParent() const { return info.parent; }
-const char *Resource::getName() const { return info.name; }
-Context& Resource::getContext() const { return getParent()->getContext(); }
+const char *GraphObject::getName() const { 
+    return name; 
+}
 
-Graph *Pass::getParent() const { return info.parent; }
-const char *Pass::getName() const { return info.name; }
-Context& Pass::getContext() const { return getParent()->getContext(); }
-rhi::CommandList& Pass::getCommands() { return getContext().getCommands(getSlot()); }
+Context& GraphObject::getContext() const { 
+    return getParent().getContext(); 
+}
+
+rhi::CommandList& Pass::getCommands() { 
+    return getContext().getCommands(getSlot()); 
+}
 
 void Output::update(Barriers& barriers, Input* input) { 
     ASSERTF(resource != nullptr, "output `{}:{}` was null", getName(), getPass()->getName());

@@ -1,6 +1,5 @@
-#include "engine/input/input.h"
-
-#include "engine/locale/locale.h"
+#include "engine/base/input/input.h"
+#include "engine/base/locale/locale.h"
 
 using namespace simcoe;
 using namespace simcoe::input;
@@ -9,7 +8,7 @@ namespace {
     std::string_view id(Device device) {
         switch (device) {
 #define DEVICE(id, name) case Device::id: return name;
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
         default: return "input.device.unknown";
         }
     }
@@ -17,7 +16,7 @@ namespace {
     std::string_view id(Key::Slot key) {
         switch (key) {
 #define KEY(id, name) case Key::id: return name;
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
         default: return "input.key.unknown";
         }
     }
@@ -25,7 +24,7 @@ namespace {
     std::string_view id(Axis::Slot axis) {
         switch (axis) {
 #define AXIS(id, name) case Axis::id: return name;
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
         default: return "input.axis.unknown";
         }
     }

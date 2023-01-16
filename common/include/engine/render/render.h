@@ -2,8 +2,9 @@
 
 #include "engine/rhi/rhi.h"
 
-#include "engine/memory/bitmap.h"
-#include "engine/memory/slotmap.h"
+#include "engine/base/memory/bitmap.h"
+#include "engine/base/memory/slotmap.h"
+
 #include "engine/window/window.h"
 
 #include "engine/render/queue.h"

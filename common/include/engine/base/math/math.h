@@ -206,20 +206,21 @@ namespace simcoe::math {
 
     template<typename T>
     struct Mat3x3 {
-        Vec3<T> rows[3];
+        using Row = Vec3<T>;
+        Row rows[3];
 
-        static constexpr Mat3x3 from(const Vec3<T>& row0, const Vec3<T>& row1, const Vec3<T>& row2) {
+        static constexpr Mat3x3 from(const Row& row0, const Row& row1, const Row& row2) {
             return { row0, row1, row2 };
         }
 
         static constexpr Mat3x3 of(T it) {
-            return from(Vec3<T>::of(it), Vec3<T>::of(it), Vec3<T>::of(it));
+            return from(Row::of(it), Row::of(it), Row::of(it));
         }
 
         static constexpr Mat3x3 identity() {
-            auto row1 = Vec3<T>::from(1, 0, 0);
-            auto row2 = Vec3<T>::from(0, 1, 0);
-            auto row3 = Vec3<T>::from(0, 0, 1);
+            auto row1 = Row::from(1, 0, 0);
+            auto row2 = Row::from(0, 1, 0);
+            auto row3 = Row::from(0, 0, 1);
             return from(row1, row2, row3);
         }
     };
@@ -344,11 +345,11 @@ namespace simcoe::math {
             return from(row0, row1, row2, row3);
         }
 
-        constexpr Vec3<T> scale() const {
-            return Vec3<T>::from(at(0, 0), at(1, 1), at(2, 2));
+        constexpr Row3 scale() const {
+            return Row3::from(at(0, 0), at(1, 1), at(2, 2));
         }
 
-        constexpr void setScale(const Vec3<T>& scale) {
+        constexpr void setScale(const Row3& scale) {
             at(0, 0) = scale.x;
             at(1, 1) = scale.y;
             at(2, 2) = scale.z;
@@ -366,17 +367,17 @@ namespace simcoe::math {
             return from(row0, row1, row2, row3);
         }
 
-        constexpr Vec3<T> translation() const {
-            return Vec3<T>::from(at(0, 3), at(1, 3), at(2, 3));
+        constexpr Row3 translation() const {
+            return Row3::from(at(0, 3), at(1, 3), at(2, 3));
         }
 
-        constexpr void setTranslation(const Vec3<T>& translation) {
+        constexpr void setTranslation(const Row3& translation) {
             at(0, 3) = translation.x;
             at(1, 3) = translation.y;
             at(2, 3) = translation.z;
         }
 
-        static constexpr Mat4x4 rotation(T angle, Vec3<T> axis) {
+        static constexpr Mat4x4 rotation(T angle, const Row3& axis) {
             auto c = std::cos(angle);
             auto s = std::sin(angle);
             auto t = 1 - c;

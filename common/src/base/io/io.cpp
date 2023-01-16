@@ -4,7 +4,7 @@
 
 using namespace simcoe;
 
-struct File : Io {
+struct File final : Io {
     File(std::string_view name, Mode mode) : Io(name, mode) {
         DWORD dwAccess = ((mode & eRead) ? GENERIC_READ : 0)
                        | ((mode & eWrite) ? GENERIC_WRITE : 0);
@@ -33,6 +33,10 @@ struct File : Io {
         LARGE_INTEGER size;
         GetFileSizeEx(handle, &size);
         return size_t(size.QuadPart);
+    }
+
+    bool valid() const override {
+        return handle != INVALID_HANDLE_VALUE;
     }
 
 private:

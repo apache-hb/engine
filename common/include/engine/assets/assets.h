@@ -1,6 +1,7 @@
 #pragma once
 
-#include "engine/math/math.h"
+#include "engine/base/math/math.h"
+
 #include "engine/rhi/rhi.h"
 
 #include <vector>
@@ -43,7 +44,20 @@ namespace simcoe::assets {
 
         void loadGltfAsync(const char* path);
 
+        /**
+         * @brief add a vertex buffer
+         * 
+         * @param verts the vertex buffer data
+         * @return size_t the index at which the data was stored
+         */
         virtual size_t addVertexBuffer(VertexBuffer&& verts) = 0;
+
+        /**
+         * @brief add an index buffer
+         * 
+         * @param indices the index buffer data
+         * @return size_t the index at which the data was stored
+         */
         virtual size_t addIndexBuffer(IndexBuffer&& indices) = 0;
 
         virtual size_t addTexture(const Texture& texture) = 0;

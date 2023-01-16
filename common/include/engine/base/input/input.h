@@ -3,8 +3,9 @@
 #include "engine/base/logging.h"
 #include "engine/base/macros.h"
 #include "engine/base/util.h"
-#include "engine/math/math.h"
 #include "engine/base/win32.h"
+
+#include "engine/base/math/math.h"
 
 #include <xinput.h>
 
@@ -14,7 +15,7 @@ namespace simcoe::input {
     namespace Key {
         enum Slot : unsigned {
 #define KEY(id, name) id,
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
 
             eTotal
         };
@@ -23,7 +24,7 @@ namespace simcoe::input {
     namespace Axis {
         enum Slot : unsigned {
 #define AXIS(id, name) id,
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
 
             eTotal
         };
@@ -31,7 +32,7 @@ namespace simcoe::input {
 
     enum struct Device {
 #define DEVICE(id, name) id,
-#include "engine/input/input.inl"
+#include "engine/base/input/input.inl"
 
         eTotal
     };

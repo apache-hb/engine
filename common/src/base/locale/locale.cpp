@@ -1,4 +1,5 @@
-#include "engine/locale/locale.h"
+#include "engine/base/locale/locale.h"
+
 #include "engine/base/logging.h"
 #include "engine/base/panic.h"
 
@@ -34,23 +35,24 @@ std::string_view locale::get(std::string_view key, const Locale *locale) {
     const Locale *it = locale ? locale : current;
     // TODO: an allocation for every query? really?
     // whoever designed the hashmap interface is a moron
+    
     auto name = std::string(key);
-    auto& channel = logging::get(logging::eLocale);
     if (!it->keys.contains(name)) {
-        channel.warn("Missing key `{}` in locale `{}`", key, id(it->lang));
+        logging::v2::warn(logging::eLocale, "Missing key `{}` in locale `{}`", key, id(it->lang));
         return key;
     }
+
     return it->keys.at(name);
 }
 
 void locale::set(Locale *it) {
-    logging::get(logging::eLocale).info("setting current locale to {}", id(it->lang));
+    logging::v2::info(logging::eLocale, "setting current locale to {}", id(it->lang));
     current = it;
 }
 
 Locale *locale::load(Lang lang, std::string_view path) {
     std::ifstream input(std::string(path).c_str());
-    auto& channel = logging::get(logging::eLocale);
+    auto& channel = logging::v2::get(logging::eLocale);
 
     Locale *it = new Locale { lang, { } };
 

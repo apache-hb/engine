@@ -77,14 +77,12 @@ namespace {
 }
 
 NORETURN simcoe::panic(const simcoe::PanicInfo &info, const std::string &msg) {
-    auto& sink = logging::get(logging::eGeneral);
-    
     auto stack = getStackTrace();
     auto formatted = std::format("error: {} at [{}:{}@{}]", msg, info.file, info.line, info.function);
     
-    sink.fatal("{}", formatted);
+    logging::v2::fatal("{}", formatted);
     for (const auto &frame : stack) {
-        sink.fatal("- {}", frame);
+        logging::v2::fatal("- {}", frame);
     }
 
     win32::showCursor(true);

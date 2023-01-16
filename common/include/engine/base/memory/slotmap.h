@@ -5,7 +5,7 @@
 #include <atomic>
 
 namespace simcoe::memory {
-    template<typename T, T Empty>
+    template<typename T, T Empty = T()>
     struct SlotMap {
         SlotMap(size_t size)
             : used(0)
@@ -80,7 +80,7 @@ namespace simcoe::memory {
         UniquePtr<T[]> bits;
     };
 
-    template<typename T, T Empty>
+    template<typename T, T Empty = T()>
     struct AtomicSlotMap {
         using AtomicType = std::atomic<T>;
 
@@ -127,6 +127,44 @@ namespace simcoe::memory {
         size_t getUsed() const { return used; }
 
     private:
+        struct Iter {
+            Iter(size_t index, const AtomicSlotMap &self)
+                : index(index)
+                , self(self)
+            {}
+
+            Iter &operator++() {
+                ++index;
+                return *this;
+            }
+
+            bool operator!=(const Iter &other) const {
+                return index != other.index;
+            }
+
+            T operator*() {
+                while (self.testBit(index, Empty)) {
+                    ++index;
+                }
+
+                return self.getBit(index);
+            }
+
+        private:
+            size_t index;
+            const AtomicSlotMap &self;
+        };
+
+    public:
+        Iter begin() const {
+            return Iter(0, *this);
+        }
+
+        Iter end() const {
+            return Iter(getSize(), *this);
+        }
+
+    private:    
         std::atomic_size_t used;
         const size_t size;
         UniquePtr<AtomicType[]> bits;

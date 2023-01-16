@@ -4,11 +4,11 @@
 #include "engine/base/win32.h"
 #include "engine/base/util.h"
 
-#include "engine/input/input.h"
+#include "engine/base/input/input.h"
 
-#include "engine/locale/locale.h"
+#include "engine/base/locale/locale.h"
 
-#include "engine/math/consts.h"
+#include "engine/base/math/consts.h"
 #include "engine/render/scene.h"
 
 #include "engine/ui/ui.h"
@@ -81,11 +81,11 @@ struct Defer {
 };
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Defer _ { [] { logging::get(logging::eGeneral).info("clean exit from wWinMain"); } };
+    Defer _ { [] { logging::v2::info("clean exit from wWinMain"); } };
     return commonMain();
 }
 
 int main(int, const char **) {
-    Defer _ { [] { logging::get(logging::eGeneral).info("clean exit from main"); } };
+    Defer _ { [] { logging::v2::info("clean exit from main"); } };
     return commonMain();
 }

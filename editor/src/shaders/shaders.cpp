@@ -41,8 +41,6 @@ void shaders::init() {
 }
 
 std::vector<std::byte> shaders::compile(const std::string& text, shaders::Target target, bool debug) {
-    auto& channel = logging::get(logging::eRender);
-
     com::UniqueComPtr<IDxcBlobEncoding> source;
     com::UniqueComPtr<IDxcResult> result;
     com::UniqueComPtr<IDxcBlobUtf8> errors;
@@ -79,7 +77,7 @@ std::vector<std::byte> shaders::compile(const std::string& text, shaders::Target
 
     result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
     if (errors && errors->GetStringLength() > 0) {
-        channel.warn("Shader compilation failed: {}", errors->GetStringPointer());
+        logging::v2::warn(logging::eRender, "Shader compilation failed: {}", errors->GetStringPointer());
         return {};
     }
 

@@ -99,7 +99,7 @@ struct CameraListener final : input::Listener {
         state = input;
 
         if (console.update(input.key[Key::keyTilde])) {
-            logging::get(logging::eInput).info("console: {}", console.get());
+            logging::v2::info(logging::eInput, "console: {}", console.get());
 
             keyboard.captureInput(!console.get());
         }
