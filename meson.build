@@ -21,15 +21,19 @@ args = [
     '/wd4127' # warnings about if constexpr
 ]
 
-d3d12 = subproject('d3d12').get_variable('d3d12')
-gltf = subproject('tinygltf').get_variable('gltf')
-queue = subproject('atomic-queue').get_variable('queue')
+subdir('simcoe')
 
-# compile libraries that are shared between game and editor
-subdir('common')
-
-# compile game specific libraries
 subdir('game')
 
+#d3d12 = subproject('d3d12').get_variable('d3d12')
+#gltf = subproject('tinygltf').get_variable('gltf')
+#queue = subproject('atomic-queue').get_variable('queue')
+
+# compile libraries that are shared between game and editor
+# subdir('common')
+
+# compile game specific libraries
+# subdir('game')
+
 # compile editor specific libraries
-subdir('editor')
+# subdir('editor')

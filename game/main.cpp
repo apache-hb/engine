@@ -1,91 +1,34 @@
-#include "engine/base/macros.h"
-#include "engine/base/io/io.h"
-#include "engine/base/logging.h"
-#include "engine/base/win32.h"
-#include "engine/base/util.h"
+#include <windows.h>
 
-#include "engine/base/input/input.h"
-
-#include "engine/base/locale/locale.h"
-
-#include "engine/base/math/consts.h"
-#include "engine/render/scene.h"
-
-#include "engine/ui/ui.h"
-
-#include "engine/audio/audio.h"
-
-#include "imgui.h"
+#include "simcoe/core/logging.h"
+#include "simcoe/core/window.h"
 
 using namespace simcoe;
-using namespace simcoe::math;
-using namespace simcoe::input;
-using namespace simcoe::audio;
 
 int commonMain() {
-    win32::init();  
-    logging::init();
+    logging::ConsoleSink console { "console" };
+    logging::FileSink file { "file", "game.log" };
 
-    // make a fullscreen borderless window on the primary monitor
-    int width = GetSystemMetrics(SM_CXSCREEN);
-    int height = GetSystemMetrics(SM_CYSCREEN);
+    logging::Category category { logging::eInfo, "general" };
+    category.addSink(&console);
+    category.addSink(&file);
 
-    UniquePtr<Window> window = ui::init({
-        .title = "game",
-        .size = { width, height },
-        .imgui = "game.ini"
-    });
+    logging::fatal(category, "hello, {}!", "world");
 
-    input::Keyboard keyboard { false };
-    input::Gamepad gamepad0 { 0 };
-    input::Gamepad gamepad1 { 1 };
+    platform::Window::Size size { 800, 600 };
+    platform::Window window { "Game", size };
 
-    input::Manager manager { { &keyboard, &gamepad0, &gamepad1 }, { } };
-
-    audio::Audio audio;
-
-    render::ContextInfo info {
-        .window = window.get(),
-        .frames = 2,
-        .resolution = { 640, 480 },
-    };
-    render::Context context { info };
-
-    render::WorldGraphInfo worldInfo {
-        .ctx = context,
-        .update = [&] { 
-            ImGui::ShowDemoWindow();
-        }
-    };
-
-    render::WorldGraph world { worldInfo };
-
-    world.init();
-
-    while (window->poll(&keyboard)) {
-        manager.poll();
-        world.execute();
+    while (window.poll()) {
+        // do stuff
     }
-
-    world.deinit();
 
     return 0;
 }
 
-template<typename F>
-struct Defer {
-    Defer(F func) : func(func) { }
-    ~Defer() { func(); }
-
-    F func;
-};
-
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    Defer _ { [] { logging::v2::info("clean exit from wWinMain"); } };
     return commonMain();
 }
 
 int main(int, const char **) {
-    Defer _ { [] { logging::v2::info("clean exit from main"); } };
     return commonMain();
 }
