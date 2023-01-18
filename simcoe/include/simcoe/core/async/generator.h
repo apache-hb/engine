@@ -1,5 +1,7 @@
 #pragma once
 
+#include "simcoe/core/panic.h"
+
 #include <coroutine>
 #include <xutility>
 
@@ -16,7 +18,7 @@ namespace simcoe::async {
             auto get_return_object() noexcept { return Generator(handle_type::from_promise(*this)); }
             auto initial_suspend() noexcept { return std::suspend_always(); }
             auto final_suspend() noexcept { return std::suspend_always(); }
-            void unhandled_exception() noexcept { std::abort(); }
+            void unhandled_exception() noexcept { ASSERT(false); }
 
             auto yield_value(T value) noexcept {
                 current = value;

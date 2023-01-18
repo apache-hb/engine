@@ -7,16 +7,16 @@ namespace {
     constexpr const char *kpzClassName = "simcoe::Window";
     HMODULE khInstance = GetModuleHandle(nullptr);
 
-    DWORD getStyle(Window::Style style) {
+    DWORD getStyle(WindowStyle style) {
         switch (style) {
-        case Window::eWindow: return WS_OVERLAPPEDWINDOW;
-        case Window::eBorderless: return WS_POPUP;
+        case WindowStyle::eWindow: return WS_OVERLAPPEDWINDOW;
+        case WindowStyle::eBorderless: return WS_POPUP;
         default: return 0; // TODO: assert unreachable
         }
     }
 }
 
-Window::Window(const char *pzTitle, const Size& size, Style style) { 
+Window::Window(const char *pzTitle, const Size& size, WindowStyle style) { 
     // TODO: validate args
 
     RECT desktop;
@@ -55,7 +55,7 @@ Window::~Window() {
     UnregisterClass(kpzClassName, khInstance);
 }
 
-void Window::restyle(Style style) {
+void Window::restyle(WindowStyle style) {
     SetWindowLong(hWindow, GWL_STYLE, getStyle(style));
 }
 
@@ -107,4 +107,10 @@ bool Window::poll() {
     }
 
     return true;
+}
+
+Size Window::size() {
+    RECT rect;
+    GetClientRect(hWindow, &rect);
+    return Size { size_t(rect.right - rect.left), size_t(rect.bottom - rect.top) };
 }

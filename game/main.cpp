@@ -2,6 +2,7 @@
 
 #include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
+#include "simcoe/render/context.h"
 
 using namespace simcoe;
 
@@ -15,9 +16,16 @@ int commonMain() {
     category.addSink(&console);
     category.addSink(&file);
 
-    logging::fatal(category, "hello, {}!", "world");
+    system::Window window { "game", { 1280, 720 } };
+    
+    render::Context::Info info = {
+        .resolution = { 600, 800 }
+    };
+    render::Context context { window, info };
 
-    panic({ "", "", 0 }, "oh no!");
+    while (window.poll()) {
+        context.present();
+    }
 
     return 0;
 }

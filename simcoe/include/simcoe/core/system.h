@@ -1,29 +1,29 @@
 #pragma once
 
-#include "simcoe/core/async.h"
+#include "simcoe/core/async/generator.h"
 #include "simcoe/core/math/math.h"
 
 #include <windows.h>
 
 namespace simcoe::system {
     using StackTrace = async::Generator<const char*>;
+    using Size = math::Resolution<size_t>;
+
+    enum struct WindowStyle {
+        eWindow,
+        eBorderless,
+
+        eTotal
+    };
 
     struct Window {
-        using Size = math::Resolution<size_t>;
-
-        enum Style {
-            eWindow,
-            eBorderless,
-
-            eTotal
-        };
-
-        Window(const char *pzTitle, const Size& size, Style style = eWindow);
+        Window(const char *pzTitle, const Size& size, WindowStyle style = WindowStyle::eWindow);
         ~Window();
 
-        void restyle(Style style);
+        void restyle(WindowStyle style);
 
         bool poll();
+        Size size();
 
         HWND getHandle() const { return hWindow; }
 
