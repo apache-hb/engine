@@ -1,11 +1,13 @@
 #include <windows.h>
 
+#include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
-#include "simcoe/core/window.h"
 
 using namespace simcoe;
 
 int commonMain() {
+    system::init();
+
     logging::ConsoleSink console { "console" };
     logging::FileSink file { "file", "game.log" };
 
@@ -15,12 +17,7 @@ int commonMain() {
 
     logging::fatal(category, "hello, {}!", "world");
 
-    platform::Window::Size size { 800, 600 };
-    platform::Window window { "Game", size };
-
-    while (window.poll()) {
-        // do stuff
-    }
+    panic({ "", "", 0 }, "oh no!");
 
     return 0;
 }

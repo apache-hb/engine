@@ -1,10 +1,13 @@
 #pragma once
 
+#include "simcoe/core/async.h"
 #include "simcoe/core/math/math.h"
 
 #include <windows.h>
 
-namespace simcoe::platform {
+namespace simcoe::system {
+    using StackTrace = async::Generator<const char*>;
+
     struct Window {
         using Size = math::Resolution<size_t>;
 
@@ -30,4 +33,9 @@ namespace simcoe::platform {
         bool bHasFocus = false;
         HWND hWindow;
     };
+
+    void init();
+    void deinit();
+
+    StackTrace backtrace();
 }

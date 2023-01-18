@@ -15,7 +15,7 @@ project('engine', [ 'cpp', 'c' ],
 )
 
 args = [ 
-    '-DNOMINMAX', # god i hate windows.h
+    '-DNOMINMAX',
     '-D_HAS_EXCEPTIONS=0', # msvc stl requires this
     '/wd4324', # warnings about padding
     '/wd4127' # warnings about if constexpr

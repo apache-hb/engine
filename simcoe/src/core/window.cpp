@@ -1,9 +1,7 @@
-#include "simcoe/core/window.h"
-#include <libloaderapi.h>
-#include <winuser.h>
+#include "simcoe/core/system.h"
 
 using namespace simcoe;
-using namespace simcoe::platform;
+using namespace simcoe::system;
 
 namespace {
     constexpr const char *kpzClassName = "simcoe::Window";
