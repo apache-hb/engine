@@ -40,23 +40,6 @@ void Context::present() {
     pCommandList->RSSetViewports(1, &viewport);
     pCommandList->RSSetScissorRects(1, &scissor);
 
-    // transition render target to present state
-    CD3DX12_RESOURCE_BARRIER toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-        renderTargets[frameIndex],
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT
-    );
-
-    pCommandList->ResourceBarrier(1, &toPresent);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
-    const float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    
-    pCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
-    pCommandList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
-
-    // transition render target back to render target state
-
     CD3DX12_RESOURCE_BARRIER toRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
         renderTargets[frameIndex],
         D3D12_RESOURCE_STATE_PRESENT,
@@ -64,6 +47,20 @@ void Context::present() {
     );
 
     pCommandList->ResourceBarrier(1, &toRenderTarget);
+
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+    const float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    
+    pCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+    pCommandList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
+
+    CD3DX12_RESOURCE_BARRIER toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
+        renderTargets[frameIndex],
+        D3D12_RESOURCE_STATE_RENDER_TARGET,
+        D3D12_RESOURCE_STATE_PRESENT
+    );
+
+    pCommandList->ResourceBarrier(1, &toPresent);
     
     HR_CHECK(pCommandList->Close());
 

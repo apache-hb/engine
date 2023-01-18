@@ -18,7 +18,7 @@ namespace simcoe::system {
 
     struct Window {
         Window(const char *pzTitle, const Size& size, WindowStyle style = WindowStyle::eWindow);
-        ~Window();
+        virtual ~Window();
 
         void restyle(WindowStyle style);
 
@@ -26,6 +26,8 @@ namespace simcoe::system {
         Size size();
 
         HWND getHandle() const { return hWindow; }
+
+        virtual LRESULT onEvent(HWND, UINT, WPARAM, LPARAM) { return false; }
 
     private:
         static LRESULT CALLBACK callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);

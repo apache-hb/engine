@@ -1,4 +1,6 @@
-#include "engine/base/win32.h"
+#include "simcoe/core/macros.h"
+
+#include <windows.h>
 
 extern "C" { 
     // ask vendors to use the high performance gpu if we have one

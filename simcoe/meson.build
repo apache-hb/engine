@@ -5,8 +5,10 @@ src = [
     'src/core/panic.cpp'
 ]
 
+inc = [ 'include' ]
+
 libcore = library('core', src,
-    include_directories : 'include',
+    include_directories : inc,
     cpp_args : args,
     link_args : [ 'dbghelp.lib' ]
 )
@@ -18,7 +20,32 @@ core = declare_dependency(
 )
 
 src = [
-    'src/render/context.cpp'
+    'include/imgui/imgui_demo.cpp',
+    'include/imgui/imgui_draw.cpp',
+    'include/imgui/imgui_tables.cpp',
+    'include/imgui/imgui_widgets.cpp',
+    'include/imgui/imgui.cpp',
+    'include/imgui/backends/imgui_impl_dx12.cpp',
+    'include/imgui/backends/imgui_impl_win32.cpp'
+]
+
+inc = [ 'include/imgui', 'include/imgui/backends' ]
+
+libimgui = library('imgui', src,
+    dependencies : [ core ],
+    include_directories : inc
+)
+
+imgui = declare_dependency(
+    link_with : libimgui,
+    dependencies : [ core ],
+    include_directories : inc
+)
+
+src = [
+    'src/render/context.cpp',
+    'src/render/vendor/agility.cpp',
+    'src/render/vendor/vendor.cpp'
 ]
 
 librender = library('render', src,

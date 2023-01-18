@@ -88,6 +88,10 @@ LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
         return 0;
     }
 
+    if (pWindow != nullptr && pWindow->onEvent(hwnd, msg, wparam, lparam)) {
+        return true;
+    }
+
     return DefWindowProcA(hwnd, msg, wparam, lparam);
 }
 

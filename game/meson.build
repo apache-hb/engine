@@ -1,5 +1,5 @@
 executable('game', 'main.cpp',
-    dependencies : [ core, render ],
+    dependencies : [ core, imgui, render ],
     cpp_args : args,
     win_subsystem : 'console'
 )
