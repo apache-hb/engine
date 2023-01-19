@@ -13,6 +13,16 @@ using namespace simcoe;
 namespace {
     std::mutex critical;
     constexpr size_t kSymbolSize = MAX_SYM_NAME;
+
+    auto newSymbol() {
+        auto release = [](IMAGEHLP_SYMBOL *pSymbol) {
+            free(pSymbol);
+        };
+        return std::unique_ptr<IMAGEHLP_SYMBOL, decltype(release)>( 
+            (IMAGEHLP_SYMBOL*)malloc(sizeof(IMAGEHLP_SYMBOL) + kSymbolSize),
+            release
+        );
+    }
 }
 
 void system::init() {
@@ -48,7 +58,8 @@ system::StackTrace system::backtrace() {
         );
     };
 
-    IMAGEHLP_SYMBOL *pSymbol = (IMAGEHLP_SYMBOL*)malloc(sizeof(IMAGEHLP_SYMBOL) + kSymbolSize);
+    auto pSymbol = newSymbol();
+
     pSymbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);
     pSymbol->Address = 0;
     pSymbol->Size = 0;
@@ -83,7 +94,7 @@ system::StackTrace system::backtrace() {
 
         char name[kSymbolSize] = { 0 };
 
-        SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol);
+        SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol.get());
         UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);
 
         co_yield name;

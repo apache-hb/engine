@@ -10,6 +10,8 @@ namespace simcoe {
         eTotal
     };
 
+    extern logging::FileSink gFileSink;
+    extern logging::ConsoleSink gConsoleSink;
     extern logging::DebugSink gDebugSink;
     extern logging::Category gLogs[eTotal];
 }

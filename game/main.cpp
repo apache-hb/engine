@@ -31,13 +31,7 @@ int commonMain() {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    logging::ConsoleSink console { "console" };
-    logging::FileSink file { "file", "game.log" };
-
-    logging::Category category { logging::eInfo, "general" };
-    category.addSink(&console);
-    category.addSink(&file);
-    category.addSink(&simcoe::gDebugSink);
+    auto &category = gLogs[eGeneral];
 
     ImGuiWindow window { "game", { 1280, 720 } };
     

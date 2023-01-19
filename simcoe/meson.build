@@ -3,14 +3,13 @@ src = [
     'src/core/logging.cpp',
     'src/core/window.cpp',
     'src/core/panic.cpp',
+    'src/core/util.cpp',
 
     'src/core/simcoe.cpp'
 ]
 
-inc = [ 'include' ]
-
 libcore = library('core', src,
-    include_directories : inc,
+    include_directories : 'include',
     cpp_args : args,
     link_args : [ 'dbghelp.lib' ]
 )
