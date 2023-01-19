@@ -96,7 +96,7 @@ LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
 }
 
 bool Window::poll() {
-    MSG msg { };
+    MSG msg = { };
     while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE) != 0) {
         if (msg.message == WM_QUIT) {
             return false;

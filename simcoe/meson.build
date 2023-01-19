@@ -2,7 +2,9 @@ src = [
     'src/core/system.cpp',
     'src/core/logging.cpp',
     'src/core/window.cpp',
-    'src/core/panic.cpp'
+    'src/core/panic.cpp',
+
+    'src/core/simcoe.cpp'
 ]
 
 inc = [ 'include' ]

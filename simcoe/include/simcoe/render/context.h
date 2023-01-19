@@ -61,8 +61,7 @@ namespace simcoe::render {
         system::Window& window;
         Info info;
 
-        IDXGIDebug *pDebugA = nullptr;
-        ID3D12Debug* pDebugB = nullptr;
+        ID3D12Debug* pDebug = nullptr;
 
         IDXGIFactory6 *pFactory = nullptr;
 

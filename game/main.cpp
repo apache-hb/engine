@@ -1,5 +1,6 @@
+#include "simcoe/simcoe.h"
+
 #include "simcoe/core/system.h"
-#include "simcoe/core/logging.h"
 #include "simcoe/render/context.h"
 
 #include "imgui/imgui.h"
@@ -14,7 +15,7 @@ struct ImGuiWindow : system::Window {
         ImGui_ImplWin32_Init(getHandle());
     }
 
-    ~ImGuiWindow() {
+    ~ImGuiWindow() override {
         ImGui_ImplWin32_Shutdown();
     }
 
@@ -36,6 +37,7 @@ int commonMain() {
     logging::Category category { logging::eInfo, "general" };
     category.addSink(&console);
     category.addSink(&file);
+    category.addSink(&simcoe::gDebugSink);
 
     ImGuiWindow window { "game", { 1280, 720 } };
     
@@ -47,6 +49,8 @@ int commonMain() {
     while (window.poll()) {
         context.present();
     }
+
+    category.info("bye bye");
 
     return 0;
 }

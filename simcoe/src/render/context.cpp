@@ -75,10 +75,8 @@ void Context::present() {
 void Context::newFactory() {
     UINT flags = 0;
 
-    HR_CHECK(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebugA)));
-
-    if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&pDebugB)); SUCCEEDED(hr)) {
-        pDebugB->EnableDebugLayer();
+    if (HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&pDebug)); SUCCEEDED(hr)) {
+        pDebug->EnableDebugLayer();
         flags |= DXGI_CREATE_FACTORY_DEBUG;
     }
 
@@ -87,8 +85,13 @@ void Context::newFactory() {
 
 void Context::deleteFactory() {
     RELEASE(pFactory);
-    RELEASE(pDebugB);
-    RELEASE(pDebugA);
+    RELEASE(pDebug);
+
+    IDXGIDebug1 *pDebug1 = nullptr;
+    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebug1)))) {
+        pDebug1->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+        RELEASE(pDebug1);
+    }
 }
 
 void Context::newDevice() {

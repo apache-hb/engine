@@ -25,6 +25,18 @@ namespace simcoe::logging {
 
         void send(Level level, const char *pzMessage);
 
+        void info(const char *pzMessage, auto&&... args) {
+            send(eInfo, std::vformat(pzMessage, std::make_format_args(args...)).c_str());
+        }
+
+        void warn(const char *pzMessage, auto&&... args) {
+            send(eWarn, std::vformat(pzMessage, std::make_format_args(args...)).c_str());
+        }
+
+        void fatal(const char *pzMessage, auto&&... args) {
+            send(eFatal, std::vformat(pzMessage, std::make_format_args(args...)).c_str());
+        }
+
         void addSink(ISink *pSink);
         void removeSink(ISink *pSink);
 
@@ -71,15 +83,9 @@ namespace simcoe::logging {
         FILE *file;
     };
 
-    void info(Category &category, const char *pzMessage, auto&&... args) {
-        category.send(eInfo, std::format(pzMessage, args...).c_str());
-    }
+    struct DebugSink final : ISink {
+        DebugSink() : ISink("debug") { }
 
-    void warn(Category &category, const char *pzMessage, auto&&... args) {
-        category.send(eWarn, std::format(pzMessage, args...).c_str());
-    }
-
-    void fatal(Category &category, const char *pzMessage, auto&&... args) {
-        category.send(eFatal, std::vformat(pzMessage, std::make_format_args(args...)).c_str());
-    }
+        void send(Category &category, Level level, const char *pzMessage) override;
+    };
 }

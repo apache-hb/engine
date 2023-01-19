@@ -1,5 +1,7 @@
 #include "simcoe/core/logging.h"
 
+#include <windows.h>
+
 using namespace simcoe;
 using namespace simcoe::logging;
 
@@ -58,4 +60,10 @@ void FileSink::send(Category &category, Level level, const char *pzMessage) {
     const auto& [name, _] = getLevelFormat(level);
 
     fprintf(file, "[%s:%s] %s\n", category.getName(), name, pzMessage);
+}
+
+void DebugSink::send(Category &category, Level level, const char *pzMessage) {
+    const auto& [name, _] = getLevelFormat(level);
+
+    OutputDebugStringA(std::format("[{}:{}] {}\n", category.getName(), name, pzMessage).c_str());
 }
