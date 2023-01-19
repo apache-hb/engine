@@ -2,6 +2,7 @@
 
 #include "simcoe/core/logging.h"
 #include "simcoe/core/system.h"
+#include "simcoe/simcoe.h"
 
 #include <dxgi1_6.h>
 #include <dx/d3d12.h>
@@ -58,6 +59,7 @@ namespace simcoe::render {
         void waitForFence();
         void nextFrame();
 
+        logging::Category& log = simcoe::gLogs[simcoe::eRender];
         system::Window& window;
         Info info;
 

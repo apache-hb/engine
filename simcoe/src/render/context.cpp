@@ -88,9 +88,11 @@ void Context::deleteFactory() {
     RELEASE(pDebug);
 
     IDXGIDebug1 *pDebug1 = nullptr;
-    if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebug1)))) {
+    if (HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pDebug1)); SUCCEEDED(hr)) {
         pDebug1->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         RELEASE(pDebug1);
+    } else {
+        log.warn("DXGIGetDebugInterface1() = 0x{:X}", hr);
     }
 }
 
@@ -110,11 +112,13 @@ void Context::deleteDevice() {
 }
 
 void Context::selectAdapter(size_t index) {
+    log.info("selecting adapter #{}", index);
     HR_CHECK(pFactory->EnumAdapters1(UINT(index), &pAdapter));
     ASSERT(pAdapter != nullptr);
 }
 
 void Context::selectDefaultAdapter() {
+    log.info("selecting default adapter");
     HR_CHECK(pFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter)));
     ASSERT(pAdapter != nullptr);
 }
