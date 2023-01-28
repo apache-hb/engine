@@ -1,7 +1,7 @@
 #pragma once
 
-#include "simcoe/core/async/generator.h"
-#include "simcoe/core/math/math.h"
+#include "simcoe/async/generator.h"
+#include "simcoe/math/math.h"
 
 #include <windows.h>
 
@@ -40,4 +40,7 @@ namespace simcoe::system {
     void deinit();
 
     StackTrace backtrace();
+
+    std::string hrString(HRESULT hr);
+    std::string win32String(DWORD dw);
 }

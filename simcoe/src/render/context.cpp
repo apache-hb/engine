@@ -93,7 +93,7 @@ void Context::deleteFactory() {
         pDebug1->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         RELEASE(pDebug1);
     } else {
-        log.warn("DXGIGetDebugInterface1() = 0x{:X}", hr);
+        log.warn("DXGIGetDebugInterface1() = {}", system::hrString(hr));
     }
 }
 

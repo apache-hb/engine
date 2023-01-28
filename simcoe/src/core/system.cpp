@@ -100,3 +100,27 @@ system::StackTrace system::backtrace() {
         co_yield name;
     }
 }
+
+std::string system::hrString(HRESULT hr) {
+    _com_error err(hr);
+    return err.ErrorMessage();
+}
+
+std::string system::win32String(DWORD dw) {
+    LPSTR messageBuffer = nullptr;
+    size_t size = FormatMessageA(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        nullptr,
+        dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPSTR)&messageBuffer,
+        0,
+        nullptr
+    );
+
+    std::string message(messageBuffer, size);
+
+    LocalFree(messageBuffer);
+
+    return message;
+}
