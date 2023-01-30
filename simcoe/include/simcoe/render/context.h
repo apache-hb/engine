@@ -1,11 +1,12 @@
 #pragma once
 
+#include "dx/d3d12.h"
 #include "simcoe/core/logging.h"
 #include "simcoe/core/system.h"
+#include "simcoe/render/heap.h"
 #include "simcoe/simcoe.h"
 
 #include <dxgi1_6.h>
-#include <dx/d3d12.h>
 
 #include <dxgidebug.h>
 
@@ -23,13 +24,22 @@ namespace simcoe::render {
             size_t frames = 2; // number of back buffers
             system::Size resolution = { 1280, 720 }; // resolution of the back buffers
             DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers
+        
+            size_t heapSize = 1024;
         };
 
         Context(system::Window& window, const Info& info);
         ~Context();
 
         void update(const Info& info);
-        void present();
+
+        void begin();
+        void end();
+
+        ID3D12Device *getDevice() const { return pDevice; }
+        size_t getFrames() const { return info.frames; }
+        Heap& getHeap() { return cbvHeap; }
+        ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
 
     private:
         void newFactory();
@@ -55,6 +65,9 @@ namespace simcoe::render {
 
         void newFence();
         void deleteFence();
+
+        void newDescriptorHeap();
+        void deleteDescriptorHeap();
 
         void waitForFence();
         void nextFrame();
@@ -91,5 +104,7 @@ namespace simcoe::render {
         UINT frameIndex = 0;
         HANDLE fenceEvent = nullptr;
         ID3D12Fence *pFence = nullptr;
+
+        Heap cbvHeap;
     };
 }

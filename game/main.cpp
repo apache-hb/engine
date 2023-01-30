@@ -1,3 +1,4 @@
+#include "dx/d3d12.h"
 #include "imgui_impl_dx12.h"
 #include "simcoe/simcoe.h"
 
@@ -35,10 +36,22 @@ int commonMain() {
     };
     render::Context context { window, info };
 
+    auto& heap = context.getHeap();
+    auto handle = heap.alloc();
+    ASSERT(handle != render::Heap::Index::eInvalid);
+
     ImGui_ImplWin32_Init(window.getHandle());
-    // ImGui_ImplDX12_Init(context.getDevice(), context.getFrames());
+    ImGui_ImplDX12_Init(
+        context.getDevice(), 
+        int(context.getFrames()), 
+        DXGI_FORMAT_R8G8B8A8_UNORM, 
+        heap.getHeap(),
+        heap.cpuHandle(handle),
+        heap.gpuHandle(handle)
+    );
 
     while (window.poll()) {
+        context.begin();
         ImGui_ImplDX12_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
@@ -46,7 +59,9 @@ int commonMain() {
         ImGui::ShowDemoWindow();
 
         ImGui::Render();
-        context.present();
+
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), context.getCommandList());
+        context.end();
     }
 
     ImGui_ImplDX12_Shutdown();

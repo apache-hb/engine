@@ -80,7 +80,7 @@ namespace simcoe::logging {
         void send(Category &category, Level level, const char *pzMessage) override;
 
     private:
-        FILE *file;
+        FILE *pFile;
     };
 
     struct DebugSink final : ISink {

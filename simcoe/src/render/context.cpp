@@ -1,18 +1,14 @@
 #include "simcoe/render/context.h"
-#include "simcoe/core/panic.h"
+#include "dx/d3d12.h"
 #include "simcoe/core/util.h"
-
-#include <dx/d3dx12.h>
 
 using namespace simcoe;
 using namespace simcoe::render;
 
-#define HR_CHECK(expr) ASSERT(SUCCEEDED(expr))
-#define RELEASE(p) do { if (p != nullptr) { p->Release(); p = nullptr; } } while (0)
-
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
+    , cbvHeap(info.heapSize)
 {
     newFactory();
     newDevice();
@@ -20,11 +16,13 @@ Context::Context(system::Window &window, const Info& info)
     newSwapChain();
     newRenderTargets();
     newCommandList();
+    newDescriptorHeap();
     newFence();
 }
 
 Context::~Context() {
     deleteFence();
+    deleteDescriptorHeap();
     deleteCommandList();
     deleteRenderTargets();
     deleteSwapChain();
@@ -33,7 +31,7 @@ Context::~Context() {
     deleteFactory();
 }
 
-void Context::present() {
+void Context::begin() {
     // populate command list
     HR_CHECK(commandAllocators[frameIndex]->Reset());
     HR_CHECK(pCommandList->Reset(commandAllocators[frameIndex], nullptr));
@@ -51,10 +49,14 @@ void Context::present() {
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
     const float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    ID3D12DescriptorHeap *ppHeaps[] = { cbvHeap.getHeap() };
     
     pCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
     pCommandList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
+    pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+}
 
+void Context::end() {
     CD3DX12_RESOURCE_BARRIER toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
         renderTargets[frameIndex],
         D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -257,4 +259,12 @@ void Context::nextFrame() {
     }
 
     fenceValue += 1;
+}
+
+void Context::newDescriptorHeap() {
+    cbvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+}
+
+void Context::deleteDescriptorHeap() {
+    cbvHeap.deleteHeap();
 }

@@ -28,7 +28,7 @@ void Category::send(Level level, const char *pzMessage) {
         return;
     }
 
-    for (auto *pSink : sinks) {
+    for (ISink *pSink : sinks) {
         pSink->send(*this, level, pzMessage);
     }
 }
@@ -52,14 +52,14 @@ void ConsoleSink::send(Category &category, Level level, const char *pzMessage) {
 }
 
 FileSink::FileSink(const char *pzName, const char *pzPath): ISink(pzName) { 
-    auto err = fopen_s(&file, pzPath, "w");
+    auto err = fopen_s(&pFile, pzPath, "w");
     (void)err; // TODO: handle these
 }
 
 void FileSink::send(Category &category, Level level, const char *pzMessage) {
     const auto& [name, _] = getLevelFormat(level);
 
-    fprintf(file, "[%s:%s] %s\n", category.getName(), name, pzMessage);
+    fprintf(pFile, "[%s:%s] %s\n", category.getName(), name, pzMessage);
 }
 
 void DebugSink::send(Category &category, Level level, const char *pzMessage) {

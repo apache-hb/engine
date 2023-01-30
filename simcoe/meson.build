@@ -21,6 +21,22 @@ core = declare_dependency(
 )
 
 src = [
+    'src/memory/bitmap.cpp'
+]
+
+libmemory = library('memory', src,
+    include_directories : 'include',
+    cpp_args : args,
+    dependencies : [ core ]
+)
+
+memory = declare_dependency(
+    include_directories : 'include',
+    link_with : libmemory,
+    dependencies : [ core ]
+)
+
+src = [
     'include/imgui/imgui_demo.cpp',
     'include/imgui/imgui_draw.cpp',
     'include/imgui/imgui_tables.cpp',
@@ -45,6 +61,7 @@ imgui = declare_dependency(
 
 src = [
     'src/render/context.cpp',
+    'src/render/heap.cpp',
     'src/render/vendor/agility.cpp',
     'src/render/vendor/vendor.cpp'
 ]
@@ -53,7 +70,7 @@ librender = library('render', src,
     include_directories : 'include',
     cpp_args : args,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ core, d3d12 ]
+    dependencies : [ core, memory, d3d12 ]
 )
 
 render = declare_dependency(
