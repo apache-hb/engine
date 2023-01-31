@@ -2,13 +2,27 @@
 
 #include "simcoe/render/context.h"
 
+#include <unordered_map>
+
 namespace simcoe::render {
+    struct Graph;
+
     struct GraphObject {
+        GraphObject(const char *pzName, Graph& graph);
+        virtual ~GraphObject() = default;
+
+        const char *getName() const;
+        Graph& getGraph();
+        Context& getContext();
+
+    private:
         const char *pzName;
-        struct Graph *pGraph;
+        struct Graph& graph;
     };
 
     struct Pass : GraphObject {
+        using GraphObject::GraphObject;
+
         virtual void start() = 0;
         virtual void stop() = 0;
         virtual void execute() = 0;
@@ -20,16 +34,30 @@ namespace simcoe::render {
     };
 
     struct Wire : GraphObject {
-        D3D12_RESOURCE_STATES expected;
+        
     };
 
     struct Graph {
         Graph(Context& context);
-        ~Graph();
 
-        void execute();
+        void start();
+        void stop();
+
+        Context& getContext();
+
+    protected:
+        void execute(Pass *pRoot);
+
+        template<typename T>
+        T *addPass(const char *pzName) {
+            T *pPass = new T(pzName, *this);
+            passes[pzName] = pPass;
+            return pPass;
+        }
 
     private:
         Context& context;
+
+        std::unordered_map<const char*, Pass*> passes;
     };
 }

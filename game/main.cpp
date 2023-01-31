@@ -1,21 +1,18 @@
-#include "simcoe/simcoe.h"
-
 #include "simcoe/core/system.h"
+#include "simcoe/core/win32.h"
 
 #include "simcoe/input/desktop.h"
 
 #include "simcoe/locale/locale.h"
 #include "simcoe/audio/audio.h"
 #include "simcoe/render/context.h"
+#include "simcoe/render/graph.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
-#include "simcoe/core/win32.h"
-
-#include <windows.h>
-#include <winerror.h>
+#include "simcoe/simcoe.h"
 
 #include "GameInput.h"
 #include "XGameRuntime.h"
@@ -55,8 +52,20 @@ constexpr auto kFeatures = std::to_array<Feature>({
 });
 
 struct Features {
+    Features() {
+        size_t size = 0;
+        HR_CHECK(XSystemGetConsoleId(sizeof(id), id, &size));
+
+        info = XSystemGetAnalyticsInfo();
+
+        for (size_t i = 0; i < kFeatures.size(); ++i) {
+            features[i] = XGameRuntimeIsFeatureAvailable(kFeatures[i].feature);
+        }
+    }
+
     XSystemAnalyticsInfo info;
     bool features[sizeof(kFeatures) / sizeof(Feature)] = {};
+    char id[128] = {};
 };
 
 struct Window : system::Window {
@@ -76,44 +85,102 @@ struct Window : system::Window {
     }
 };
 
+struct ImGuiPass final : render::Pass {
+    using render::Pass::Pass;
+    
+    void start() override {
+        auto& context = getContext();
+        auto& heap = context.getHeap();
+        fontHandle = heap.alloc();
+
+        ImGui_ImplDX12_Init(
+            context.getDevice(),
+            int(context.getFrames()),
+            DXGI_FORMAT_R8G8B8A8_UNORM,
+            heap.getHeap(),
+            heap.cpuHandle(fontHandle),
+            heap.gpuHandle(fontHandle)
+        );
+    }
+
+    void stop() override {
+        ImGui_ImplDX12_Shutdown();
+        getContext().getHeap().release(fontHandle);
+    }
+
+    void execute() override {
+        ImGui_ImplDX12_NewFrame();
+        ImGui_ImplWin32_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+        
+        if (ImGui::Begin("GDK")) {
+            ImGui::Text("family: %s", features.info.family);
+            ImGui::SameLine();
+            auto [major, minor, build, revision] = features.info.osVersion;
+            ImGui::Text("os: %u.%u.%u.%u", major, minor, build, revision);
+            ImGui::Text("id: %s", features.id);
+
+            if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableHeadersRow();
+                for (size_t i = 0; i < kFeatures.size(); ++i) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", kFeatures[i].name);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%s", features.features[i] ? "enabled" : "disabled");
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
+    }
+
+private:
+    Features features;
+    render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
+};
+
+struct Scene final : render::Graph {
+    Scene(render::Context& context) : render::Graph { context } {
+        pImGuiPass = addPass<ImGuiPass>("imgui");
+    }
+
+    void execute() {
+        Graph::execute(pImGuiPass);
+    }
+
+private:
+    ImGuiPass *pImGuiPass;
+};
+
+
 int commonMain() {
     system::init();
 
     HR_CHECK(XGameRuntimeInitialize());
 
-    Features features = {};
-
-    features.info = XSystemGetAnalyticsInfo();
-
-    for (size_t i = 0; i < kFeatures.size(); ++i) {
-        features.features[i] = XGameRuntimeIsFeatureAvailable(kFeatures[i].feature);
-    }
-
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    Locale locale;
+    // Locale locale;
     Window window { "game", { 1280, 720 } };
 
     render::Context::Info info = {
         .resolution = { 600, 800 }
     };
     render::Context context { window, info };
-
-    auto& heap = context.getHeap();
-    auto handle = heap.alloc();
-    ASSERT(handle != render::Heap::Index::eInvalid);
+    Scene scene { context };
 
     ImGui_ImplWin32_Init(window.getHandle());
-    ImGui_ImplDX12_Init(
-        context.getDevice(),
-        int(context.getFrames()),
-        DXGI_FORMAT_R8G8B8A8_UNORM,
-        heap.getHeap(),
-        heap.cpuHandle(handle),
-        heap.gpuHandle(handle)
-    );
 
 #if 0
     audio::Context sound;
@@ -138,41 +205,18 @@ int commonMain() {
     sound.play((void*)buffer.data(), bufferSize);
 #endif
 
+    scene.start();
+
     while (window.poll()) {
         context.begin();
-        ImGui_ImplDX12_NewFrame();
-        ImGui_ImplWin32_NewFrame();
-        ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();
-
-        if (ImGui::Begin("GDK")) {
-            auto [major, minor, build, revision] = features.info.osVersion;
-            ImGui::Text("OS Version: %u.%u.%u.%u", major, minor, build, revision);
-            ImGui::Text("Platform: %s:%s", features.info.family, features.info.form);
-            
-            for (size_t i = 0; i < kFeatures.size(); ++i) {
-                ImGui::Text("%s: %s", kFeatures[i].name, features.features[i] ? "enabled" : "disabled");
-            }
-        }
-        ImGui::End();
-
-        if (ImGui::Begin("Input")) {
-            auto& keys = window.kbm.getKeys();
-            for (size_t i = 0; i < keys.size(); ++i) {
-                ImGui::Text("%s: %zu", locale.get(input::Key(i)), keys[i]);
-            }
-        }
-
-        ImGui::End();
-
-        ImGui::Render();
-
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), context.getCommandList());
+        scene.execute();
+        
         context.end();
     }
 
-    ImGui_ImplDX12_Shutdown();
+    scene.stop();
+
     ImGui_ImplWin32_Shutdown();
 
     XGameRuntimeUninitialize();

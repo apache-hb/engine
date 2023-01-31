@@ -96,6 +96,7 @@ imgui = declare_dependency(
 src = [
     'src/render/context.cpp',
     'src/render/heap.cpp',
+    'src/render/graph.cpp',
     'src/render/vendor/agility.cpp',
     'src/render/vendor/vendor.cpp'
 ]

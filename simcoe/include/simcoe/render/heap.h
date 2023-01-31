@@ -1,6 +1,5 @@
 #pragma once
 
-#include "dx/d3d12.h"
 #include "simcoe/core/panic.h"
 #include "simcoe/memory/bitmap.h"
 
