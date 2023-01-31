@@ -9,6 +9,8 @@ namespace simcoe::render {
 
     struct GraphObject {
         GraphObject(const char *pzName, Graph& graph);
+        GraphObject(const GraphObject& other);
+
         virtual ~GraphObject() = default;
 
         const char *getName() const;
@@ -21,7 +23,7 @@ namespace simcoe::render {
     };
 
     struct Pass : GraphObject {
-        using GraphObject::GraphObject;
+        Pass(const GraphObject& other) : GraphObject(other) {}
 
         virtual void start() = 0;
         virtual void stop() = 0;
@@ -49,8 +51,8 @@ namespace simcoe::render {
         void execute(Pass *pRoot);
 
         template<typename T>
-        T *addPass(const char *pzName) {
-            T *pPass = new T(pzName, *this);
+        T *addPass(const char *pzName, auto&&... args) {
+            T *pPass = new T(GraphObject(pzName, *this), args...);
             passes[pzName] = pPass;
             return pPass;
         }

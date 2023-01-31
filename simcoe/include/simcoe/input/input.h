@@ -3,6 +3,7 @@
 #include "simcoe/math/math.h"
 
 #include <vector>
+#include <array>
 
 namespace simcoe::input {
     namespace KeyTags {
@@ -35,8 +36,8 @@ namespace simcoe::input {
 
     struct State final {
         Device device;
-        size_t key[Key::eTotal];
-        float axis[Axis::eTotal];
+        std::array<size_t, Key::eTotal> key;
+        std::array<float, Axis::eTotal> axis;
     };
 
     struct ISource {
@@ -59,9 +60,11 @@ namespace simcoe::input {
         void add(ISource* source);
         void add(ITarget* target);
 
+        const State& getState() const { return state; }
+
     private:
         std::vector<ISource*> sources;
         std::vector<ITarget*> targets;
-        State last = {};
+        State state = {};
     };
 }

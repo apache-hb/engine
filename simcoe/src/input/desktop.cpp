@@ -113,7 +113,7 @@ Desktop::Desktop(bool capture)
 }
 
 bool Desktop::poll(State& result) {
-    std::copy(keys.begin(), keys.end(), result.key);
+    std::copy(keys.begin(), keys.end(), result.key.begin());
 
     if (!enabled) {
         return true;

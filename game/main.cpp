@@ -64,14 +64,20 @@ struct Features {
     }
 
     XSystemAnalyticsInfo info;
-    bool features[sizeof(kFeatures) / sizeof(Feature)] = {};
+    bool features[kFeatures.size()] = {};
     char id[128] = {};
 };
 
-struct Window : system::Window {
-    using system::Window::Window;
+struct Info {
+    Features features;
+    Locale locale;
+    input::Manager manager;
+};
 
-    input::Desktop kbm { false };
+struct Window : system::Window {
+    Window(Info& info) : system::Window("game", { 1280, 720 }) {
+        info.manager.add(&kbm);
+    }
 
     bool poll() {
         kbm.updateMouse(getHandle());
@@ -83,10 +89,15 @@ struct Window : system::Window {
 
         return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
     }
+
+    input::Desktop kbm { false };
 };
 
 struct ImGuiPass final : render::Pass {
-    using render::Pass::Pass;
+    ImGuiPass(const GraphObject& object, Info& info)
+        : Pass(object)
+        , info(info)
+    { }
     
     void start() override {
         auto& context = getContext();
@@ -116,6 +127,7 @@ struct ImGuiPass final : render::Pass {
         ImGui::ShowDemoWindow();
         
         if (ImGui::Begin("GDK")) {
+            const auto& features = info.features;
             ImGui::Text("family: %s", features.info.family);
             ImGui::SameLine();
             auto [major, minor, build, revision] = features.info.osVersion;
@@ -139,18 +151,59 @@ struct ImGuiPass final : render::Pass {
         }
         ImGui::End();
 
+        constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
+        const float kTextWidth = ImGui::CalcTextSize("A").x;
+
+        if (ImGui::Begin("Input")) {
+            const auto& manager = info.manager;
+            const auto& state = manager.getState();
+            
+            if (ImGui::BeginTable("keys", 2, kTableFlags, ImVec2(kTextWidth * 40, 0.0f))) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableHeadersRow();
+                for (size_t i = 0; i < state.key.size(); i++) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", info.locale.get(input::Key(i)));
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%zu", state.key[i]);
+                }
+                ImGui::EndTable();
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::BeginTable("axis", 2, kTableFlags, ImVec2(kTextWidth * 45, 0.0f))) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Axis", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableHeadersRow();
+                for (size_t i = 0; i < state.axis.size(); i++) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", info.locale.get(input::Axis(i)));
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%f", state.axis[i]);
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+
         ImGui::Render();
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
     }
 
 private:
-    Features features;
+    Info& info;
     render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
 };
 
 struct Scene final : render::Graph {
-    Scene(render::Context& context) : render::Graph { context } {
-        pImGuiPass = addPass<ImGuiPass>("imgui");
+    Scene(render::Context& context, Info& info) : render::Graph { context } {
+        pImGuiPass = addPass<ImGuiPass>("imgui", info);
     }
 
     void execute() {
@@ -161,7 +214,6 @@ private:
     ImGuiPass *pImGuiPass;
 };
 
-
 int commonMain() {
     system::init();
 
@@ -171,14 +223,14 @@ int commonMain() {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    // Locale locale;
-    Window window { "game", { 1280, 720 } };
+    Info detail;
+    Window window { detail };
 
     render::Context::Info info = {
         .resolution = { 600, 800 }
     };
     render::Context context { window, info };
-    Scene scene { context };
+    Scene scene { context, detail };
 
     ImGui_ImplWin32_Init(window.getHandle());
 
@@ -208,6 +260,7 @@ int commonMain() {
     scene.start();
 
     while (window.poll()) {
+        detail.manager.poll();
         context.begin();
 
         scene.execute();

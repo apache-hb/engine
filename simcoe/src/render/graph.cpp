@@ -8,6 +8,10 @@ GraphObject::GraphObject(const char *pzName, Graph& graph)
     , graph(graph)
 { }
 
+GraphObject::GraphObject(const GraphObject& other)
+    : GraphObject(other.pzName, other.graph)
+{ }
+
 const char *GraphObject::getName() const {
     return pzName;
 }
