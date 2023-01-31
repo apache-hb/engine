@@ -6,7 +6,6 @@
 
 #include <dx/d3dx12.h>
 
-#define HR_CHECK(expr) ASSERT(SUCCEEDED(expr))
 #define RELEASE(p) do { if (p != nullptr) { p->Release(); p = nullptr; } } while (0)
 
 namespace simcoe::render {

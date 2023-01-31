@@ -3,14 +3,6 @@
 #include "simcoe/core/logging.h"
 
 namespace simcoe {
-    enum LogCategory {
-        eGeneral,
-        eRender,
-        eInput,
-
-        eTotal
-    };
-
     extern logging::FileSink gFileSink;
     extern logging::ConsoleSink gConsoleSink;
     extern logging::DebugSink gDebugSink;

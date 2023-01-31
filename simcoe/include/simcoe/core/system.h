@@ -4,6 +4,13 @@
 #include "simcoe/math/math.h"
 #include "simcoe/core/win32.h"
 
+#define HR_CHECK(expr) \
+    do { \
+        if (HRESULT hr = (expr); FAILED(hr)) { \
+            PANIC("{} = {}", #expr, simcoe::system::hrString(hr)); \
+        } \
+    } while (false) 
+
 namespace simcoe::system {
     using StackTrace = async::Generator<const char*>;
     using Size = math::Resolution<size_t>;

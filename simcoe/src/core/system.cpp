@@ -34,6 +34,9 @@ void system::init() {
     
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
+
+    // enable xaudio
+    HR_CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 }
 
 void system::deinit() {

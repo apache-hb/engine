@@ -1,4 +1,5 @@
 #include "simcoe/render/heap.h"
+#include "simcoe/core/system.h"
 
 using namespace simcoe;
 using namespace simcoe::render;

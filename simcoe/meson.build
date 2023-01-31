@@ -20,6 +20,22 @@ core = declare_dependency(
     link_args : [ 'dbghelp.lib' ]
 )
 
+src = [
+    'src/audio/audio.cpp',
+]
+
+libaudio = library('audio', src,
+    include_directories : 'include',
+    cpp_args : args,
+    dependencies : [ core ]
+)
+
+audio = declare_dependency(
+    include_directories : 'include',
+    link_with : libaudio,
+    dependencies : [ core ]
+)
+
 src = [ 
     'src/input/input.cpp',
     'src/input/desktop.cpp',
