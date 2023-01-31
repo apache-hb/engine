@@ -6,6 +6,7 @@ namespace simcoe {
     enum LogCategory {
         eGeneral,
         eRender,
+        eInput,
 
         eTotal
     };
@@ -13,5 +14,8 @@ namespace simcoe {
     extern logging::FileSink gFileSink;
     extern logging::ConsoleSink gConsoleSink;
     extern logging::DebugSink gDebugSink;
-    extern logging::Category gLogs[eTotal];
+
+    extern logging::Category gLog;
+    extern logging::Category gRenderLog;
+    extern logging::Category gInputLog;
 }

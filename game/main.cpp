@@ -1,21 +1,31 @@
-#include "dx/d3d12.h"
-#include "imgui_impl_dx12.h"
 #include "simcoe/simcoe.h"
 
 #include "simcoe/core/system.h"
+#include "simcoe/input/desktop.h"
+#include "simcoe/locale/locale.h"
 #include "simcoe/render/context.h"
 
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
-
-using namespace simcoe;
+#include "imgui/backends/imgui_impl_dx12.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+using namespace simcoe;
 
 struct Window : system::Window {
     using system::Window::Window;
 
+    input::Desktop kbm { false };
+
+    bool poll() {
+        kbm.updateMouse(getHandle());
+        return system::Window::poll();
+    }
+
     LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override {
+        kbm.updateKeys(msg, wparam, lparam);
+
         return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
     }
 };
@@ -27,8 +37,7 @@ int commonMain() {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    auto &category = gLogs[eGeneral];
-
+    Locale locale;
     Window window { "game", { 1280, 720 } };
     
     render::Context::Info info = {
@@ -58,6 +67,15 @@ int commonMain() {
 
         ImGui::ShowDemoWindow();
 
+        if (ImGui::Begin("Input")) {
+            auto& keys = window.kbm.getKeys();
+            for (size_t i = 0; i < keys.size(); ++i) {
+                ImGui::Text("%s: %zu", locale.get(input::Key(i)), keys[i]);
+            }
+        }
+        
+        ImGui::End();
+
         ImGui::Render();
 
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), context.getCommandList());
@@ -67,7 +85,7 @@ int commonMain() {
     ImGui_ImplDX12_Shutdown();
     ImGui_ImplWin32_Shutdown();
 
-    category.info("bye bye");
+    gLog.info("bye bye");
 
     return 0;
 }

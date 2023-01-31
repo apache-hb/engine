@@ -2,8 +2,7 @@
 
 #include "simcoe/async/generator.h"
 #include "simcoe/math/math.h"
-
-#include <windows.h>
+#include "simcoe/core/win32.h"
 
 namespace simcoe::system {
     using StackTrace = async::Generator<const char*>;
@@ -43,4 +42,6 @@ namespace simcoe::system {
 
     std::string hrString(HRESULT hr);
     std::string win32String(DWORD dw);
+
+    void showCursor(bool show);
 }

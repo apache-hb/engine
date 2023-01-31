@@ -7,11 +7,9 @@ namespace simcoe::logging {
     struct Category;
     struct ISink;
 
-    enum Level {
-        eInfo,
-        eWarn,
-        eFatal,
-
+    enum Level : unsigned {
+#define LEVEL(id, name) id,
+#include "simcoe/core/logging.inc"
         eTotal
     };
 

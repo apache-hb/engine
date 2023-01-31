@@ -1,13 +1,13 @@
 #include "simcoe/input/input.h"
-
-#include <xinput.h>
+#include "simcoe/core/win32.h"
 
 namespace simcoe::input {
     struct Gamepad final : ISource {
         Gamepad(DWORD dwIndex);
 
-        bool poll(State& state) override;
+        bool poll(State& result) override;
+
     private:
-        XINPUT_GAMEPAD state;
+        DWORD dwIndex;
     };
 }

@@ -17,7 +17,6 @@ logging::FileSink simcoe::gFileSink = logging::FileSink("file", "simcoe.log");
 logging::ConsoleSink simcoe::gConsoleSink = logging::ConsoleSink("console");
 logging::DebugSink simcoe::gDebugSink = logging::DebugSink();
 
-logging::Category simcoe::gLogs[simcoe::eTotal] = {
-    category("general"),
-    category("render")
-};
+logging::Category simcoe::gLog = category("general");
+logging::Category simcoe::gRenderLog = category("render");
+logging::Category simcoe::gInputLog = category("input");

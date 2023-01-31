@@ -8,6 +8,7 @@
 !*.c
 !*.h
 !*.inl
+!*.inc
 
 # dont ignore readme and build files
 !*.md

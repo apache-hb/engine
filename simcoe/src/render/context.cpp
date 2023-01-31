@@ -95,7 +95,7 @@ void Context::deleteFactory() {
         pDebug1->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         RELEASE(pDebug1);
     } else {
-        log.warn("DXGIGetDebugInterface1() = {}", system::hrString(hr));
+        gRenderLog.warn("DXGIGetDebugInterface1() = {}", system::hrString(hr));
     }
 }
 
@@ -109,7 +109,7 @@ void Context::newDevice() {
     DXGI_ADAPTER_DESC1 desc;
     HR_CHECK(pAdapter->GetDesc1(&desc));
 
-    log.info("creating device with adapter {}", util::narrow(desc.Description));
+    gRenderLog.info("creating device with adapter {}", util::narrow(desc.Description));
 
     HR_CHECK(D3D12CreateDevice(pAdapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&pDevice)));
 }
@@ -120,13 +120,13 @@ void Context::deleteDevice() {
 }
 
 void Context::selectAdapter(size_t index) {
-    log.info("selecting adapter #{}", index);
+    gRenderLog.info("selecting adapter #{}", index);
     HR_CHECK(pFactory->EnumAdapters1(UINT(index), &pAdapter));
     ASSERT(pAdapter != nullptr);
 }
 
 void Context::selectDefaultAdapter() {
-    log.info("selecting default adapter");
+    gRenderLog.info("selecting default adapter");
     HR_CHECK(pFactory->EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&pAdapter)));
     ASSERT(pAdapter != nullptr);
 }

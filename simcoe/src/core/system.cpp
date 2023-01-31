@@ -2,7 +2,6 @@
 
 #include <mutex>
 
-#include <windows.h>
 #include <dbghelp.h>
 #include <objbase.h>
 #include <stdlib.h>
@@ -13,6 +12,7 @@ using namespace simcoe;
 namespace {
     std::mutex critical;
     constexpr size_t kSymbolSize = MAX_SYM_NAME;
+    constexpr size_t kLoopLimit = 64;
 
     auto newSymbol() {
         auto release = [](IMAGEHLP_SYMBOL *pSymbol) {
@@ -98,6 +98,19 @@ system::StackTrace system::backtrace() {
         UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);
 
         co_yield name;
+    }
+}
+
+void system::showCursor(bool show) {
+    // ShowCursor maintans an internal counter, so we need to call it repeatedly
+
+    // we *also* need a loop limit because ShowCursor returns -1 forever
+    // when no mouse is connected, dont want to hang a thread
+    size_t limit = 0;
+    if (show) {
+        while (ShowCursor(true) < 0 && limit++ < kLoopLimit);
+    } else {
+        while (ShowCursor(false) >= 0 && limit++ < kLoopLimit);
     }
 }
 

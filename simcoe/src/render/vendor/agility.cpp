@@ -1,6 +1,4 @@
-#include "simcoe/core/macros.h"
-
-#include <windows.h>
+#include "simcoe/core/win32.h"
 
 extern "C" { 
     // load up the agility sdk

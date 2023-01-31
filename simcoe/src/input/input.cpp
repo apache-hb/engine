@@ -3,6 +3,8 @@
 using namespace simcoe;
 using namespace simcoe::input;
 
+ISource::ISource(Device kind) : kind(kind) { }
+
 void Manager::poll() {
     bool bPushUpdate = false;
     State state = last;

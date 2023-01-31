@@ -1,6 +1,5 @@
 #include "simcoe/core/util.h"
-
-#include <windows.h>
+#include "simcoe/core/win32.h"
 
 using namespace simcoe;
 

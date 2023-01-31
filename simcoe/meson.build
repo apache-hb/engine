@@ -20,6 +20,24 @@ core = declare_dependency(
     link_args : [ 'dbghelp.lib' ]
 )
 
+src = [ 
+    'src/input/input.cpp',
+    'src/input/desktop.cpp',
+    'src/input/gamepad.cpp'
+]
+
+libinput = library('input', src,
+    include_directories : 'include',
+    cpp_args : args,
+    dependencies : [ core ]
+)
+
+input = declare_dependency(
+    include_directories : 'include',
+    link_with : libinput,
+    dependencies : [ core ]
+)
+
 src = [
     'src/memory/bitmap.cpp'
 ]
@@ -78,4 +96,20 @@ render = declare_dependency(
     link_with : librender,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
     dependencies : [ core, d3d12 ]
+)
+
+src = [
+    'src/locale/locale.cpp'
+]
+
+liblocale = library('locale', src,
+    include_directories : 'include',
+    cpp_args : args,
+    dependencies : [ core, input ]
+)
+
+locale = declare_dependency(
+    include_directories : 'include',
+    link_with : liblocale,
+    dependencies : [ core, input ]
 )
