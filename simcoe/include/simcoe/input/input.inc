@@ -56,9 +56,22 @@ KEY(keyRight, "input.key.right")
 KEY(keyUp, "input.key.up")
 KEY(keyDown, "input.key.down")
 
-KEY(keyLeftMouse, "input.key.left-mouse")
-KEY(keyRightMouse, "input.key.right-mouse")
-KEY(keyMiddleMouse, "input.key.middle-mouse")
+KEY(keyLeftMouse, "input.key.mouse-left")
+KEY(keyRightMouse, "input.key.mouse-right")
+KEY(keyMiddleMouse, "input.key.mouse-middle")
+
+/**
+ * TODO: https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-xbuttonup
+ * do we want MK_XBUTTON1 & MK_XBUTTON2
+ *
+ * TODO: https://learn.microsoft.com/en-us/gaming/gdk/_content/gc/input/advanced/input-keyboard-mouse
+ * and what about the buttons from GameInputMouseButtons
+ */
+
+KEY(keyMouseButton1, "input.key.mouse-x1")
+KEY(keyMouseButton2, "input.key.mouse-x2")
+KEY(keyMouseTiltLeft, "input.key.mouse-tilt-left")
+KEY(keyMouseTiltRight, "input.key.mouse-tilt-right")
 
 KEY(keyLeftShift, "input.key.left-shift")
 KEY(keyRightShift, "input.key.right-shift")

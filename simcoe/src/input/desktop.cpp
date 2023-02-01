@@ -103,6 +103,9 @@ namespace {
         { VK_LBUTTON, Key::keyLeftMouse },
         { VK_RBUTTON, Key::keyRightMouse },
         { VK_MBUTTON, Key::keyMiddleMouse },
+
+        { VK_XBUTTON1, Key::keyMouseButton1 },
+        { VK_XBUTTON2, Key::keyMouseButton2 }
     };
 }
 
@@ -166,6 +169,17 @@ void Desktop::updateKeys(UINT msg, WPARAM wparam, LPARAM lparam) {
     case WM_MBUTTONUP:
         setKey(VK_MBUTTON, 0);
         break;
+
+    case WM_XBUTTONDOWN:
+        setXButton(GET_XBUTTON_WPARAM(wparam), index++);
+        break;
+
+    case WM_XBUTTONUP:
+        setXButton(GET_XBUTTON_WPARAM(wparam), 0);
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -189,4 +203,19 @@ void Desktop::setKey(WORD key, size_t value) {
         return;
     }
     keys[it->second] = value;
+}
+
+void Desktop::setXButton(WORD key, size_t value) {
+    switch (key) {
+    case XBUTTON1:
+        setKey(VK_XBUTTON1, value);
+        break;
+    case XBUTTON2:
+        setKey(VK_XBUTTON2, value);
+        break;
+    default:
+        gInputLog.warn("Unknown XButton: {}", key);
+        setKey(key, value);
+        break;
+    }
 }
