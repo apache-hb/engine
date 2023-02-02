@@ -6,15 +6,15 @@ using namespace simcoe::input;
 ISource::ISource(Device kind) : kind(kind) { }
 
 void Manager::poll() {
-    bool bPushUpdate = false;
+    bool dirty = false;
     for (ISource *pSource : sources) {
         if (pSource->poll(state)) {
+            dirty = true;
             state.device = pSource->kind;
-            bPushUpdate = true;
         }
     }
 
-    if (!bPushUpdate) { return; }
+    if (!dirty) { return; }
 
     for (ITarget *pTarget : targets) {
         pTarget->accept(state);

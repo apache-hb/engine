@@ -21,7 +21,7 @@ core = declare_dependency(
 )
 
 src = [
-    'src/audio/audio.cpp',
+    'src/audio/audio.cpp'
 ]
 
 libaudio = library('audio', src,
@@ -45,12 +45,14 @@ src = [
 libinput = library('input', src,
     include_directories : 'include',
     cpp_args : args,
+    link_args : [ 'xinput.lib' ],
     dependencies : [ core ]
 )
 
 input = declare_dependency(
     include_directories : 'include',
     link_with : libinput,
+    link_args : [ 'xinput.lib' ],
     dependencies : [ core ]
 )
 

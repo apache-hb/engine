@@ -1,5 +1,8 @@
 #include "simcoe/input/desktop.h"
+#include "simcoe/core/system.h"
 #include "simcoe/simcoe.h"
+
+#include "common.h"
 
 #include <unordered_map>
 
@@ -18,10 +21,10 @@ namespace {
         return center;
     }
 
-    POINT getCursorPoint() {
+    math::float2 getCursorPoint() {
         POINT pos;
         GetCursorPos(&pos);
-        return pos;
+        return { float(pos.x), float(pos.y) };
     }
 
     // handling keyboard accuratley is more tricky than it first seems
@@ -109,31 +112,20 @@ namespace {
     };
 }
 
-Desktop::Desktop(bool capture)
-    : ISource(Device::eDesktop)
-{ 
-    captureInput(capture);
-}
+Keyboard::Keyboard() 
+    : ISource(Device::eDesktop) 
+{ }
 
-bool Desktop::poll(State& result) {
-    std::copy(keys.begin(), keys.end(), result.key.begin());
-
-    if (!enabled) {
-        return true;
+bool Keyboard::poll(State& result) {
+    bool dirty = false;
+    for (const auto& [vk, slot] : kDesktopKeys) {
+        dirty |= detail::update(result.key[slot], keys[slot]);
     }
 
-    result.axis[Axis::mouseHorizontal] = mouse.x;
-    result.axis[Axis::mouseVertical] = mouse.y;
-
-    return true;
+    return dirty;
 }
 
-void Desktop::captureInput(bool capture) {
-    enabled = capture;
-    system::showCursor(!capture);
-}
-
-void Desktop::updateKeys(UINT msg, WPARAM wparam, LPARAM lparam) {
+void Keyboard::update(UINT msg, WPARAM wparam, LPARAM lparam) {
     switch (msg) {
     case WM_SYSKEYDOWN:
     case WM_KEYDOWN:
@@ -183,29 +175,17 @@ void Desktop::updateKeys(UINT msg, WPARAM wparam, LPARAM lparam) {
     }
 }
 
-void Desktop::updateMouse(HWND hWnd) {
-    if (!enabled) {
-        mouse = { 0, 0 };
-        return;
-    }
-
-    auto [x, y] = getCursorPoint();
-    auto [cx, cy] = getWindowCenter(hWnd);
-
-    SetCursorPos(cx, cy);
-    mouse = { float(x - cx), float(y - cy) };
-}
-
-void Desktop::setKey(WORD key, size_t value) {
+void Keyboard::setKey(WORD key, size_t value) {
     auto it = kDesktopKeys.find(key);
     if (it == kDesktopKeys.end()) {
         gInputLog.warn("Unknown key: {}", key);
         return;
     }
+    
     keys[it->second] = value;
 }
 
-void Desktop::setXButton(WORD key, size_t value) {
+void Keyboard::setXButton(WORD key, size_t value) {
     switch (key) {
     case XBUTTON1:
         setKey(VK_XBUTTON1, value);
@@ -218,4 +198,44 @@ void Desktop::setXButton(WORD key, size_t value) {
         setKey(key, value);
         break;
     }
+}
+
+Mouse::Mouse(bool lockCursor, bool readCursor)
+    : ISource(Device::eDesktop)
+    , captured(lockCursor)
+    , enabled(readCursor)
+{
+    system::showCursor(!captured);
+}
+
+bool Mouse::poll(State& result) {
+    result.axis[Axis::mouseHorizontal] = absolute.x - base.x;
+    result.axis[Axis::mouseVertical] = absolute.y - base.y;
+
+    return base != absolute;
+}
+
+void Mouse::captureInput(bool capture) {
+    captured = capture;
+    system::showCursor(!capture);
+}
+
+void Mouse::update(HWND hWnd) {
+    if (!enabled) {
+        absolute = base;
+        return;
+    }
+
+    if (captured) {
+        auto [cx, cy] = getWindowCenter(hWnd);
+        SetCursorPos(cx, cy);
+
+        // set the base to the center of the window
+        base = { float(cx), float(cy) };
+    } else {
+        // set the base to the last absolute position
+        base = absolute;
+    }
+
+    absolute = getCursorPoint();
 }

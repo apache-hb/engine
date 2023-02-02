@@ -2,6 +2,7 @@
 #include "simcoe/core/win32.h"
 
 #include "simcoe/input/desktop.h"
+#include "simcoe/input/gamepad.h"
 
 #include "simcoe/locale/locale.h"
 #include "simcoe/audio/audio.h"
@@ -20,7 +21,6 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 using namespace simcoe;
-
 struct Feature {
     XGameRuntimeFeature feature;
     const char *name;
@@ -71,26 +71,32 @@ struct Features {
 struct Info {
     Features features;
     Locale locale;
+
+    input::Gamepad gamepad;
+    input::Keyboard keyboard;
+    input::Mouse mouse;
+
     input::Manager manager;
 };
 
 struct Window : system::Window {
-    Window(Info& info) : system::Window("game", { 1280, 720 }) {
-        info.manager.add(&kbm);
-    }
+    Window(Info& info)
+        : system::Window("game", { 1280, 720 })
+        , info(info) 
+    { }
 
     bool poll() {
-        kbm.updateMouse(getHandle());
+        info.mouse.update(getHandle());
         return system::Window::poll();
     }
 
     LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override {
-        kbm.updateKeys(msg, wparam, lparam);
+        info.keyboard.update(msg, wparam, lparam);
 
         return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
     }
 
-    input::Desktop kbm { false };
+    Info& info;
 };
 
 struct ImGuiPass final : render::Pass {
@@ -155,9 +161,10 @@ struct ImGuiPass final : render::Pass {
         const float kTextWidth = ImGui::CalcTextSize("A").x;
 
         if (ImGui::Begin("Input")) {
-            const auto& manager = info.manager;
-            const auto& state = manager.getState();
+            const auto& state = info.manager.getState();
             
+            ImGui::Text("Current: %s", state.device == input::Device::eGamepad ? "Gamepad" : "Mouse & Keyboard");
+
             if (ImGui::BeginTable("keys", 2, kTableFlags, ImVec2(kTextWidth * 40, 0.0f))) {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed);
@@ -223,7 +230,16 @@ int commonMain() {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
-    Info detail;
+    Info detail = {
+        .gamepad = input::Gamepad { 0 },
+        .keyboard = input::Keyboard { },
+        .mouse = input::Mouse { false, true },
+    };
+
+    detail.manager.add(&detail.gamepad);
+    detail.manager.add(&detail.keyboard);
+    detail.manager.add(&detail.mouse);
+
     Window window { detail };
 
     render::Context::Info info = {

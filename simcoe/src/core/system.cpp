@@ -136,6 +136,10 @@ std::string system::win32String(DWORD dw) {
 
     std::string message(messageBuffer, size);
 
+    while (message.ends_with("\r") || message.ends_with("\n")) {
+        message.pop_back();
+    }
+
     LocalFree(messageBuffer);
 
     return message;

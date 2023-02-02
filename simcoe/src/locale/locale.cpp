@@ -2,6 +2,9 @@
 
 using namespace simcoe;
 
+Locale::Locale() { }
+Locale::Locale(const KeyMap& map) : strings(map) { }
+
 const char *Locale::get(logging::Level it) const {
     switch (it) {
 #define LEVEL(id, name) case logging::id: return get(name);
