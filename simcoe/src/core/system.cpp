@@ -144,3 +144,7 @@ std::string system::win32String(DWORD dw) {
 
     return message;
 }
+
+std::string system::win32LastErrorString() {
+    return win32String(GetLastError());
+}

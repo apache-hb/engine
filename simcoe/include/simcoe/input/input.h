@@ -34,10 +34,13 @@ namespace simcoe::input {
     using Axis = AxisTags::Slot;
     using Device = DeviceTags::Slot;
 
+    using KeyState = std::array<size_t, Key::eTotal>;
+    using AxisState = std::array<float, Axis::eTotal>;
+
     struct State final {
         Device device;
-        std::array<size_t, Key::eTotal> key;
-        std::array<float, Axis::eTotal> axis;
+        KeyState key;
+        AxisState axis;
     };
 
     struct ISource {

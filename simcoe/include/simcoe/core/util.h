@@ -8,6 +8,8 @@ namespace simcoe::util {
 
     struct DoOnce {
         void reset() { done = false; }
+        bool set() const { return done; }
+        operator bool() const { return done; }
 
         template<typename F>
         void operator()(F&& f) {

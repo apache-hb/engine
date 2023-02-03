@@ -49,6 +49,7 @@ namespace simcoe::system {
 
     std::string hrString(HRESULT hr);
     std::string win32String(DWORD dw);
+    std::string win32LastErrorString();
 
     void showCursor(bool show);
 }

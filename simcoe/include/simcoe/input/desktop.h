@@ -5,7 +5,6 @@
 
 namespace simcoe::input {
     struct Keyboard final : ISource {
-        using KeyState = std::array<size_t, Key::eTotal>;
         Keyboard();
 
         bool poll(State& result) override;

@@ -20,6 +20,10 @@ namespace simcoe::math {
             return { it, it };
         }
 
+        constexpr static Resolution from(T width, T height) {
+            return { width, height };
+        }
+
         template<typename U>
         constexpr U aspectRatio() const {
             auto [w, h] = as<U>();
@@ -57,13 +61,17 @@ namespace simcoe::math {
             return x == other.x && y == other.y;
         }
 
-        constexpr Vec2 operator+(const Vec2& other) const {
-            return { x + other.x, y + other.y };
-        }
+        constexpr Vec2 operator+(const Vec2& other) const { return from(x + other.x, y + other.y); }
+        constexpr Vec2 operator+(T it) const { return *this + of(it); }
 
-        constexpr Vec2 operator*(T it) const {
-            return from(x * it, y * it);
-        }
+        constexpr Vec2 operator*(T it) const { return from(x * it, y * it); }
+        constexpr Vec2 operator*(const Vec2& other) const { return from(x * other.x, y * other.y); }
+
+        constexpr Vec2& operator+=(T it) { return *this = *this + it; }
+        constexpr Vec2& operator+=(const Vec2& other) { return *this = *this + other; }
+
+        constexpr Vec2& operator*=(T it) { return *this = *this * it; }
+        constexpr Vec2& operator*=(const Vec2& other) { return *this = *this * other; }
 
         static constexpr Vec2 from(T x, T y) {
             return { x, y };
