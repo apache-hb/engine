@@ -5,6 +5,17 @@
 #include <cmath>
 
 namespace simcoe::math {
+    template <typename T> 
+    T clamp(T it, T low, T high) {
+        if (it < low)
+            return low;
+
+        if (it > high)
+            return high;
+
+        return it;
+    }
+    
     template<typename T>
     struct Vec3;
 
@@ -64,6 +75,9 @@ namespace simcoe::math {
         constexpr Vec2 operator+(const Vec2& other) const { return from(x + other.x, y + other.y); }
         constexpr Vec2 operator+(T it) const { return *this + of(it); }
 
+        constexpr Vec2 operator-(const Vec2 &other) const { return from(x - other.x, y - other.y); }
+        constexpr Vec2 operator-(T it) const { return *this - of(it); }
+
         constexpr Vec2 operator*(T it) const { return from(x * it, y * it); }
         constexpr Vec2 operator*(const Vec2& other) const { return from(x * other.x, y * other.y); }
 
@@ -72,6 +86,22 @@ namespace simcoe::math {
 
         constexpr Vec2& operator*=(T it) { return *this = *this * it; }
         constexpr Vec2& operator*=(const Vec2& other) { return *this = *this * other; }
+    
+        constexpr Vec2 clamp(const Vec2 &low, const Vec2 &high) const {
+            return clamp(*this, low, high);
+        }
+
+        constexpr Vec2 clamp(T low, T high) const {
+            return clamp(*this, low, high);
+        }
+
+        static constexpr Vec2 clamp(const Vec2 &it, const Vec2 &low, const Vec2 &high) {
+            return from(math::clamp(it.x, low.x, high.x), math::clamp(it.y, low.y, high.y));
+        }
+
+        static constexpr Vec2 clamp(const Vec2 &it, T low, T high) {
+            return clamp(it, of(low), of(high));
+        }
 
         static constexpr Vec2 from(T x, T y) {
             return { x, y };
@@ -497,6 +527,14 @@ namespace simcoe::math {
             return from(r0, r1, r2, r3);
         }
     };
+
+    using int2 = Vec2<int>;
+
+    static_assert(sizeof(int2) == sizeof(int) * 2);
+
+    using size2 = Vec2<size_t>;
+
+    static_assert(sizeof(size2) == sizeof(size_t) * 2);
 
     using float2 = Vec2<float>;
     using float3 = Vec3<float>;

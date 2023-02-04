@@ -17,7 +17,6 @@ namespace {
         Key::keyMouseButton2 
     };
 
-
     const std::unordered_map<WPARAM, const char*> kDeviceChange = {
         { GIDC_ARRIVAL, "added" },
         { GIDC_REMOVAL, "removed" },
@@ -94,7 +93,7 @@ bool RawDevicePool::poll(State& state) {
 void RawDevicePool::update(UINT msg, WPARAM wparam, LPARAM lparam) {
     if (msg == WM_INPUT_DEVICE_CHANGE) {
         gInputLog.warn("unhandled device change");
-        gInputLog.warn("change type: {}", wparam);
+        gInputLog.warn("change type: {}", kDeviceChange.at(wparam));
         gInputLog.info("device info: {}", deviceInfo(HANDLE(lparam)));
         return;
     }
