@@ -3,7 +3,6 @@
 
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
-#include "simcoe/input/raw.h"
 
 #include "simcoe/locale/locale.h"
 #include "simcoe/audio/audio.h"
@@ -22,6 +21,7 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 using namespace simcoe;
+
 struct Feature {
     XGameRuntimeFeature feature;
     const char *name;
@@ -76,7 +76,6 @@ struct Info {
     input::Gamepad gamepad;
     input::Keyboard keyboard;
     input::Mouse mouse;
-    //input::RawDevicePool pool;
 
     input::Manager manager;
 };
@@ -94,7 +93,6 @@ struct Window : system::Window {
 
     LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override {
         info.keyboard.update(msg, wparam, lparam);
-        //info.pool.update(msg, wparam, lparam);
 
         return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
     }
@@ -242,7 +240,6 @@ int commonMain() {
     detail.manager.add(&detail.gamepad);
     detail.manager.add(&detail.keyboard);
     detail.manager.add(&detail.mouse);
-    //detail.manager.add(&detail.pool);
 
     Window window { detail };
 

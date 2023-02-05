@@ -39,8 +39,7 @@ audio = declare_dependency(
 src = [ 
     'src/input/input.cpp',
     'src/input/desktop.cpp',
-    'src/input/gamepad.cpp',
-    'src/input/raw.cpp'
+    'src/input/gamepad.cpp'
 ]
 
 libinput = library('input', src,
