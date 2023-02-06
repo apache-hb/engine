@@ -30,7 +30,7 @@ struct Feature {
     const char *name;
 };
 
-constexpr auto kFeatures = std::to_array<Feature>({
+static inline constexpr auto kFeatures = std::to_array<Feature>({
     { XGameRuntimeFeature::XAccessibility, "XAccessibility" },
     { XGameRuntimeFeature::XAppCapture, "XAppCapture" },
     { XGameRuntimeFeature::XAsync, "XAsync" },
@@ -66,10 +66,19 @@ struct Features {
             features[i] = XGameRuntimeIsFeatureAvailable(kFeatures[i].feature);
         }
     }
-
     XSystemAnalyticsInfo info;
     bool features[kFeatures.size()] = {};
     char id[128] = {};
+};
+
+struct XGameRuntime {
+    XGameRuntime() {
+        HR_CHECK(XGameRuntimeInitialize());
+    }
+
+    ~XGameRuntime() {
+        XGameRuntimeUninitialize();
+    }
 };
 
 struct Info {
@@ -330,18 +339,19 @@ private:
     void drawGdkInfo() {
         if (ImGui::Begin("GDK")) {
             const auto& features = info.features;
-            ImGui::Text("family: %s", features.info.family);
+            ImGui::Text("Family: %s", features.info.family);
             ImGui::SameLine();
+
             auto [major, minor, build, revision] = features.info.osVersion;
-            ImGui::Text("os: %u.%u.%u.%u", major, minor, build, revision);
-            ImGui::Text("id: %s", features.id);
+            ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
+            ImGui::Text("ID: %s", features.id);
 
             if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableHeadersRow();
-                for (size_t i = 0; i < kFeatures.size(); ++i) {
+                for (size_t i = 0; i < kFeatures.size(); i++) {
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
                     ImGui::Text("%s", kFeatures[i].name);
@@ -434,7 +444,7 @@ private:
 int commonMain() {
     system::init();
 
-    HR_CHECK(XGameRuntimeInitialize());
+    XGameRuntime xgame;
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -496,8 +506,6 @@ int commonMain() {
     scene.stop();
 
     ImGui_ImplWin32_Shutdown();
-
-    XGameRuntimeUninitialize();
 
     gLog.info("bye bye");
 

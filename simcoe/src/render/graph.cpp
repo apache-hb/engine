@@ -94,10 +94,8 @@ private:
 
         auto edges = graph.getEdges();
 
-        gRenderLog.info("building pass for {}", pRoot->getName());
-
         for (auto& input : pRoot->getInputs()) {
-            ASSERTF(edges.find(input.get()) != edges.end(), "edge {} was not found", edgeName(input.get()));
+            ASSERTF(edges.contains(input.get()), "edge {} was not found", edgeName(input.get()));
 
             auto& wire = edges.at(input.get());
             tree.add(build(wire->getPass()));
@@ -145,8 +143,6 @@ private:
         for (auto& dep : deps) {
             run(dep);
         }
-
-        gRenderLog.info("executing pass {}", pPass->getName());
 
         wireBarriers(pPass);
 
