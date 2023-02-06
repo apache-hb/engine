@@ -95,6 +95,8 @@ imgui = declare_dependency(
     include_directories : inc
 )
 
+subdir('include/imnodes')
+
 src = [
     'src/render/context.cpp',
     'src/render/heap.cpp',

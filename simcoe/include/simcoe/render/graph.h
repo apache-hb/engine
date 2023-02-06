@@ -4,8 +4,6 @@
 
 #include <unordered_map>
 
-struct GraphBuilder;
-
 namespace simcoe::render {
     struct Graph;
     struct GraphObject;
@@ -66,14 +64,17 @@ namespace simcoe::render {
     };
 
     struct Pass : GraphObject {
-        friend Graph;
-        friend GraphBuilder;
+        using InEdgeVec = std::vector<std::unique_ptr<InEdge>>;
+        using OutEdgeVec = std::vector<std::unique_ptr<OutEdge>>;
 
         Pass(const GraphObject& other) : GraphObject(other) {}
 
         virtual void start() = 0;
         virtual void stop() = 0;
         virtual void execute() = 0;
+
+        const InEdgeVec& getInputs() const { return inputs; }
+        const OutEdgeVec& getOutputs() const { return outputs; }
 
     protected:
         template<typename T> requires (std::is_base_of_v<InEdge, T>)
@@ -90,8 +91,8 @@ namespace simcoe::render {
         InEdge *addInput(InEdge *pEdge);
         OutEdge *addOutput(OutEdge *pEdge);
         
-        std::vector<std::unique_ptr<InEdge>> inputs;
-        std::vector<std::unique_ptr<OutEdge>> outputs;
+        InEdgeVec inputs;
+        OutEdgeVec outputs;
     };
 
     struct RelayEdge : OutEdge {
@@ -122,13 +123,18 @@ namespace simcoe::render {
     };
 
     struct Graph {
-        friend GraphBuilder;
+        using PassMap = std::unordered_map<const char*, std::unique_ptr<Pass>>;
+        using EdgeMap = std::unordered_map<InEdge*, OutEdge*>;
+
         Graph(Context& context);
 
         void start();
         void stop();
 
         Context& getContext();
+        
+        const PassMap& getPasses() const { return passes; }
+        const EdgeMap& getEdges() const { return edges; }
 
     protected:
         void connect(OutEdge *pSource, InEdge *pTarget);
@@ -145,9 +151,7 @@ namespace simcoe::render {
     private:
         Context& context;
 
-        std::unordered_map<const char*, std::unique_ptr<Pass>> passes;
-
-        // dst <- src
-        std::unordered_map<InEdge*, OutEdge*> edges;
+        PassMap passes;
+        EdgeMap edges;
     };
 }

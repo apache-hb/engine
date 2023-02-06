@@ -1,3 +1,4 @@
+#include "imnodes/include/imnodes/imnodes.h"
 #include "simcoe/core/system.h"
 #include "simcoe/core/win32.h"
 
@@ -12,6 +13,8 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
+
+#include "imnodes/imnodes.h"
 
 #include "simcoe/simcoe.h"
 
@@ -193,9 +196,33 @@ struct ImGuiPass final : render::Pass {
             heap.cpuHandle(fontHandle),
             heap.gpuHandle(fontHandle)
         );
+
+        ImNodes::CreateContext();
+
+        int id = 0;
+        for (auto& [name, pass] : getGraph().getPasses()) {
+            passIndices[pass.get()] = id++;
+            for (auto& input : pass->getInputs()) {
+                edgeIndices[input.get()] = id++;
+            }
+
+            for (auto& output : pass->getOutputs()) {
+                edgeIndices[output.get()] = id++;
+            }
+        }
+
+        int link = 0;
+        for (auto& [src, dst] : getGraph().getEdges()) {
+            int srcId = edgeIndices[src];
+            int dstId = edgeIndices[dst];
+
+            links[link++] = { srcId, dstId };
+        }
     }
 
     void stop() override {
+        ImNodes::DestroyContext();
+
         ImGui_ImplDX12_Shutdown();
         getContext().getHeap().release(fontHandle);
     }
@@ -205,8 +232,102 @@ struct ImGuiPass final : render::Pass {
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
+        enableDock();
+        drawRenderGraphInfo();
+        drawGdkInfo();
+        drawInputInfo();
+
         ImGui::ShowDemoWindow();
         
+        ImGui::Render();
+        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
+    }
+
+    render::InEdge *pRenderTargetIn = nullptr;
+    render::OutEdge *pRenderTargetOut = nullptr;
+private:
+    Info& info;
+    render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
+
+    void enableDock() {
+        constexpr auto kDockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+        constexpr auto kWindowFlags = 
+            ImGuiWindowFlags_MenuBar |
+            ImGuiWindowFlags_NoCollapse |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoBackground |
+            ImGuiWindowFlags_NoBringToFrontOnFocus | 
+            ImGuiWindowFlags_NoNavFocus;
+            
+        const auto *viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->WorkPos);
+        ImGui::SetNextWindowSize(viewport->WorkSize);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+
+        ImGui::Begin("Editor", nullptr, kWindowFlags);
+
+        ImGui::PopStyleVar(3);
+
+        ImGuiID id = ImGui::GetID("EditorDock");
+        ImGui::DockSpace(id, ImVec2(0.f, 0.f), kDockFlags);
+        
+        if (ImGui::BeginMenuBar()) {
+            if (ImGui::BeginMenu("File")) {
+                if (ImGui::MenuItem("Import")) {
+
+                }
+                ImGui::MenuItem("Save");
+
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenuBar();
+        }
+
+        ImGui::End();
+    }
+
+    void drawRenderGraphInfo() {
+        if (ImGui::Begin("Render Graph")) {
+            ImNodes::BeginNodeEditor();
+
+            for (auto& [name, pass] : getGraph().getPasses()) {
+                ImNodes::BeginNode(passIndices[pass.get()]);
+
+                ImNodes::BeginNodeTitleBar();
+                ImGui::Text("%s", name);
+                ImNodes::EndNodeTitleBar();
+
+                for (auto& input : pass->getInputs()) {
+                    ImNodes::BeginInputAttribute(edgeIndices[input.get()]);
+                    ImGui::Text("%s", input->getName());
+                    ImNodes::EndInputAttribute();
+                }
+
+                for (auto& output : pass->getOutputs()) {
+                    ImNodes::BeginOutputAttribute(edgeIndices[output.get()]);
+                    ImGui::Text("%s", output->getName());
+                    ImNodes::EndOutputAttribute();
+                }
+
+                ImNodes::EndNode();
+            }
+
+            for (auto& [id, link] : links) {
+                ImNodes::Link(id, link.src, link.dst);
+            }
+
+            ImNodes::EndNodeEditor();
+        }
+        ImGui::End();
+    }
+
+    void drawGdkInfo() {
         if (ImGui::Begin("GDK")) {
             const auto& features = info.features;
             ImGui::Text("family: %s", features.info.family);
@@ -231,7 +352,9 @@ struct ImGuiPass final : render::Pass {
             }
         }
         ImGui::End();
+    }
 
+    void drawInputInfo() {
         constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
         const float kTextWidth = ImGui::CalcTextSize("A").x;
 
@@ -273,16 +396,16 @@ struct ImGuiPass final : render::Pass {
             }
         }
         ImGui::End();
-
-        ImGui::Render();
-        ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
     }
 
-    render::InEdge *pRenderTargetIn = nullptr;
-    render::OutEdge *pRenderTargetOut = nullptr;
-private:
-    Info& info;
-    render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
+    struct Link {
+        int src;
+        int dst;
+    };
+
+    std::unordered_map<render::Pass*, int> passIndices;
+    std::unordered_map<render::Edge*, int> edgeIndices;
+    std::unordered_map<int, Link> links;
 };
 
 struct Scene final : render::Graph {
@@ -316,6 +439,9 @@ int commonMain() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
+
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     Info detail = {
         .gamepad = input::Gamepad { 0 },

@@ -92,12 +92,14 @@ private:
         ASSERT(pRoot != nullptr);
         PassTree tree(pRoot);
 
+        auto edges = graph.getEdges();
+
         gRenderLog.info("building pass for {}", pRoot->getName());
 
-        for (auto& input : pRoot->inputs) {
-            ASSERTF(graph.edges.find(input.get()) != graph.edges.end(), "edge {} was not found", edgeName(input.get()));
+        for (auto& input : pRoot->getInputs()) {
+            ASSERTF(edges.find(input.get()) != edges.end(), "edge {} was not found", edgeName(input.get()));
 
-            auto& wire = graph.edges.at(input.get());
+            auto& wire = edges.at(input.get());
             tree.add(build(wire->getPass()));
         }
 
@@ -108,9 +110,9 @@ private:
         std::vector<D3D12_RESOURCE_BARRIER> barriers;
         
         // for each input edge
-        for (auto& dest : pPass->inputs) {
+        for (auto& dest : pPass->getInputs()) {
             // find the source of the input
-            auto& source = graph.edges.at(dest.get());
+            auto& source = graph.getEdges().at(dest.get());
             
             ID3D12Resource *pResource = source->getResource();
             dest->setResource(pResource);
