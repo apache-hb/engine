@@ -49,7 +49,7 @@ struct PassTree final {
     std::vector<PassTree> children;
 };
 
-struct GraphBuilder {
+struct GraphBuilder final {
     GraphBuilder(Graph& graph, Pass *pRoot) : graph(graph) { 
         run(build(pRoot));
     }
@@ -75,8 +75,12 @@ private:
             
             if (source->state == target->state) { continue; }
 
+            ID3D12Resource *pResource = graph.wireResources.at(source.get())->pResource;
+
+            ASSERT(pResource != nullptr);
+
             barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
-                /* pResource = */ graph.wireResources[source.get()],
+                /* pResource = */ pResource,
                 /* StateBefore = */ source->state,
                 /* StateAfter = */ target->state
             ));
@@ -93,12 +97,28 @@ private:
             run(dep);
         }
 
+        wireBarriers(pPass);
+
         pPass->execute();
     }
 
     std::unordered_map<Pass*, std::atomic_flag> visited;
     Graph& graph;
 };
+
+void Graph::connect(Wire *pSource, Wire *pTarget) {
+    ASSERT(pSource != nullptr);
+    ASSERT(pTarget != nullptr);
+
+    wires[pTarget] = pTarget;
+}
+
+void Graph::connect(Wire *pWire, Resource *pResource) {
+    ASSERT(pWire != nullptr);
+    ASSERT(pResource != nullptr);
+
+    wireResources[pWire] = pResource;
+}
 
 void Graph::start() {
     for (auto& [pzName, pPass] : passes) {
@@ -113,7 +133,9 @@ void Graph::stop() {
 }
 
 void Graph::execute(Pass *pRoot) {
-    pRoot->execute(); // TODO: lol
+    context.begin();
+    GraphBuilder graph{*this, pRoot};
+    context.end();
 }
 
 Context& Graph::getContext() {

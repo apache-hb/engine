@@ -25,6 +25,7 @@ namespace simcoe::render {
             DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers
         
             size_t heapSize = 1024;
+            size_t workerThreads = 2;
         };
 
         Context(system::Window& window, const Info& info);

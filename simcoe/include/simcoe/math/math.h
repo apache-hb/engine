@@ -269,8 +269,12 @@ namespace simcoe::math {
         using Row3 = Vec3<T>;
         Row rows[4];
 
-        constexpr const Vec4<T> column(size_t column) const {
-            return Vec4<T>::from(at(column, 0), at(column, 1), at(column, 2), at(column, 3));
+        constexpr Row column(size_t column) const {
+            return Row::from(at(column, 0), at(column, 1), at(column, 2), at(column, 3));
+        }
+
+        constexpr Row row(size_t row) const {
+            return at(row);
         }
 
         constexpr const Row& at(size_t it) const { return rows[it]; }

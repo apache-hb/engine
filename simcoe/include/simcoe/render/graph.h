@@ -58,8 +58,19 @@ namespace simcoe::render {
     };
 
     struct Resource : GraphObject {
+        friend GraphBuilder;
+
         virtual void create() = 0;
         virtual void destroy() = 0;
+
+        Resource(const GraphObject& other, ID3D12Resource *pResource) 
+            : GraphObject(other) 
+            , pResource(pResource)
+        { }
+
+    private:
+        ID3D12Resource *pResource;
+        D3D12_RESOURCE_STATES current;
     };
 
     struct Wire : GraphObject {
@@ -86,6 +97,9 @@ namespace simcoe::render {
         Context& getContext();
 
     protected:
+        void connect(Wire *pSource, Wire *pTarget);
+        void connect(Wire *pWire, Resource *pResource);
+
         void execute(Pass *pRoot);
 
         template<typename T> requires (std::is_base_of_v<Pass, T>)
@@ -95,12 +109,21 @@ namespace simcoe::render {
             return pPass;
         }
 
+        template<typename T> requires (std::is_base_of_v<Resource, T>)
+        T *addResource(const char *pzName, auto&&... args) {
+            T *pResource = new T(GraphObject(pzName, *this), args...);
+            resources[pzName] = std::unique_ptr<Resource>(pResource);
+            return pResource;
+        }
+
     private:
         Context& context;
 
         std::unordered_map<const char*, std::unique_ptr<Pass>> passes;
+        std::unordered_map<const char *, std::unique_ptr<Resource>> resources;
+
+        // dst <- src
         std::unordered_map<Wire*, Wire*> wires;
-        std::unordered_map<const char *, ID3D12Resource*> resources;
-        std::unordered_map<Wire*, ID3D12Resource*> wireResources;
+        std::unordered_map<Wire*, Resource*> wireResources;
     };
 }

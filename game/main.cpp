@@ -278,11 +278,7 @@ int commonMain() {
 
     while (window.poll()) {
         detail.manager.poll();
-        context.begin();
-
         scene.execute();
-        
-        context.end();
     }
 
     scene.stop();
