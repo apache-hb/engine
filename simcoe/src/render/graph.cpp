@@ -3,6 +3,16 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
+namespace {
+    std::string edgeName(InEdge *pEdge) {
+        return std::format("in:{}:{}", pEdge->getPass()->getName(), pEdge->getName());
+    }
+
+    std::string edgeName(OutEdge *pEdge) {
+        return std::format("out:{}:{}", pEdge->getPass()->getName(), pEdge->getName());
+    }
+}
+
 GraphObject::GraphObject(const char *pzName, Graph& graph)
     : pzName(pzName)
     , graph(graph)
@@ -24,14 +34,37 @@ Context& GraphObject::getContext() {
     return getGraph().getContext();
 }
 
-Wire *Pass::addInput(Wire *pWire) {
-    inputs.emplace_back(pWire);
-    return pWire;
+void Edge::setResource(ID3D12Resource*) {
+    ASSERTF(false, "invalid setResource on {}", getName());
 }
 
-Wire *Pass::addOutput(Wire *pWire) {
-    inputs.emplace_back(pWire);
-    return pWire;
+void InEdge::setResource(ID3D12Resource *pIn) { 
+    ASSERTF(pIn != nullptr, "null setResource on {}", edgeName(this));
+    pResource = pIn;
+}
+
+ID3D12Resource *InEdge::getResource() {
+    return pResource;
+}
+
+ID3D12Resource *RelayEdge::getResource() {
+    ID3D12Resource *pResource = pOther->getResource();
+    ASSERTF(pResource != nullptr, "null resource returned from {} in relay {}", edgeName(pOther), edgeName(this));
+    return pResource;
+}
+
+D3D12_RESOURCE_STATES RelayEdge::getState() const {
+    return pOther->getState();
+}
+
+InEdge *Pass::addInput(InEdge *pEdge) {
+    inputs.emplace_back(pEdge);
+    return pEdge;
+}
+
+OutEdge *Pass::addOutput(OutEdge *pEdge) {
+    outputs.emplace_back(pEdge);
+    return pEdge;
 }
 
 Graph::Graph(Context& context)
@@ -59,9 +92,13 @@ private:
         ASSERT(pRoot != nullptr);
         PassTree tree(pRoot);
 
-        for (auto& pWire : pRoot->inputs) {
-            auto& wire = graph.wires.at(pWire.get());
-            tree.add(build(wire->pPass));
+        gRenderLog.info("building pass for {}", pRoot->getName());
+
+        for (auto& input : pRoot->inputs) {
+            ASSERTF(graph.edges.find(input.get()) != graph.edges.end(), "edge {} was not found", edgeName(input.get()));
+
+            auto& wire = graph.edges.at(input.get());
+            tree.add(build(wire->getPass()));
         }
 
         return tree;
@@ -70,20 +107,30 @@ private:
     void wireBarriers(Pass *pPass) {
         std::vector<D3D12_RESOURCE_BARRIER> barriers;
         
-        for (auto& source : pPass->inputs) {
-            auto& target = graph.wires.at(source.get());
+        // for each input edge
+        for (auto& dest : pPass->inputs) {
+            // find the source of the input
+            auto& source = graph.edges.at(dest.get());
             
-            if (source->state == target->state) { continue; }
+            ID3D12Resource *pResource = source->getResource();
+            dest->setResource(pResource);
 
-            ID3D12Resource *pResource = graph.wireResources.at(source.get())->pResource;
+            ASSERTF(pResource != nullptr, "resource for {} was not found", edgeName(dest.get()));
 
-            ASSERT(pResource != nullptr);
+            if (source->getState() == dest->getState()) { continue; }
 
             barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
                 /* pResource = */ pResource,
-                /* StateBefore = */ source->state,
-                /* StateAfter = */ target->state
+                /* StateBefore = */ source->getState(),
+                /* StateAfter = */ dest->getState()
             ));
+        }
+
+        if (!barriers.empty()) {
+            graph.getContext().getCommandList()->ResourceBarrier(
+                /* NumBarriers = */ UINT(barriers.size()),
+                /* pBarriers = */ barriers.data()
+            );
         }
     }
 
@@ -97,6 +144,8 @@ private:
             run(dep);
         }
 
+        gRenderLog.info("executing pass {}", pPass->getName());
+
         wireBarriers(pPass);
 
         pPass->execute();
@@ -106,18 +155,11 @@ private:
     Graph& graph;
 };
 
-void Graph::connect(Wire *pSource, Wire *pTarget) {
+void Graph::connect(OutEdge *pSource, InEdge *pTarget) {
     ASSERT(pSource != nullptr);
     ASSERT(pTarget != nullptr);
 
-    wires[pTarget] = pTarget;
-}
-
-void Graph::connect(Wire *pWire, Resource *pResource) {
-    ASSERT(pWire != nullptr);
-    ASSERT(pResource != nullptr);
-
-    wireResources[pWire] = pResource;
+    edges[pTarget] = pSource;
 }
 
 void Graph::start() {
@@ -133,9 +175,7 @@ void Graph::stop() {
 }
 
 void Graph::execute(Pass *pRoot) {
-    context.begin();
     GraphBuilder graph{*this, pRoot};
-    context.end();
 }
 
 Context& Graph::getContext() {

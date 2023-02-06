@@ -8,7 +8,7 @@
 #define RELEASE(p) do { if (p != nullptr) { p->Release(); p = nullptr; } } while (0)
 
 namespace simcoe::render {
-    struct Heap {
+    struct Heap final {
         using Index = memory::AtomicBitMap::Index;
         using CpuHandle = D3D12_CPU_DESCRIPTOR_HANDLE;
         using GpuHandle = D3D12_GPU_DESCRIPTOR_HANDLE;

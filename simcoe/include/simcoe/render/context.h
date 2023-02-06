@@ -36,10 +36,23 @@ namespace simcoe::render {
         void begin();
         void end();
 
+        void present();
+
         ID3D12Device *getDevice() const { return pDevice; }
+
         size_t getFrames() const { return info.frames; }
+        size_t getCurrentFrame() const { return frameIndex; }
+
         Heap& getHeap() { return cbvHeap; }
+
         ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
+        
+        D3D12_CPU_DESCRIPTOR_HANDLE getRenderTarget() const { 
+            CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+            return rtvHandle;
+        }
+
+        ID3D12Resource *getRenderTargetResource() const { return renderTargets[frameIndex]; }
 
     private:
         void newFactory();
@@ -87,9 +100,6 @@ namespace simcoe::render {
 
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
-
-        D3D12_VIEWPORT viewport;
-        D3D12_RECT scissor;
 
         ID3D12DescriptorHeap *pRenderTargetHeap = nullptr;
         UINT rtvDescriptorSize = 0;

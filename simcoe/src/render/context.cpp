@@ -36,35 +36,13 @@ void Context::begin() {
     HR_CHECK(commandAllocators[frameIndex]->Reset());
     HR_CHECK(pCommandList->Reset(commandAllocators[frameIndex], nullptr));
     
-    pCommandList->RSSetViewports(1, &viewport);
-    pCommandList->RSSetScissorRects(1, &scissor);
-
-    CD3DX12_RESOURCE_BARRIER toRenderTarget = CD3DX12_RESOURCE_BARRIER::Transition(
-        renderTargets[frameIndex],
-        D3D12_RESOURCE_STATE_PRESENT,
-        D3D12_RESOURCE_STATE_RENDER_TARGET
-    );
-
-    pCommandList->ResourceBarrier(1, &toRenderTarget);
-
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
-    const float clearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     ID3D12DescriptorHeap *ppHeaps[] = { cbvHeap.getHeap() };
     
-    pCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
-    pCommandList->ClearRenderTargetView(rtvHandle, clearColour, 0, nullptr);
     pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 }
 
 void Context::end() {
-    CD3DX12_RESOURCE_BARRIER toPresent = CD3DX12_RESOURCE_BARRIER::Transition(
-        renderTargets[frameIndex],
-        D3D12_RESOURCE_STATE_RENDER_TARGET,
-        D3D12_RESOURCE_STATE_PRESENT
-    );
-
-    pCommandList->ResourceBarrier(1, &toPresent);
-    
     HR_CHECK(pCommandList->Close());
 
     // execute command list
@@ -146,10 +124,6 @@ void Context::deletePresentQueue() {
 void Context::newSwapChain() {
     auto [width, height] = window.size();
     
-    // TODO: respect info.resolution and info.displayMode
-    viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-    scissor = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
-
     if (!SUCCEEDED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(bTearingSupported)))) {
         bTearingSupported = FALSE;
     }
@@ -196,6 +170,8 @@ void Context::newRenderTargets() {
         HR_CHECK(pSwapChain->GetBuffer(i, IID_PPV_ARGS(&renderTargets[i])));
         pDevice->CreateRenderTargetView(renderTargets[i], nullptr, rtvHandle);
         rtvHandle.Offset(1, rtvDescriptorSize);
+
+        renderTargets[i]->SetName(std::format(L"rtv#{}", i).c_str());
     }
 }
 

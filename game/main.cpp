@@ -100,11 +100,85 @@ struct Window : system::Window {
     Info& info;
 };
 
+struct GlobalPass final : render::Pass {
+    GlobalPass(const GraphObject& object, const math::size2& size) : Pass(object) { 
+        auto [width, height] = size;
+
+        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
+        scissor = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
+    
+        pRenderTargetOut = out<render::RenderEdge>("render-target");
+    }
+
+    void start() override { }
+
+    void stop() override { }
+
+    void execute() override {
+        auto& ctx = getContext();
+        auto cmd = ctx.getCommandList();
+        auto rtv = ctx.getRenderTarget();
+
+        ctx.begin();
+
+        cmd->RSSetViewports(1, &viewport);
+        cmd->RSSetScissorRects(1, &scissor);
+
+        cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
+    }
+
+    render::OutEdge *pRenderTargetOut = nullptr;
+
+private:
+    D3D12_VIEWPORT viewport;
+    D3D12_RECT scissor;
+};
+
+struct RenderClearPass final : render::Pass {
+    RenderClearPass(const GraphObject& object) : Pass(object) {
+        pTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
+        pTargetOut = out<render::RelayEdge>("render-target", pTargetIn);
+    }
+
+    void start() override { }
+    void stop() override { }
+
+    void execute() override {
+        auto& ctx = getContext();
+        auto cmd = ctx.getCommandList();
+        auto rtv = ctx.getRenderTarget();
+
+        cmd->ClearRenderTargetView(rtv, colour, 0, nullptr);
+    }
+
+    render::InEdge *pTargetIn = nullptr;
+    render::OutEdge *pTargetOut = nullptr;
+
+private:
+    float colour[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
+};
+
+struct PresentPass final : render::Pass {
+    PresentPass(const GraphObject& object) : Pass(object) { 
+        pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_PRESENT);
+    }
+
+    void start() override { }
+    void stop() override { }
+
+    void execute() override {
+        auto& ctx = getContext();
+        ctx.end();
+    }
+
+    render::InEdge *pRenderTargetIn = nullptr;
+};
+
 struct ImGuiPass final : render::Pass {
-    ImGuiPass(const GraphObject& object, Info& info)
-        : Pass(object)
-        , info(info)
-    { }
+    ImGuiPass(const GraphObject& object, Info& info): Pass(object), info(info) { 
+        pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
+        pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
+    }
     
     void start() override {
         auto& context = getContext();
@@ -204,22 +278,34 @@ struct ImGuiPass final : render::Pass {
         ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
     }
 
+    render::InEdge *pRenderTargetIn = nullptr;
+    render::OutEdge *pRenderTargetOut = nullptr;
 private:
     Info& info;
     render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
 };
 
 struct Scene final : render::Graph {
-    Scene(render::Context& context, Info& info) : render::Graph { context } {
+    Scene(render::Context& context, Info& info) : render::Graph(context) {
+        pGlobalPass = addPass<GlobalPass>("global", math::size2::from(1280, 720));
+        pRenderClearPass = addPass<RenderClearPass>("clear");
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
+        pPresentPass = addPass<PresentPass>("present");
+
+        connect(pGlobalPass->pRenderTargetOut, pRenderClearPass->pTargetIn);
+        connect(pRenderClearPass->pTargetOut, pImGuiPass->pRenderTargetIn);
+        connect(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
     }
 
     void execute() {
-        Graph::execute(pImGuiPass);
+        Graph::execute(pPresentPass);
     }
 
 private:
+    GlobalPass *pGlobalPass;
+    RenderClearPass *pRenderClearPass;
     ImGuiPass *pImGuiPass;
+    PresentPass *pPresentPass;
 };
 
 int commonMain() {
