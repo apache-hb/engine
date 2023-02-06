@@ -47,8 +47,13 @@ namespace simcoe::render {
 
         ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
         
-        D3D12_CPU_DESCRIPTOR_HANDLE getRenderTarget() const { 
+        D3D12_CPU_DESCRIPTOR_HANDLE getCpuTargetHandle() const { 
             CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
+            return rtvHandle;
+        }
+
+        D3D12_GPU_DESCRIPTOR_HANDLE getGpuTargetHandle() const { 
+            CD3DX12_GPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetGPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
             return rtvHandle;
         }
 

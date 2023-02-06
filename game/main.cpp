@@ -129,7 +129,9 @@ struct GlobalPass final : render::Pass {
     void execute() override {
         auto& ctx = getContext();
         auto cmd = ctx.getCommandList();
-        auto rtv = ctx.getRenderTarget();
+        auto rtv = pRenderTargetOut->cpuHandle();
+
+        ASSERTF(rtv.ptr != 0, "No render target set!");
 
         ctx.begin();
 
@@ -158,7 +160,9 @@ struct RenderClearPass final : render::Pass {
     void execute() override {
         auto& ctx = getContext();
         auto cmd = ctx.getCommandList();
-        auto rtv = ctx.getRenderTarget();
+        auto rtv = pTargetIn->cpuHandle();
+
+        ASSERTF(rtv.ptr != 0, "cannot clear null render target!");
 
         cmd->ClearRenderTargetView(rtv, colour, 0, nullptr);
     }

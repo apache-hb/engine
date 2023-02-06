@@ -34,13 +34,16 @@ Context& GraphObject::getContext() {
     return getGraph().getContext();
 }
 
-void Edge::setResource(ID3D12Resource*) {
-    ASSERTF(false, "invalid setResource on {}", getName());
-}
+void InEdge::updateEdge(OutEdge *pEdge) {     
+    ASSERTF(pEdge != nullptr, "null setResource on {}", edgeName(this));
 
-void InEdge::setResource(ID3D12Resource *pIn) { 
-    ASSERTF(pIn != nullptr, "null setResource on {}", edgeName(this));
-    pResource = pIn;
+    pResource = pEdge->getResource();
+    cpu = pEdge->cpuHandle();
+    gpu = pEdge->gpuHandle();
+
+    ASSERTF(pResource != nullptr, "null resource returned from {} in {}", edgeName(pEdge), edgeName(this));
+    ASSERTF(cpu.ptr != 0, "null cpu handle returned from {} in {}", edgeName(pEdge), edgeName(this));
+    //ASSERTF(gpu.ptr != 0, "null gpu handle returned from {} in {}", edgeName(pEdge), edgeName(this));
 }
 
 ID3D12Resource *InEdge::getResource() {
@@ -55,6 +58,14 @@ ID3D12Resource *RelayEdge::getResource() {
 
 D3D12_RESOURCE_STATES RelayEdge::getState() const {
     return pOther->getState();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE RelayEdge::cpuHandle() {
+    return pOther->cpuHandle();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE RelayEdge::gpuHandle() {
+    return pOther->gpuHandle();
 }
 
 InEdge *Pass::addInput(InEdge *pEdge) {
@@ -112,15 +123,12 @@ private:
             // find the source of the input
             auto& source = graph.getEdges().at(dest.get());
             
-            ID3D12Resource *pResource = source->getResource();
-            dest->setResource(pResource);
-
-            ASSERTF(pResource != nullptr, "resource for {} was not found", edgeName(dest.get()));
+            dest->updateEdge(source);
 
             if (source->getState() == dest->getState()) { continue; }
 
             barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
-                /* pResource = */ pResource,
+                /* pResource = */ dest->getResource(),
                 /* StateBefore = */ source->getState(),
                 /* StateAfter = */ dest->getState()
             ));

@@ -36,7 +36,6 @@ void Context::begin() {
     HR_CHECK(commandAllocators[frameIndex]->Reset());
     HR_CHECK(pCommandList->Reset(commandAllocators[frameIndex], nullptr));
     
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
     ID3D12DescriptorHeap *ppHeaps[] = { cbvHeap.getHeap() };
     
     pCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
