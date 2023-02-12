@@ -118,3 +118,7 @@ Size Window::size() {
     GetClientRect(hWindow, &rect);
     return Size { size_t(rect.right - rect.left), size_t(rect.bottom - rect.top) };
 }
+
+float Window::dpi() {
+    return float(GetDpiForWindow(hWindow));
+}

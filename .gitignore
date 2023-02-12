@@ -9,6 +9,7 @@
 !*.h
 !*.inl
 !*.inc
+!*.hlsl
 
 # dont ignore readme and build files
 !*.md

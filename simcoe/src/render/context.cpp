@@ -77,7 +77,7 @@ void Context::deleteFactory() {
 }
 
 void Context::newDevice() {
-    if (info.adapter == SIZE_MAX) {
+    if (info.adapter == kDefaultAdapter) {
         selectDefaultAdapter();
     } else {
         selectAdapter(info.adapter);

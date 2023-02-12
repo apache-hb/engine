@@ -30,6 +30,7 @@ namespace simcoe::system {
 
         bool poll();
         Size size();
+        float dpi();
 
         HWND getHandle() const { return hWindow; }
 
@@ -42,8 +43,10 @@ namespace simcoe::system {
         HWND hWindow;
     };
 
-    void init();
-    void deinit();
+    struct System {
+        System();
+        ~System();
+    };
 
     StackTrace backtrace();
 

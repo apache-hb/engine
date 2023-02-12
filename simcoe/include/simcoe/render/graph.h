@@ -111,8 +111,8 @@ namespace simcoe::render {
 
         Pass(const GraphObject& other) : GraphObject(other) {}
 
-        virtual void start() = 0;
-        virtual void stop() = 0;
+        virtual void start() { }
+        virtual void stop() { }
         virtual void execute() = 0;
 
         const InEdgeVec& getInputs() const { return inputs; }

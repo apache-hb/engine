@@ -25,6 +25,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 using namespace simcoe;
 
+#if 0
 struct Feature {
     XGameRuntimeFeature feature;
     const char *name;
@@ -80,9 +81,19 @@ struct XGameRuntime {
         XGameRuntimeUninitialize();
     }
 };
+#endif
 
 struct Info {
-    Features features;
+    Info() :gamepad(0), keyboard(), mouse(false, true) {
+        manager.add(&gamepad);
+        manager.add(&keyboard);
+        manager.add(&mouse);
+    }
+
+    void poll() {
+        manager.poll();
+    }
+
     Locale locale;
 
     input::Gamepad gamepad;
@@ -122,10 +133,6 @@ struct GlobalPass final : render::Pass {
         pRenderTargetOut = out<render::RenderEdge>("render-target");
     }
 
-    void start() override { }
-
-    void stop() override { }
-
     void execute() override {
         auto& ctx = getContext();
         auto cmd = ctx.getCommandList();
@@ -154,15 +161,10 @@ struct RenderClearPass final : render::Pass {
         pTargetOut = out<render::RelayEdge>("render-target", pTargetIn);
     }
 
-    void start() override { }
-    void stop() override { }
-
     void execute() override {
         auto& ctx = getContext();
         auto cmd = ctx.getCommandList();
         auto rtv = pTargetIn->cpuHandle();
-
-        ASSERTF(rtv.ptr != 0, "cannot clear null render target!");
 
         cmd->ClearRenderTargetView(rtv, colour, 0, nullptr);
     }
@@ -247,7 +249,7 @@ struct ImGuiPass final : render::Pass {
 
         enableDock();
         drawRenderGraphInfo();
-        drawGdkInfo();
+        // drawGdkInfo();
         drawInputInfo();
 
         ImGui::ShowDemoWindow();
@@ -340,6 +342,7 @@ private:
         ImGui::End();
     }
 
+#if 0
     void drawGdkInfo() {
         if (ImGui::Begin("GDK")) {
             const auto& features = info.features;
@@ -367,6 +370,7 @@ private:
         }
         ImGui::End();
     }
+#endif
 
     void drawInputInfo() {
         constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
@@ -445,27 +449,25 @@ private:
     PresentPass *pPresentPass;
 };
 
+struct ImGuiRuntime {
+    ImGuiRuntime() {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGui::StyleColorsDark();
+
+        auto& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    }
+
+    ~ImGuiRuntime() {
+        ImGui::DestroyContext();
+    }
+};
+
 int commonMain() {
-    system::init();
-
-    XGameRuntime xgame;
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-
-    auto& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-    Info detail = {
-        .gamepad = input::Gamepad { 0 },
-        .keyboard = input::Keyboard { },
-        .mouse = input::Mouse { false, true },
-    };
-
-    detail.manager.add(&detail.gamepad);
-    detail.manager.add(&detail.keyboard);
-    detail.manager.add(&detail.mouse);
+    system::System system;
+    ImGuiRuntime imgui;
+    Info detail;
 
     Window window { detail };
 
@@ -476,34 +478,12 @@ int commonMain() {
     Scene scene { context, detail };
 
     ImGui_ImplWin32_Init(window.getHandle());
-
-#if 0
-    audio::Context sound;
-
-    XSpeechSynthesizerHandle speech;
-    XSpeechSynthesizerStreamHandle stream;
-
-    HR_CHECK(XSpeechSynthesizerCreate(&speech));
-    HR_CHECK(XSpeechSynthesizerSetDefaultVoice(speech));
-
-    HR_CHECK(XSpeechSynthesizerCreateStreamFromText(speech, "Hello world", &stream));
-
-    size_t bufferSize = 0;
-    HR_CHECK(XSpeechSynthesizerGetStreamDataSize(stream, &bufferSize));
-
-    std::vector<std::byte> buffer{bufferSize};
-
-    HR_CHECK(XSpeechSynthesizerGetStreamData(stream, bufferSize, buffer.data(), &bufferSize));
-
-    buffer.resize(bufferSize);
-
-    sound.play((void*)buffer.data(), bufferSize);
-#endif
+    ImGui_ImplWin32_EnableDpiAwareness();
 
     scene.start();
 
     while (window.poll()) {
-        detail.manager.poll();
+        detail.poll();
         scene.execute();
     }
 

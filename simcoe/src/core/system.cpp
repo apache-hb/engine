@@ -25,7 +25,7 @@ namespace {
     }
 }
 
-void system::init() {
+system::System::System() {
     // enable stackwalker
     SymInitialize(GetCurrentProcess(), nullptr, true);
     
@@ -39,7 +39,8 @@ void system::init() {
     HR_CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 }
 
-void system::deinit() {
+system::System::~System() {
+    CoUninitialize();
     SymCleanup(GetCurrentProcess());
 }
 

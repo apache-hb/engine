@@ -18,8 +18,10 @@ namespace simcoe::render {
     };
     
     struct Context {
+        constexpr static inline size_t kDefaultAdapter = SIZE_MAX;
+
         struct Info {
-            size_t adapter = SIZE_MAX; // which adapter to use
+            size_t adapter = kDefaultAdapter; // which adapter to use
             size_t frames = 2; // number of back buffers
             system::Size resolution = { 1280, 720 }; // resolution of the back buffers
             DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers

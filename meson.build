@@ -24,6 +24,7 @@ args = [
 ]
 
 subdir('simcoe')
+subdir('data')
 
 subdir('game')
 
