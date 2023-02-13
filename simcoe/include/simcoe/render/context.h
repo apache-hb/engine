@@ -47,21 +47,14 @@ namespace simcoe::render {
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
-        Heap& getHeap() { return cbvHeap; }
+        Heap& getCbvHeap() { return cbvHeap; }
+        Heap& getRtvHeap() { return rtvHeap; }
 
         ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
         
-        D3D12_CPU_DESCRIPTOR_HANDLE getCpuTargetHandle() const { 
-            CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
-            return rtvHandle;
-        }
-
-        D3D12_GPU_DESCRIPTOR_HANDLE getGpuTargetHandle() const { 
-            CD3DX12_GPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetGPUDescriptorHandleForHeapStart(), frameIndex, rtvDescriptorSize);
-            return rtvHandle;
-        }
-
-        ID3D12Resource *getRenderTargetResource() const { return renderTargets[frameIndex]; }
+        D3D12_CPU_DESCRIPTOR_HANDLE getCpuTargetHandle() const;
+        D3D12_GPU_DESCRIPTOR_HANDLE getGpuTargetHandle() const;
+        ID3D12Resource *getRenderTargetResource() const;
 
     private:
         void newFactory();
@@ -117,12 +110,16 @@ namespace simcoe::render {
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
 
-        constexpr size_t getRenderHeapSize() const { return info.frames; }
+        constexpr size_t getRenderHeapSize() const { return info.frames + 1; }
 
-        ID3D12DescriptorHeap *pRenderTargetHeap = nullptr;
-        UINT rtvDescriptorSize = 0;
+        Heap rtvHeap;
 
-        std::vector<ID3D12Resource*> renderTargets;
+        struct FrameData {
+            Heap::Index index;
+            ID3D12Resource *pRenderTarget = nullptr;
+        };
+
+        std::vector<FrameData> frameData;
 
         ID3D12Resource *pSceneTarget = nullptr;
 

@@ -35,9 +35,25 @@ namespace {
     }
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE Context::getCpuTargetHandle() const {
+    auto& data = frameData[frameIndex];
+    return rtvHeap.cpuHandle(data.index);
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE Context::getGpuTargetHandle() const {
+    auto& data = frameData[frameIndex];
+    return rtvHeap.gpuHandle(data.index);
+}
+
+ID3D12Resource *Context::getRenderTargetResource() const {
+    auto& data = frameData[frameIndex];
+    return data.pRenderTarget;
+}
+
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
+    , rtvHeap(getRenderHeapSize())
     , cbvHeap(info.heapSize)
 {
     newFactory();
@@ -235,35 +251,28 @@ void Context::deleteSwapChain() {
 }
 
 void Context::newRenderTargets() {
-    rtvDescriptorSize = pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    rtvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-    D3D12_DESCRIPTOR_HEAP_DESC desc = {
-        .Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        .NumDescriptors = static_cast<UINT>(info.frames),
-        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE
-    };
-
-    HR_CHECK(pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pRenderTargetHeap)));
-
-    renderTargets.resize(info.frames);
-
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(pRenderTargetHeap->GetCPUDescriptorHandleForHeapStart());
+    frameData.resize(info.frames);
 
     for (UINT i = 0; i < info.frames; i++) {
-        HR_CHECK(pSwapChain->GetBuffer(i, IID_PPV_ARGS(&renderTargets[i])));
-        pDevice->CreateRenderTargetView(renderTargets[i], nullptr, rtvHandle);
-        rtvHandle.Offset(1, rtvDescriptorSize);
+        Heap::Index index = rtvHeap.alloc();
+        ID3D12Resource *pRenderTarget = nullptr;
+        HR_CHECK(pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pRenderTarget)));
+        pDevice->CreateRenderTargetView(pRenderTarget, nullptr, rtvHeap.cpuHandle(index));
 
-        renderTargets[i]->SetName(std::format(L"rtv#{}", i).c_str());
+        pRenderTarget->SetName(std::format(L"rtv#{}", i).c_str());
+
+        frameData[i] = { .index = index, .pRenderTarget = pRenderTarget };
     }
 }
 
 void Context::deleteRenderTargets() {
-    for (auto &pRenderTarget : renderTargets) {
-        RELEASE(pRenderTarget);
+    for (auto &frame : frameData) {
+        RELEASE(frame.pRenderTarget);
     }
 
-    RELEASE(pRenderTargetHeap);
+    rtvHeap.deleteHeap();
 }
 
 void Context::newCommandList() {

@@ -210,32 +210,92 @@ struct ScenePass final : render::Pass {
     ScenePass(const GraphObject& object, const math::size2& size) : Pass(object) {
         auto [width, height] = size;
 
-        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-        scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+        sceneViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+        sceneScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
 
         pRenderTargetOut = out<SourceEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
     void start() override {
+        auto& ctx = getContext();
         // create intermediate render target
 
+        ID3D12Resource *pResource = nullptr;
+
+        float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        D3D12_CLEAR_VALUE clear = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, clearColor);
+
+        D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+            /* format = */ DXGI_FORMAT_R8G8B8A8_UNORM,
+            /* width = */ UINT(sceneViewport.Width),
+            /* height = */ UINT(sceneViewport.Height),
+            /* arraySize = */ 1,
+            /* mipLevels = */ 1,
+            /* sampleCount = */ 1,
+            /* sampleQuality = */ 0,
+            /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+        );
+
+        auto props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+        auto device = ctx.getDevice();
+
+        HR_CHECK(device->CreateCommittedResource(
+            /* heapProperties = */ &props,
+            /* heapFlags = */ D3D12_HEAP_FLAG_NONE,
+            /* pDesc = */ &desc,
+            /* initialState = */ D3D12_RESOURCE_STATE_RENDER_TARGET,
+            /* pOptimizedClearValue = */ &clear,
+            /* riidResource = */ IID_PPV_ARGS(&pResource)
+        ));
+
+        auto& rtvHeap = ctx.getRtvHeap();
+        rtvIndex = rtvHeap.alloc();
+        
+        auto& heap = ctx.getCbvHeap();
+        cbvIndex = heap.alloc();
+
+        // create render target view for the intermediate target
+        device->CreateRenderTargetView(pResource, nullptr, rtvHeap.cpuHandle(rtvIndex));
+
         // create shader resource view of the intermediate render target
-        // TODO: create scene render target resource
+        device->CreateShaderResourceView(pResource, nullptr, heap.cpuHandle(cbvIndex));
+
+        pRenderTargetOut->setResource(pResource, heap.cpuHandle(cbvIndex), heap.gpuHandle(cbvIndex));
     }
 
     void stop() override {
+        auto& ctx = getContext();
+        
+        ctx.getCbvHeap().release(cbvIndex);
+        ctx.getRtvHeap().release(rtvIndex);
+
+        ID3D12Resource *pResource = pRenderTargetOut->getResource();
+        RELEASE(pResource);
+
         // TODO: destroy scene render target resource
         pRenderTargetOut->setResource(nullptr, { }, { });
     }
 
     void execute() override {
-        // TODO: scene stuff
+        auto cmd = getContext().getCommandList();
+        auto rtv = pRenderTargetOut->cpuHandle();
+
+        cmd->RSSetViewports(1, &sceneViewport);
+        cmd->RSSetScissorRects(1, &sceneScissor);
+
+        cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
     }
 
     SourceEdge *pRenderTargetOut = nullptr;
+
 private:
-    D3D12_VIEWPORT viewport;
-    D3D12_RECT scissor;
+    D3D12_VIEWPORT sceneViewport;
+    D3D12_RECT sceneScissor;
+
+    // TODO: this should be part of SourceEdge maybe?
+    render::Heap::Index cbvIndex = render::Heap::Index::eInvalid;
+    render::Heap::Index rtvIndex = render::Heap::Index::eInvalid;
 };
 
 struct RenderClearPass final : render::Pass {
@@ -263,11 +323,11 @@ struct BlitPass final : render::Pass {
     BlitPass(const GraphObject& object, const math::size2& size) : Pass(object) {
         auto [width, height] = size;
 
-        targetViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-        targetScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+        screenViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+        screenScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
 
         pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
-        pRenderTargetOut = out<render::RelayEdge>("render-target", pSceneTargetIn);
+        pRenderTargetOut = out<RenderEdge>("render-target");
     }
 
     void execute() override {
@@ -278,8 +338,8 @@ struct BlitPass final : render::Pass {
     render::OutEdge *pRenderTargetOut = nullptr;
 
 private:
-    D3D12_VIEWPORT targetViewport;
-    D3D12_RECT targetScissor;
+    D3D12_VIEWPORT screenViewport;
+    D3D12_RECT screenScissor;
 };
 
 struct PresentPass final : render::Pass {
@@ -288,8 +348,7 @@ struct PresentPass final : render::Pass {
     }
 
     void execute() override {
-        auto& ctx = getContext();
-        ctx.end();
+        getContext().end();
     }
 
     render::InEdge *pRenderTargetIn = nullptr;
@@ -303,7 +362,7 @@ struct ImGuiPass final : render::Pass {
     
     void start() override {
         auto& context = getContext();
-        auto& heap = context.getHeap();
+        auto& heap = context.getCbvHeap();
         fontHandle = heap.alloc();
 
         ImGui_ImplDX12_Init(
@@ -342,7 +401,7 @@ struct ImGuiPass final : render::Pass {
         ImNodes::DestroyContext();
 
         ImGui_ImplDX12_Shutdown();
-        getContext().getHeap().release(fontHandle);
+        getContext().getCbvHeap().release(fontHandle);
     }
 
     void execute() override {
@@ -534,6 +593,8 @@ private:
 struct Scene final : render::Graph {
     Scene(render::Context& context, Info& info) : render::Graph(context) {
         pGlobalPass = addPass<GlobalPass>("global", math::size2::from(1280, 720));
+        pScenePass = addPass<ScenePass>("scene", math::size2::from(1920, 1080));
+        
         pRenderClearPass = addPass<RenderClearPass>("clear");
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
         pPresentPass = addPass<PresentPass>("present");
@@ -549,6 +610,7 @@ struct Scene final : render::Graph {
 
 private:
     GlobalPass *pGlobalPass;
+    ScenePass *pScenePass;
     RenderClearPass *pRenderClearPass;
     ImGuiPass *pImGuiPass;
     PresentPass *pPresentPass;
