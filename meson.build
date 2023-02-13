@@ -10,7 +10,8 @@ project('engine', [ 'cpp', 'c' ],
         'werror=true',
         'b_vscrt=static_from_buildtype',
         'default_library=static',
-        'b_lundef=true'
+        'b_lundef=true',
+        'auto_features=enabled'
     ]
 )
 

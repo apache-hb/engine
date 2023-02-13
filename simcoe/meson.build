@@ -101,9 +101,15 @@ src = [
     'src/render/context.cpp',
     'src/render/heap.cpp',
     'src/render/graph.cpp',
-    'src/render/vendor/agility.cpp',
     'src/render/vendor/vendor.cpp'
 ]
+
+if get_option('d3d12-agility').enabled()
+    message('enabling agility sdk')
+    src += [ 'src/render/vendor/agility.cpp' ]
+else
+    message('agility sdk disabled')
+endif
 
 librender = library('render', src,
     include_directories : 'include',

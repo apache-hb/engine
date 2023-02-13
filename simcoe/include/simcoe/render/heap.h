@@ -3,7 +3,7 @@
 #include "simcoe/core/panic.h"
 #include "simcoe/memory/bitmap.h"
 
-#include <dx/d3dx12.h>
+#include <dx/d3dx12/d3dx12.h>
 
 #define RELEASE(p) do { if (p != nullptr) { p->Release(); p = nullptr; } } while (0)
 

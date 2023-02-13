@@ -22,7 +22,7 @@
 # dont ignore config files
 !*.txt
 !*.ttf
-!resources/agility/*
+!data/**/*
 !resources/lib/**/*.dll
 !subprojects/**/*.lib
 !subprojects/**/*.dll
