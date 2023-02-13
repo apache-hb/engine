@@ -23,8 +23,8 @@ namespace simcoe {
 #define ASSERTF(expr, ...) \
     do { \
         if (!(expr)) { \
-            simcoe::PanicInfo detail { .pzFile = __FILE__, .pzFunction = FUNCNAME, .line = __LINE__}; \
-            simcoe::panic(detail, __VA_ARGS__); \
+            const simcoe::PanicInfo panicInfo { .pzFile = __FILE__, .pzFunction = FUNCNAME, .line = __LINE__}; \
+            simcoe::panic(panicInfo, __VA_ARGS__); \
         } \
     } while (0)
 

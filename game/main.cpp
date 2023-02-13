@@ -123,22 +123,73 @@ struct Window : system::Window {
     Info& info;
 };
 
+struct RenderEdge final : render::OutEdge {
+    RenderEdge(const GraphObject& self, render::Pass *pPass)
+        : OutEdge(self, pPass)
+    { }
+
+    ID3D12Resource *getResource() override {
+        return getContext().getRenderTargetResource();
+    }
+
+    D3D12_RESOURCE_STATES getState() const override {
+        return D3D12_RESOURCE_STATE_PRESENT;
+    }
+
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override {
+        return getContext().getCpuTargetHandle();
+    }
+
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override {
+        return getContext().getGpuTargetHandle();
+    }
+};
+
+struct SourceEdge final : render::OutEdge {
+    SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state)
+        : SourceEdge(self, pPass, state, nullptr, { }, { })
+    { }
+
+    SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state, ID3D12Resource *pResource, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE gpu)
+        : OutEdge(self, pPass)
+        , state(state)
+        , pResource(pResource)
+        , cpu(cpu)
+        , gpu(gpu)
+    { }
+
+    void setResource(ID3D12Resource *pOther, D3D12_CPU_DESCRIPTOR_HANDLE otherCpu, D3D12_GPU_DESCRIPTOR_HANDLE otherGpu) {
+        pResource = pOther;
+        cpu = otherCpu;
+        gpu = otherGpu;
+    }
+
+    ID3D12Resource *getResource() override { return pResource; }
+    D3D12_RESOURCE_STATES getState() const override { return state; }
+    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override { return cpu; }
+    D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override { return gpu; }
+
+private:
+    D3D12_RESOURCE_STATES state;
+    ID3D12Resource *pResource;
+    D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+    D3D12_GPU_DESCRIPTOR_HANDLE gpu;
+};
+
 struct GlobalPass final : render::Pass {
     GlobalPass(const GraphObject& object, const math::size2& size) : Pass(object) { 
         auto [width, height] = size;
 
-        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-        scissor = CD3DX12_RECT(0, 0, static_cast<LONG>(width), static_cast<LONG>(height));
+        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+        scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
     
-        pRenderTargetOut = out<render::RenderEdge>("render-target");
+        pRenderTargetOut = out<RenderEdge>("render-target");
     }
 
     void execute() override {
         auto& ctx = getContext();
         auto cmd = ctx.getCommandList();
         auto rtv = pRenderTargetOut->cpuHandle();
-
-        ASSERTF(rtv.ptr != 0, "No render target set!");
 
         ctx.begin();
 
@@ -155,6 +206,38 @@ private:
     D3D12_RECT scissor;
 };
 
+struct ScenePass final : render::Pass {
+    ScenePass(const GraphObject& object, const math::size2& size) : Pass(object) {
+        auto [width, height] = size;
+
+        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+        scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+
+        pRenderTargetOut = out<SourceEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
+    }
+
+    void start() override {
+        // create intermediate render target
+
+        // create shader resource view of the intermediate render target
+        // TODO: create scene render target resource
+    }
+
+    void stop() override {
+        // TODO: destroy scene render target resource
+        pRenderTargetOut->setResource(nullptr, { }, { });
+    }
+
+    void execute() override {
+        // TODO: scene stuff
+    }
+
+    SourceEdge *pRenderTargetOut = nullptr;
+private:
+    D3D12_VIEWPORT viewport;
+    D3D12_RECT scissor;
+};
+
 struct RenderClearPass final : render::Pass {
     RenderClearPass(const GraphObject& object) : Pass(object) {
         pTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -162,8 +245,7 @@ struct RenderClearPass final : render::Pass {
     }
 
     void execute() override {
-        auto& ctx = getContext();
-        auto cmd = ctx.getCommandList();
+        auto cmd = getContext().getCommandList();
         auto rtv = pTargetIn->cpuHandle();
 
         cmd->ClearRenderTargetView(rtv, colour, 0, nullptr);
@@ -176,13 +258,34 @@ private:
     float colour[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
 };
 
+// copy resource to back buffer
+struct BlitPass final : render::Pass {
+    BlitPass(const GraphObject& object, const math::size2& size) : Pass(object) {
+        auto [width, height] = size;
+
+        targetViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+        targetScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+
+        pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
+        pRenderTargetOut = out<render::RelayEdge>("render-target", pSceneTargetIn);
+    }
+
+    void execute() override {
+
+    }
+
+    render::InEdge *pSceneTargetIn = nullptr;
+    render::OutEdge *pRenderTargetOut = nullptr;
+
+private:
+    D3D12_VIEWPORT targetViewport;
+    D3D12_RECT targetScissor;
+};
+
 struct PresentPass final : render::Pass {
     PresentPass(const GraphObject& object) : Pass(object) { 
         pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_PRESENT);
     }
-
-    void start() override { }
-    void stop() override { }
 
     void execute() override {
         auto& ctx = getContext();
@@ -297,7 +400,9 @@ private:
                 if (ImGui::MenuItem("Import")) {
 
                 }
+
                 ImGui::MenuItem("Save");
+                ImGui::MenuItem("Open");
 
                 ImGui::EndMenu();
             }
@@ -318,16 +423,16 @@ private:
                 ImGui::Text("%s", name);
                 ImNodes::EndNodeTitleBar();
 
-                for (auto& input : pass->getInputs()) {
-                    ImNodes::BeginInputAttribute(edgeIndices[input.get()]);
-                    ImGui::Text("%s", input->getName());
-                    ImNodes::EndInputAttribute();
-                }
-
                 for (auto& output : pass->getOutputs()) {
                     ImNodes::BeginOutputAttribute(edgeIndices[output.get()]);
                     ImGui::Text("%s", output->getName());
                     ImNodes::EndOutputAttribute();
+                }
+
+                for (auto& input : pass->getInputs()) {
+                    ImNodes::BeginInputAttribute(edgeIndices[input.get()]);
+                    ImGui::Text("%s", input->getName());
+                    ImNodes::EndInputAttribute();
                 }
 
                 ImNodes::EndNode();
@@ -472,7 +577,8 @@ int commonMain() {
     Window window { detail };
 
     render::Context::Info info = {
-        .resolution = { 600, 800 }
+        .windowSize = { 600, 800 },
+        .sceneSize = { 1920, 1080 },
     };
     render::Context context { window, info };
     Scene scene { context, detail };

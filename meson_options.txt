@@ -1,0 +1,7 @@
+option('stacktrace', type : 'feature', value : 'auto',
+    description : 'enable platform backtrace support'
+)
+
+option('render-debug', type : 'feature', value : 'auto',
+    description : 'enable render debug layers'
+)

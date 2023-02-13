@@ -23,7 +23,9 @@ namespace simcoe::render {
         struct Info {
             size_t adapter = kDefaultAdapter; // which adapter to use
             size_t frames = 2; // number of back buffers
-            system::Size resolution = { 1280, 720 }; // resolution of the back buffers
+
+            system::Size windowSize = { 1280, 720 }; //presentation resolution
+            system::Size sceneSize = { 1920, 1080 }; // internal resolution
             DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers
         
             size_t heapSize = 1024;
@@ -108,10 +110,14 @@ namespace simcoe::render {
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
 
+        constexpr size_t getRenderHeapSize() const { return info.frames; }
+
         ID3D12DescriptorHeap *pRenderTargetHeap = nullptr;
         UINT rtvDescriptorSize = 0;
 
         std::vector<ID3D12Resource*> renderTargets;
+
+        ID3D12Resource *pSceneTarget = nullptr;
 
         std::vector<ID3D12CommandAllocator*> commandAllocators;
         ID3D12GraphicsCommandList *pCommandList = nullptr;

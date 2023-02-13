@@ -36,18 +36,19 @@ Context& GraphObject::getContext() {
 
 void InEdge::updateEdge(OutEdge *pEdge) {     
     ASSERTF(pEdge != nullptr, "null setResource on {}", edgeName(this));
-
-    pResource = pEdge->getResource();
-    cpu = pEdge->cpuHandle();
-    gpu = pEdge->gpuHandle();
-
-    ASSERTF(pResource != nullptr, "null resource returned from {} in {}", edgeName(pEdge), edgeName(this));
-    ASSERTF(cpu.ptr != 0, "null cpu handle returned from {} in {}", edgeName(pEdge), edgeName(this));
-    //ASSERTF(gpu.ptr != 0, "null gpu handle returned from {} in {}", edgeName(pEdge), edgeName(this));
+    pSource = pEdge;
 }
 
 ID3D12Resource *InEdge::getResource() {
-    return pResource;
+    return pSource->getResource();
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE InEdge::cpuHandle() {
+    return pSource->cpuHandle();
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE InEdge::gpuHandle() {
+    return pSource->gpuHandle();
 }
 
 ID3D12Resource *RelayEdge::getResource() {

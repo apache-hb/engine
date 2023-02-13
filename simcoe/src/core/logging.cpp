@@ -1,5 +1,6 @@
 #include "simcoe/core/logging.h"
 #include "simcoe/core/win32.h"
+#include "simcoe/core/panic.h"
 
 using namespace simcoe;
 using namespace simcoe::logging;
@@ -51,8 +52,13 @@ void ConsoleSink::send(Category &category, Level level, const char *pzMessage) {
 }
 
 FileSink::FileSink(const char *pzName, const char *pzPath): ISink(pzName) { 
-    auto err = fopen_s(&pFile, pzPath, "w");
-    (void)err; // TODO: handle these
+    errno_t err = fopen_s(&pFile, pzPath, "w");
+    
+    if (err != 0) {
+        err = fopen_s(&pFile, "\\\\.\\NUL", "a");
+    }
+
+    ASSERT(err == 0);
 }
 
 void FileSink::send(Category &category, Level level, const char *pzMessage) {
