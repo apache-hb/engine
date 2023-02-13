@@ -70,6 +70,11 @@ namespace simcoe::render {
         void newDevice();
         void deleteDevice();
 
+        void newInfoQueue();
+        void deleteInfoQueue();
+
+        void listAdapters();
+
         void selectAdapter(size_t index);
         void selectDefaultAdapter();
 
@@ -104,6 +109,8 @@ namespace simcoe::render {
         IDXGIAdapter1 *pAdapter = nullptr;
 
         ID3D12Device *pDevice = nullptr;
+
+        ID3D12InfoQueue1 *pInfoQueue = nullptr;
 
         ID3D12CommandQueue *pPresentQueue = nullptr;
 

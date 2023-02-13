@@ -577,6 +577,7 @@ int commonMain() {
     Window window { detail };
 
     render::Context::Info info = {
+        .adapter = 2, // use warp for now (TODO: apache-laptop)
         .windowSize = { 600, 800 },
         .sceneSize = { 1920, 1080 },
     };

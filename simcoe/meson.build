@@ -104,7 +104,7 @@ src = [
     'src/render/vendor/vendor.cpp'
 ]
 
-if get_option('d3d12-agility').enabled()
+if agility
     message('enabling agility sdk')
     src += [ 'src/render/vendor/agility.cpp' ]
 else

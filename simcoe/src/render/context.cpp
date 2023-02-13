@@ -5,6 +5,36 @@
 using namespace simcoe;
 using namespace simcoe::render;
 
+namespace {
+    const char *severityToString(D3D12_MESSAGE_SEVERITY severity) {
+        switch (severity) {
+        case D3D12_MESSAGE_SEVERITY_CORRUPTION: return "CORRUPTION";
+        case D3D12_MESSAGE_SEVERITY_ERROR: return "ERROR";
+        case D3D12_MESSAGE_SEVERITY_WARNING: return "WARNING";
+        case D3D12_MESSAGE_SEVERITY_INFO: return "INFO";
+        case D3D12_MESSAGE_SEVERITY_MESSAGE: return "MESSAGE";
+        default: return "UNKNOWN";
+        }
+    }
+
+    const char *categoryToString(D3D12_MESSAGE_CATEGORY category) {
+        switch (category) {
+        case D3D12_MESSAGE_CATEGORY_APPLICATION_DEFINED: return "APPLICATION_DEFINED";
+        case D3D12_MESSAGE_CATEGORY_MISCELLANEOUS: return "MISCELLANEOUS";
+        case D3D12_MESSAGE_CATEGORY_INITIALIZATION: return "INITIALIZATION";
+        case D3D12_MESSAGE_CATEGORY_CLEANUP: return "CLEANUP";
+        case D3D12_MESSAGE_CATEGORY_COMPILATION: return "COMPILATION";
+        case D3D12_MESSAGE_CATEGORY_STATE_CREATION: return "STATE_CREATION";
+        case D3D12_MESSAGE_CATEGORY_STATE_SETTING: return "STATE_SETTING";
+        case D3D12_MESSAGE_CATEGORY_STATE_GETTING: return "STATE_GETTING";
+        case D3D12_MESSAGE_CATEGORY_RESOURCE_MANIPULATION: return "RESOURCE_MANIPULATION";
+        case D3D12_MESSAGE_CATEGORY_EXECUTION: return "EXECUTION";
+        case D3D12_MESSAGE_CATEGORY_SHADER: return "SHADER";
+        default: return "UNKNOWN";
+        }
+    }
+}
+
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
@@ -12,6 +42,7 @@ Context::Context(system::Window &window, const Info& info)
 {
     newFactory();
     newDevice();
+    newInfoQueue();
     newPresentQueue();
     newSwapChain();
     newRenderTargets();
@@ -27,6 +58,7 @@ Context::~Context() {
     deleteRenderTargets();
     deleteSwapChain();
     deletePresentQueue();
+    deleteInfoQueue();
     deleteDevice();
     deleteFactory();
 }
@@ -77,6 +109,8 @@ void Context::deleteFactory() {
 }
 
 void Context::newDevice() {
+    listAdapters();
+
     if (info.adapter == kDefaultAdapter) {
         selectDefaultAdapter();
     } else {
@@ -94,6 +128,56 @@ void Context::newDevice() {
 void Context::deleteDevice() {
     RELEASE(pDevice);
     RELEASE(pAdapter);
+}
+
+void Context::newInfoQueue() {
+    if (HRESULT hr = pDevice->QueryInterface(IID_PPV_ARGS(&pInfoQueue)); SUCCEEDED(hr)) {
+        D3D12MessageFunc pfn = [](D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR pDescription, void *pUser) {
+            (void)pUser;
+
+            const char *categoryStr = categoryToString(category);
+            const char *severityStr = severityToString(severity);
+
+            switch (severity) {
+            case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+            case D3D12_MESSAGE_SEVERITY_ERROR:
+                gRenderLog.fatal("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_WARNING:
+                gRenderLog.warn("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                break;
+            case D3D12_MESSAGE_SEVERITY_INFO:
+            case D3D12_MESSAGE_SEVERITY_MESSAGE:
+                gRenderLog.info("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                break;
+            default:
+                gRenderLog.info("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                break;
+            }
+        };
+
+        DWORD cookie = 0;
+        pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &cookie);
+
+        gRenderLog.info("ID3D12InfoQueue::RegisterMessageCallback() = {}", cookie);
+    } else {
+        gRenderLog.warn("ID3D12Device::QueryInterface(IID_PPV_ARGS(&pInfoQueue)) = {}", system::hrString(hr));
+    }
+}
+
+void Context::deleteInfoQueue() {
+    RELEASE(pInfoQueue);
+}
+
+void Context::listAdapters() {
+    IDXGIAdapter1 *it = nullptr;
+    for (UINT i = 0; pFactory->EnumAdapters1(i, &it) != DXGI_ERROR_NOT_FOUND; i++) {
+        DXGI_ADAPTER_DESC1 desc;
+        HR_CHECK(it->GetDesc1(&desc));
+
+        gRenderLog.info("adapter #{}: {}", i, util::narrow(desc.Description));
+        RELEASE(it);
+    }
 }
 
 void Context::selectAdapter(size_t index) {
