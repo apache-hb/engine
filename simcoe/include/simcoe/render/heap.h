@@ -1,11 +1,7 @@
 #pragma once
 
-#include "simcoe/core/panic.h"
+#include "simcoe/render/render.h"
 #include "simcoe/memory/bitmap.h"
-
-#include <dx/d3dx12/d3dx12.h>
-
-#define RELEASE(p) do { if (p != nullptr) { p->Release(); p = nullptr; } } while (0)
 
 namespace simcoe::render {
     struct Heap final {
@@ -15,7 +11,7 @@ namespace simcoe::render {
 
         Heap(size_t size);
 
-        void newHeap(ID3D12Device *pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type);
+        void newHeap(ID3D12Device *pDevice, D3D12_DESCRIPTOR_HEAP_FLAGS flags, D3D12_DESCRIPTOR_HEAP_TYPE type);
         void deleteHeap();
 
         Index alloc();

@@ -4,6 +4,7 @@ src = [
     'src/core/window.cpp',
     'src/core/panic.cpp',
     'src/core/util.cpp',
+    'src/core/io.cpp',
 
     'src/core/simcoe.cpp'
 ]
@@ -95,12 +96,26 @@ imgui = declare_dependency(
     include_directories : inc
 )
 
-subdir('include/imnodes')
+src = [ 'include/imnodes/src/imnodes.cpp' ]
+
+libimnodes = library('imnodes', src,
+    dependencies : [ imgui ],
+    include_directories : 'include/imnodes/include',
+    cpp_args : args
+)
+
+imnodes = declare_dependency(
+    link_with : libimnodes,
+    dependencies : [ imgui ],
+    include_directories : 'include/imnodes/include'
+)
 
 src = [
     'src/render/context.cpp',
     'src/render/heap.cpp',
     'src/render/graph.cpp',
+    'src/render/queue.cpp',
+    
     'src/render/vendor/vendor.cpp'
 ]
 
@@ -115,14 +130,14 @@ librender = library('render', src,
     include_directories : 'include',
     cpp_args : args,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ core, memory, d3d12 ]
+    dependencies : [ core, memory, d3d12, queue ]
 )
 
 render = declare_dependency(
     include_directories : 'include',
     link_with : librender,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
-    dependencies : [ core, d3d12 ]
+    dependencies : [ core, memory, d3d12, queue ]
 )
 
 src = [

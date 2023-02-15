@@ -17,6 +17,7 @@ project('engine', [ 'cpp', 'c' ],
 
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gdk = subproject('gdk').get_variable('gdk')
+queue = subproject('atomic-queue').get_variable('queue')
 
 agility = get_option('d3d12-agility').enabled()
 

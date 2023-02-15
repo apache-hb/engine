@@ -1,6 +1,8 @@
-#include "imnodes/include/imnodes/imnodes.h"
+#include <filesystem>
+
 #include "simcoe/core/system.h"
 #include "simcoe/core/win32.h"
+#include "simcoe/core/io.h"
 
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
@@ -18,12 +20,25 @@
 
 #include "simcoe/simcoe.h"
 
-#include "GameInput.h"
-#include "XGameRuntime.h"
+//#include "GameInput.h"
+//#include "XGameRuntime.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 using namespace simcoe;
+
+using ShaderBlob = std::vector<std::byte>;
+
+namespace {
+    ShaderBlob loadShader(std::string_view path) {
+        std::unique_ptr<Io> file{Io::open(path, Io::eRead)};
+        return file->read<std::byte>();
+    }
+
+    D3D12_SHADER_BYTECODE getShader(ShaderBlob &blob) {
+        return D3D12_SHADER_BYTECODE {blob.data(), blob.size()};
+    }
+}
 
 #if 0
 struct Feature {
@@ -84,7 +99,7 @@ struct XGameRuntime {
 #endif
 
 struct Info {
-    Info() :gamepad(0), keyboard(), mouse(false, true) {
+    Info() : gamepad(0), keyboard(), mouse(false, true) {
         manager.add(&gamepad);
         manager.add(&keyboard);
         manager.add(&mouse);
@@ -250,18 +265,18 @@ struct ScenePass final : render::Pass {
         ));
 
         auto& rtvHeap = ctx.getRtvHeap();
+        auto& cbvHeap = ctx.getCbvHeap();
+
         rtvIndex = rtvHeap.alloc();
-        
-        auto& heap = ctx.getCbvHeap();
-        cbvIndex = heap.alloc();
+        cbvIndex = cbvHeap.alloc();
 
         // create render target view for the intermediate target
         device->CreateRenderTargetView(pResource, nullptr, rtvHeap.cpuHandle(rtvIndex));
 
         // create shader resource view of the intermediate render target
-        device->CreateShaderResourceView(pResource, nullptr, heap.cpuHandle(cbvIndex));
+        device->CreateShaderResourceView(pResource, nullptr, cbvHeap.cpuHandle(cbvIndex));
 
-        pRenderTargetOut->setResource(pResource, heap.cpuHandle(cbvIndex), heap.gpuHandle(cbvIndex));
+        pRenderTargetOut->setResource(pResource, cbvHeap.cpuHandle(cbvIndex), cbvHeap.gpuHandle(cbvIndex));
     }
 
     void stop() override {
@@ -273,7 +288,6 @@ struct ScenePass final : render::Pass {
         ID3D12Resource *pResource = pRenderTargetOut->getResource();
         RELEASE(pResource);
 
-        // TODO: destroy scene render target resource
         pRenderTargetOut->setResource(nullptr, { }, { });
     }
 
@@ -328,6 +342,63 @@ struct BlitPass final : render::Pass {
 
         pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
         pRenderTargetOut = out<RenderEdge>("render-target");
+
+        vs = loadShader("build\\game\\game.exe.p\\post.vs.cso");
+        ps = loadShader("build\\game\\game.exe.p\\post.ps.cso");
+    }
+
+    void start() override {
+        auto& ctx = getContext();
+        auto device = ctx.getDevice();
+        // TODO: create pipeline state
+
+        CD3DX12_STATIC_SAMPLER_DESC samplers[1];
+        samplers[0].Init(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+
+        CD3DX12_DESCRIPTOR_RANGE1 range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+        CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+        rootParameters[0].InitAsDescriptorTable(1, &range);
+
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+        rootSignatureDesc.Init(_countof(rootParameters), (D3D12_ROOT_PARAMETER*)rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        ID3DBlob *pSignature = nullptr;
+        ID3DBlob *pError = nullptr;
+
+        HR_CHECK(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &pSignature, &pError));
+        HR_CHECK(device->CreateRootSignature(0, pSignature->GetBufferPointer(), pSignature->GetBufferSize(), IID_PPV_ARGS(&pBlitSignature)));
+
+        RELEASE(pSignature);
+        RELEASE(pError);
+
+        D3D12_INPUT_ELEMENT_DESC layout[] = {
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        };
+
+        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
+            .pRootSignature = pBlitSignature,
+            .VS = getShader(vs),
+            .PS = getShader(ps),
+            .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+            .SampleMask = UINT_MAX,
+            .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+            .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(),
+            .InputLayout = { layout, _countof(layout) },
+            .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .NumRenderTargets = 1,
+            .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .DSVFormat = DXGI_FORMAT_UNKNOWN,
+            .SampleDesc = { 1, 0 },
+        };
+
+        HR_CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pBlitPipeline)));
+    }
+
+    void stop() override {
+        RELEASE(pBlitSignature);
+        RELEASE(pBlitPipeline);
     }
 
     void execute() override {
@@ -340,6 +411,12 @@ struct BlitPass final : render::Pass {
 private:
     D3D12_VIEWPORT screenViewport;
     D3D12_RECT screenScissor;
+
+    ShaderBlob ps;
+    ShaderBlob vs;
+
+    ID3D12RootSignature *pBlitSignature = nullptr;
+    ID3D12PipelineState *pBlitPipeline = nullptr;
 };
 
 struct PresentPass final : render::Pass {
@@ -593,8 +670,11 @@ private:
 struct Scene final : render::Graph {
     Scene(render::Context& context, Info& info) : render::Graph(context) {
         pGlobalPass = addPass<GlobalPass>("global", math::size2::from(1280, 720));
-        pScenePass = addPass<ScenePass>("scene", math::size2::from(1920, 1080));
         
+        pScenePass = addPass<ScenePass>("scene", math::size2::from(1920, 1080));
+        pBlitPass = addPass<BlitPass>("blit", math::size2::from(1280, 720));
+
+
         pRenderClearPass = addPass<RenderClearPass>("clear");
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
         pPresentPass = addPass<PresentPass>("present");
@@ -610,7 +690,10 @@ struct Scene final : render::Graph {
 
 private:
     GlobalPass *pGlobalPass;
+    // TODO
     ScenePass *pScenePass;
+    BlitPass *pBlitPass;
+
     RenderClearPass *pRenderClearPass;
     ImGuiPass *pImGuiPass;
     PresentPass *pPresentPass;
@@ -632,6 +715,7 @@ struct ImGuiRuntime {
 };
 
 int commonMain() {
+    gLog.info("cwd: {}", std::filesystem::current_path().string());
     system::System system;
     ImGuiRuntime imgui;
     Info detail;

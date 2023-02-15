@@ -3,9 +3,10 @@
 #include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
 #include "simcoe/render/heap.h"
+#include "simcoe/render/queue.h"
+
 #include "simcoe/simcoe.h"
 
-#include "dx/d3d12.h"
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 
@@ -29,6 +30,7 @@ namespace simcoe::render {
             DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers
         
             size_t heapSize = 1024;
+            size_t queueSize = 1024;
             size_t workerThreads = 2;
         };
 
@@ -49,6 +51,8 @@ namespace simcoe::render {
 
         Heap& getCbvHeap() { return cbvHeap; }
         Heap& getRtvHeap() { return rtvHeap; }
+
+        Queue& getCopyQueue() { return copyQueue; }
 
         ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
         
@@ -88,6 +92,9 @@ namespace simcoe::render {
 
         void newDescriptorHeap();
         void deleteDescriptorHeap();
+
+        void newCopyQueue();
+        void deleteCopyQueue();
 
         void waitForFence();
         void nextFrame();
@@ -132,5 +139,6 @@ namespace simcoe::render {
         ID3D12Fence *pFence = nullptr;
 
         Heap cbvHeap;
+        Queue copyQueue;
     };
 }

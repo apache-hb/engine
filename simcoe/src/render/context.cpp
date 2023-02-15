@@ -55,6 +55,7 @@ Context::Context(system::Window &window, const Info& info)
     , info(info)
     , rtvHeap(getRenderHeapSize())
     , cbvHeap(info.heapSize)
+    , copyQueue(info.queueSize)
 {
     newFactory();
     newDevice();
@@ -64,11 +65,13 @@ Context::Context(system::Window &window, const Info& info)
     newRenderTargets();
     newCommandList();
     newDescriptorHeap();
+    newCopyQueue();
     newFence();
 }
 
 Context::~Context() {
     deleteFence();
+    deleteCopyQueue();
     deleteDescriptorHeap();
     deleteCommandList();
     deleteRenderTargets();
@@ -198,8 +201,12 @@ void Context::listAdapters() {
 
 void Context::selectAdapter(size_t index) {
     gRenderLog.info("selecting adapter #{}", index);
-    HR_CHECK(pFactory->EnumAdapters1(UINT(index), &pAdapter));
-    ASSERT(pAdapter != nullptr);
+    HRESULT hr = pFactory->EnumAdapters1(UINT(index), &pAdapter);
+    if (!SUCCEEDED(hr)) {
+        gRenderLog.warn("adapter #{} not found. selecting default adapter", index);
+        info.adapter = kDefaultAdapter;
+        selectDefaultAdapter();
+    }
 }
 
 void Context::selectDefaultAdapter() {
@@ -251,7 +258,7 @@ void Context::deleteSwapChain() {
 }
 
 void Context::newRenderTargets() {
-    rtvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    rtvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     frameData.resize(info.frames);
 
@@ -330,9 +337,17 @@ void Context::nextFrame() {
 }
 
 void Context::newDescriptorHeap() {
-    cbvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    cbvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
 void Context::deleteDescriptorHeap() {
     cbvHeap.deleteHeap();
+}
+
+void Context::newCopyQueue() {
+    copyQueue.newQueue(pDevice);
+}
+
+void Context::deleteCopyQueue() {
+    copyQueue.deleteQueue();
 }

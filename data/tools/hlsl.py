@@ -18,7 +18,7 @@ debug = '--debug' in argv
 for target in targets.split(','):
     entry = f'{target}Main'
     target_model = f'{target}_{shader_model}'
-    output_name = f'{output}.{target}'
+    output_name = f'{output}.{target}.cso'
     args = [dxc, '-T' + target_model, '-E' + entry, '-Fo' + output_name, '-WX']
     if debug:
         args += [ '-Zi', '-DDEBUG=1', '-Qembed_debug' ]

@@ -8,11 +8,11 @@ Heap::Heap(size_t size)
     : map(size)
 { }
 
-void Heap::newHeap(ID3D12Device *pDevice, D3D12_DESCRIPTOR_HEAP_TYPE type) {
+void Heap::newHeap(ID3D12Device *pDevice, D3D12_DESCRIPTOR_HEAP_FLAGS flags, D3D12_DESCRIPTOR_HEAP_TYPE type) {
     D3D12_DESCRIPTOR_HEAP_DESC desc = {
         .Type = type,
         .NumDescriptors = UINT(map.getSize()),
-        .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+        .Flags = flags
     };
 
     HR_CHECK(pDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&pHeap)));

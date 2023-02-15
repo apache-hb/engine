@@ -1,6 +1,6 @@
-#include "engine/base/io/io.h"
-#include "engine/base/panic.h"
-#include "engine/base/win32.h"
+#include "simcoe/core/io.h"
+#include "simcoe/core/panic.h"
+#include "simcoe/core/win32.h"
 
 using namespace simcoe;
 
