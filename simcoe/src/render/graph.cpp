@@ -182,7 +182,11 @@ void Graph::stop() {
 }
 
 void Graph::execute(Pass *pRoot) {
+    auto& ctx = getContext();
+
+    ctx.begin();
     GraphBuilder graph{*this, pRoot};
+    ctx.end();
 }
 
 Context& Graph::getContext() {

@@ -39,3 +39,7 @@ void Queue::wait() {
     
     fenceValue += 1;
 }
+
+void Queue::push(void *pCommand) {
+    queue.try_enqueue(pCommand);
+}

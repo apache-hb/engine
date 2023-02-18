@@ -15,6 +15,9 @@ namespace simcoe::math {
 
         return it;
     }
+
+    template<typename T>
+    struct Vec2;
     
     template<typename T>
     struct Vec3;
@@ -52,6 +55,10 @@ namespace simcoe::math {
 
         constexpr bool operator!=(const Resolution &other) const {
             return width != other.width || height != other.height;
+        }
+
+        constexpr operator Vec2<T>() const {
+            return { width, height };
         }
     };
 

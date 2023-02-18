@@ -17,7 +17,7 @@ namespace simcoe::render {
 
         eTotal
     };
-    
+
     struct Context {
         constexpr static inline size_t kDefaultAdapter = SIZE_MAX;
 

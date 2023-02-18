@@ -27,9 +27,14 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 using namespace simcoe;
 
-using ShaderBlob = std::vector<std::byte>;
-
 namespace {
+    using ShaderBlob = std::vector<std::byte>;
+
+    struct Vertex {
+        math::float3 position;
+        math::float2 uv;
+    };
+
     ShaderBlob loadShader(std::string_view path) {
         std::unique_ptr<Io> file{Io::open(path, Io::eRead)};
         return file->read<std::byte>();
@@ -109,6 +114,9 @@ struct Info {
         manager.poll();
     }
 
+    system::Size windowResolution;
+    system::Size internalResolution;
+
     Locale locale;
 
     input::Gamepad gamepad;
@@ -122,7 +130,10 @@ struct Window : system::Window {
     Window(Info& info)
         : system::Window("game", { 1280, 720 })
         , info(info) 
-    { }
+    { 
+        info.windowResolution = Window::size();
+        info.internalResolution = { 1920, 1080 };
+    }
 
     bool poll() {
         info.mouse.update(getHandle());
@@ -191,59 +202,52 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE gpu;
 };
 
-struct GlobalPass final : render::Pass {
-    GlobalPass(const GraphObject& object, const math::size2& size) : Pass(object) { 
-        auto [width, height] = size;
-
-        viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-        scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
-    
-        pRenderTargetOut = out<RenderEdge>("render-target");
-    }
-
-    void execute() override {
-        auto& ctx = getContext();
-        auto cmd = ctx.getCommandList();
-        auto rtv = pRenderTargetOut->cpuHandle();
-
-        ctx.begin();
-
-        cmd->RSSetViewports(1, &viewport);
-        cmd->RSSetScissorRects(1, &scissor);
-
-        cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
-    }
-
-    render::OutEdge *pRenderTargetOut = nullptr;
-
-private:
+struct Display {
     D3D12_VIEWPORT viewport;
     D3D12_RECT scissor;
 };
 
+Display createDisplay(const math::size2& size) {
+    auto [width, height] = size;
+
+    Display display;
+    display.viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
+    display.scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+
+    return display;
+}
+
+struct GlobalPass final : render::Pass {
+    GlobalPass(const GraphObject& object) : Pass(object) { 
+        pRenderTargetOut = out<RenderEdge>("render-target");
+    }
+
+    void execute() override { }
+
+    render::OutEdge *pRenderTargetOut = nullptr;
+};
+
 struct ScenePass final : render::Pass {
-    ScenePass(const GraphObject& object, const math::size2& size) : Pass(object) {
-        auto [width, height] = size;
-
-        sceneViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-        sceneScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
-
+    ScenePass(const GraphObject& object, const math::size2& size) 
+        : Pass(object)
+        , scene(createDisplay(size)) 
+    {
         pRenderTargetOut = out<SourceEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
     void start() override {
         auto& ctx = getContext();
-        // create intermediate render target
 
         ID3D12Resource *pResource = nullptr;
 
         float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
         D3D12_CLEAR_VALUE clear = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, clearColor);
 
+        // create intermediate render target
         D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
             /* format = */ DXGI_FORMAT_R8G8B8A8_UNORM,
-            /* width = */ UINT(sceneViewport.Width),
-            /* height = */ UINT(sceneViewport.Height),
+            /* width = */ UINT(scene.viewport.Width),
+            /* height = */ UINT(scene.viewport.Height),
             /* arraySize = */ 1,
             /* mipLevels = */ 1,
             /* sampleCount = */ 1,
@@ -251,7 +255,7 @@ struct ScenePass final : render::Pass {
             /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
         );
 
-        auto props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
         auto device = ctx.getDevice();
 
@@ -292,11 +296,13 @@ struct ScenePass final : render::Pass {
     }
 
     void execute() override {
+        auto& ctx = getContext();
+        auto& rtvHeap = ctx.getRtvHeap();
         auto cmd = getContext().getCommandList();
-        auto rtv = pRenderTargetOut->cpuHandle();
+        auto rtv = rtvHeap.cpuHandle(rtvIndex); // TODO: definetly not right
 
-        cmd->RSSetViewports(1, &sceneViewport);
-        cmd->RSSetScissorRects(1, &sceneScissor);
+        cmd->RSSetViewports(1, &scene.viewport);
+        cmd->RSSetScissorRects(1, &scene.scissor);
 
         cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
     }
@@ -304,45 +310,27 @@ struct ScenePass final : render::Pass {
     SourceEdge *pRenderTargetOut = nullptr;
 
 private:
-    D3D12_VIEWPORT sceneViewport;
-    D3D12_RECT sceneScissor;
+    Display scene;
 
     // TODO: this should be part of SourceEdge maybe?
     render::Heap::Index cbvIndex = render::Heap::Index::eInvalid;
     render::Heap::Index rtvIndex = render::Heap::Index::eInvalid;
 };
 
-struct RenderClearPass final : render::Pass {
-    RenderClearPass(const GraphObject& object) : Pass(object) {
-        pTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
-        pTargetOut = out<render::RelayEdge>("render-target", pTargetIn);
-    }
-
-    void execute() override {
-        auto cmd = getContext().getCommandList();
-        auto rtv = pTargetIn->cpuHandle();
-
-        cmd->ClearRenderTargetView(rtv, colour, 0, nullptr);
-    }
-
-    render::InEdge *pTargetIn = nullptr;
-    render::OutEdge *pTargetOut = nullptr;
-
-private:
-    float colour[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
-};
-
 // copy resource to back buffer
 struct BlitPass final : render::Pass {
-    BlitPass(const GraphObject& object, const math::size2& size) : Pass(object) {
-        auto [width, height] = size;
+    BlitPass(const GraphObject& object,const math::size2& windowSize) 
+        : Pass(object) 
+        , window(createDisplay(windowSize))
+    {
+        // create wires
+        pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-        screenViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-        screenScissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
+        pSceneTargetOut = out<render::RelayEdge>("scene-target", pSceneTargetIn);
+        pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 
-        pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
-        pRenderTargetOut = out<RenderEdge>("render-target");
-
+        // load shader objects
         vs = loadShader("build\\game\\game.exe.p\\post.vs.cso");
         ps = loadShader("build\\game\\game.exe.p\\post.ps.cso");
     }
@@ -352,11 +340,13 @@ struct BlitPass final : render::Pass {
         auto device = ctx.getDevice();
         // TODO: create pipeline state
 
+        // s0 is the sampler
         CD3DX12_STATIC_SAMPLER_DESC samplers[1];
         samplers[0].Init(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
 
         CD3DX12_DESCRIPTOR_RANGE1 range(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
+        // t0 is the intermediate render target
         CD3DX12_ROOT_PARAMETER1 rootParameters[1];
         rootParameters[0].InitAsDescriptorTable(1, &range);
 
@@ -394,6 +384,50 @@ struct BlitPass final : render::Pass {
         };
 
         HR_CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pBlitPipeline)));
+    
+        // upload fullscreen quad vertex and index data
+        D3D12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(kScreenQuadVertices));
+        D3D12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(kScreenQuadIndices));
+
+        D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+        HR_CHECK(device->CreateCommittedResource(
+            &props,
+            D3D12_HEAP_FLAG_NONE,
+            &vertexBufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&pVertexBuffer)
+        ));
+
+        HR_CHECK(device->CreateCommittedResource(
+            &props,
+            D3D12_HEAP_FLAG_NONE,
+            &indexBufferDesc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&pIndexBuffer)
+        ));
+
+        void *pVertexData = nullptr;
+        void *pIndexData = nullptr;
+
+        HR_CHECK(pVertexBuffer->Map(0, nullptr, &pVertexData));
+        memcpy(pVertexData, kScreenQuadVertices, sizeof(kScreenQuadVertices));
+        
+        HR_CHECK(pIndexBuffer->Map(0, nullptr, &pIndexData));
+        memcpy(pIndexData, kScreenQuadIndices, sizeof(kScreenQuadIndices));
+
+        pVertexBuffer->Unmap(0, nullptr);
+        pIndexBuffer->Unmap(0, nullptr);
+
+        vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();
+        vertexBufferView.StrideInBytes = sizeof(Vertex);
+        vertexBufferView.SizeInBytes = sizeof(kScreenQuadVertices);
+
+        indexBufferView.BufferLocation = pIndexBuffer->GetGPUVirtualAddress();
+        indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+        indexBufferView.SizeInBytes = sizeof(kScreenQuadIndices);
     }
 
     void stop() override {
@@ -402,32 +436,73 @@ struct BlitPass final : render::Pass {
     }
 
     void execute() override {
+        auto& ctx = getContext();
+        auto cmd = ctx.getCommandList();
+        auto rtv = pRenderTargetIn->cpuHandle();
+        
+        cmd->RSSetViewports(1, &window.viewport);
+        cmd->RSSetScissorRects(1, &window.scissor);
+        
+        cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
 
+        cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        cmd->IASetVertexBuffers(0, 1, &vertexBufferView);
+        cmd->IASetIndexBuffer(&indexBufferView);
+
+        cmd->SetPipelineState(pBlitPipeline);
+        cmd->SetGraphicsRootSignature(pBlitSignature);
+
+        cmd->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle());
+    
+        cmd->DrawIndexedInstanced(_countof(kScreenQuadIndices), 1, 0, 0, 0);
     }
 
     render::InEdge *pSceneTargetIn = nullptr;
+    render::InEdge *pRenderTargetIn = nullptr;
+
+    render::OutEdge *pSceneTargetOut = nullptr;
     render::OutEdge *pRenderTargetOut = nullptr;
 
 private:
-    D3D12_VIEWPORT screenViewport;
-    D3D12_RECT screenScissor;
+    Display window;
 
     ShaderBlob ps;
     ShaderBlob vs;
 
     ID3D12RootSignature *pBlitSignature = nullptr;
     ID3D12PipelineState *pBlitPipeline = nullptr;
+
+    constexpr static Vertex kScreenQuadVertices[] = {
+        { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+        { { 1.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
+        { { -1.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } }
+    };
+
+    constexpr static uint16_t kScreenQuadIndices[] = {
+        0, 1, 2,
+        0, 2, 3
+    };
+
+    // fullscreen quad
+    ID3D12Resource *pVertexBuffer = nullptr;
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+
+    ID3D12Resource *pIndexBuffer = nullptr;
+    D3D12_INDEX_BUFFER_VIEW indexBufferView;
 };
 
 struct PresentPass final : render::Pass {
     PresentPass(const GraphObject& object) : Pass(object) { 
+        pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
         pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_PRESENT);
     }
 
     void execute() override {
-        getContext().end();
+        // empty?
     }
 
+    render::InEdge *pSceneTargetIn = nullptr;
     render::InEdge *pRenderTargetIn = nullptr;
 };
 
@@ -669,18 +744,20 @@ private:
 
 struct Scene final : render::Graph {
     Scene(render::Context& context, Info& info) : render::Graph(context) {
-        pGlobalPass = addPass<GlobalPass>("global", math::size2::from(1280, 720));
+        pGlobalPass = addPass<GlobalPass>("global");
         
-        pScenePass = addPass<ScenePass>("scene", math::size2::from(1920, 1080));
-        pBlitPass = addPass<BlitPass>("blit", math::size2::from(1280, 720));
+        pScenePass = addPass<ScenePass>("scene", info.internalResolution);
+        pBlitPass = addPass<BlitPass>("blit", info.windowResolution);
 
-
-        pRenderClearPass = addPass<RenderClearPass>("clear");
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
         pPresentPass = addPass<PresentPass>("present");
 
-        connect(pGlobalPass->pRenderTargetOut, pRenderClearPass->pTargetIn);
-        connect(pRenderClearPass->pTargetOut, pImGuiPass->pRenderTargetIn);
+        connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
+        connect(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
+
+        connect(pBlitPass->pRenderTargetOut, pImGuiPass->pRenderTargetIn);
+
+        connect(pBlitPass->pSceneTargetOut, pPresentPass->pSceneTargetIn);
         connect(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
     }
 
@@ -694,7 +771,6 @@ private:
     ScenePass *pScenePass;
     BlitPass *pBlitPass;
 
-    RenderClearPass *pRenderClearPass;
     ImGuiPass *pImGuiPass;
     PresentPass *pPresentPass;
 };
@@ -723,7 +799,6 @@ int commonMain() {
     Window window { detail };
 
     render::Context::Info info = {
-        .adapter = 2, // use warp for now (TODO: apache-laptop)
         .windowSize = { 600, 800 },
         .sceneSize = { 1920, 1080 },
     };

@@ -120,7 +120,7 @@ void system::showCursor(bool show) {
 
 std::string system::hrString(HRESULT hr) {
     _com_error err(hr);
-    return err.ErrorMessage();
+    return std::format("{} (0x{:x})", err.ErrorMessage(), unsigned(hr));
 }
 
 std::string system::win32String(DWORD dw) {
