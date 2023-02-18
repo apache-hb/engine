@@ -152,31 +152,33 @@ void Context::deleteDevice() {
 void Context::newInfoQueue() {
     if (HRESULT hr = pDevice->QueryInterface(IID_PPV_ARGS(&pInfoQueue)); SUCCEEDED(hr)) {
         D3D12MessageFunc pfn = [](D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR pDescription, void *pUser) {
-            (void)pUser;
+            ReportOnceMap& pMap = *reinterpret_cast<ReportOnceMap*>(pUser);
+            util::DoOnce& once = pMap[id];
 
-            const char *categoryStr = categoryToString(category);
-            const char *severityStr = severityToString(severity);
+            once([&]{
+                const char *categoryStr = categoryToString(category);
+                const char *severityStr = severityToString(severity);
 
-            switch (severity) {
-            case D3D12_MESSAGE_SEVERITY_CORRUPTION:
-            case D3D12_MESSAGE_SEVERITY_ERROR:
-                gRenderLog.fatal("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
-                break;
-            case D3D12_MESSAGE_SEVERITY_WARNING:
-                gRenderLog.warn("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
-                break;
-            case D3D12_MESSAGE_SEVERITY_INFO:
-            case D3D12_MESSAGE_SEVERITY_MESSAGE:
-                gRenderLog.info("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
-                break;
-            default:
-                gRenderLog.info("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
-                break;
-            }
+                switch (severity) {
+                case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+                case D3D12_MESSAGE_SEVERITY_ERROR:
+                    gRenderLog.fatal("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                    break;
+                case D3D12_MESSAGE_SEVERITY_WARNING:
+                    gRenderLog.warn("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                    break;
+
+                default:
+                case D3D12_MESSAGE_SEVERITY_INFO:
+                case D3D12_MESSAGE_SEVERITY_MESSAGE:
+                    gRenderLog.info("{}: {} ({}): {}", categoryStr, severityStr, UINT(id), pDescription);
+                    return;
+                }
+            });
         };
 
         DWORD cookie = 0;
-        pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &cookie);
+        pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, &reportOnceMap, &cookie);
 
         gRenderLog.info("ID3D12InfoQueue::RegisterMessageCallback() = {}", cookie);
     } else {

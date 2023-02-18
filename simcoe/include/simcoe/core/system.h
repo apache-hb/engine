@@ -12,7 +12,7 @@
     } while (false) 
 
 namespace simcoe::system {
-    using StackTrace = async::Generator<const char*>;
+    using StackTrace = async::Generator<std::string>;
     using Size = math::Resolution<size_t>;
 
     enum struct WindowStyle {

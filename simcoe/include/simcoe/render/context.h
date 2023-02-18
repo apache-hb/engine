@@ -2,6 +2,8 @@
 
 #include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
+#include "simcoe/core/util.h"
+
 #include "simcoe/render/heap.h"
 #include "simcoe/render/queue.h"
 
@@ -9,15 +11,9 @@
 
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
+#include <unordered_map>
 
 namespace simcoe::render {
-    enum struct DisplayMode {
-        eLetterBox,
-        eStretch,
-
-        eTotal
-    };
-
     struct Context {
         constexpr static inline size_t kDefaultAdapter = SIZE_MAX;
 
@@ -26,8 +22,6 @@ namespace simcoe::render {
             size_t frames = 2; // number of back buffers
 
             system::Size windowSize = { 1280, 720 }; //presentation resolution
-            system::Size sceneSize = { 1920, 1080 }; // internal resolution
-            DisplayMode displayMode = DisplayMode::eLetterBox; // how to display the back buffers
         
             size_t heapSize = 1024;
             size_t queueSize = 1024;
@@ -99,6 +93,10 @@ namespace simcoe::render {
         void waitForFence();
         void nextFrame();
 
+        constexpr size_t getRenderHeapSize() const { return info.frames + 1; }
+
+        using ReportOnceMap = std::unordered_map<D3D12_MESSAGE_ID, util::DoOnce>;
+
         system::Window& window;
         Info info;
 
@@ -110,14 +108,13 @@ namespace simcoe::render {
 
         ID3D12Device *pDevice = nullptr;
 
+        ReportOnceMap reportOnceMap;
         ID3D12InfoQueue1 *pInfoQueue = nullptr;
 
         ID3D12CommandQueue *pPresentQueue = nullptr;
 
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
-
-        constexpr size_t getRenderHeapSize() const { return info.frames + 1; }
 
         Heap rtvHeap;
 

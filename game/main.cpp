@@ -217,6 +217,39 @@ Display createDisplay(const math::size2& size) {
     return display;
 }
 
+Display createLetterBoxDisplay(const math::size2& internal, const math::size2& external) {
+    auto [sceneWidth, sceneHeight] = internal;
+    auto [windowWidth, windowHeight] = external;
+
+    auto widthRatio = float(sceneWidth) / windowWidth;
+    auto heightRatio = float(sceneHeight) / windowHeight;
+
+    float x = 1.f;
+    float y = 1.f;
+
+    if (widthRatio < heightRatio) {
+        x = widthRatio / heightRatio;
+    } else {
+        y = heightRatio / widthRatio;
+    }
+
+    D3D12_VIEWPORT view = CD3DX12_VIEWPORT(
+        /* topLeftX = */ float(windowWidth) * (1.f - x) / 2.f,
+        /* topLeftY = */ float(windowHeight) * (1.f - y) / 2.f,
+        /* width = */ x * float(windowWidth),
+        /* height = */ y * float(windowHeight)
+    );
+
+    D3D12_RECT scissor = CD3DX12_RECT(
+        /* left = */ LONG(view.TopLeftX),
+        /* top = */ LONG(view.TopLeftY),
+        /* right = */ LONG(view.TopLeftX + view.Width),
+        /* bottom = */ LONG(view.TopLeftY + view.Height)
+    );
+
+    return { view, scissor };
+}
+
 struct GlobalPass final : render::Pass {
     GlobalPass(const GraphObject& object) : Pass(object) { 
         pRenderTargetOut = out<RenderEdge>("render-target");
@@ -228,20 +261,25 @@ struct GlobalPass final : render::Pass {
 };
 
 struct ScenePass final : render::Pass {
-    ScenePass(const GraphObject& object, const math::size2& size) 
+    ScenePass(const GraphObject& object, const Display& display) 
         : Pass(object)
-        , scene(createDisplay(size)) 
+        , scene(display) 
     {
         pRenderTargetOut = out<SourceEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
     void start() override {
         auto& ctx = getContext();
+        auto device = ctx.getDevice();
+        auto& rtvHeap = ctx.getRtvHeap();
+        auto& cbvHeap = ctx.getCbvHeap();
+
+        rtvIndex = rtvHeap.alloc();
+        cbvIndex = cbvHeap.alloc();
 
         ID3D12Resource *pResource = nullptr;
 
-        float clearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        D3D12_CLEAR_VALUE clear = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, clearColor);
+        D3D12_CLEAR_VALUE clear = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, kClearColour);
 
         // create intermediate render target
         D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
@@ -257,8 +295,6 @@ struct ScenePass final : render::Pass {
 
         D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-        auto device = ctx.getDevice();
-
         HR_CHECK(device->CreateCommittedResource(
             /* heapProperties = */ &props,
             /* heapFlags = */ D3D12_HEAP_FLAG_NONE,
@@ -267,12 +303,6 @@ struct ScenePass final : render::Pass {
             /* pOptimizedClearValue = */ &clear,
             /* riidResource = */ IID_PPV_ARGS(&pResource)
         ));
-
-        auto& rtvHeap = ctx.getRtvHeap();
-        auto& cbvHeap = ctx.getCbvHeap();
-
-        rtvIndex = rtvHeap.alloc();
-        cbvIndex = cbvHeap.alloc();
 
         // create render target view for the intermediate target
         device->CreateRenderTargetView(pResource, nullptr, rtvHeap.cpuHandle(rtvIndex));
@@ -305,12 +335,15 @@ struct ScenePass final : render::Pass {
         cmd->RSSetScissorRects(1, &scene.scissor);
 
         cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
+        cmd->ClearRenderTargetView(rtv, kClearColour, 0, nullptr);
     }
 
     SourceEdge *pRenderTargetOut = nullptr;
 
 private:
     Display scene;
+    
+    constexpr static float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
     // TODO: this should be part of SourceEdge maybe?
     render::Heap::Index cbvIndex = render::Heap::Index::eInvalid;
@@ -433,6 +466,9 @@ struct BlitPass final : render::Pass {
     void stop() override {
         RELEASE(pBlitSignature);
         RELEASE(pBlitPipeline);
+
+        RELEASE(pVertexBuffer);
+        RELEASE(pIndexBuffer);
     }
 
     void execute() override {
@@ -506,6 +542,28 @@ struct PresentPass final : render::Pass {
     render::InEdge *pRenderTargetIn = nullptr;
 };
 
+constexpr const char *stateToString(D3D12_RESOURCE_STATES states) {
+    switch (states) {
+    case D3D12_RESOURCE_STATE_COMMON: return "common/present";
+    case D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER: return "vertex-and-constant-buffer";
+    case D3D12_RESOURCE_STATE_INDEX_BUFFER: return "index-buffer";
+    case D3D12_RESOURCE_STATE_RENDER_TARGET: return "render-target";
+    case D3D12_RESOURCE_STATE_UNORDERED_ACCESS: return "unordered-access";
+    case D3D12_RESOURCE_STATE_DEPTH_WRITE: return "depth-write";
+    case D3D12_RESOURCE_STATE_DEPTH_READ: return "depth-read";
+    case D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE: return "non-pixel-shader-resource";
+    case D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE: return "pixel-shader-resource";
+    case D3D12_RESOURCE_STATE_STREAM_OUT: return "stream-out";
+    case D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT: return "indirect-argument";
+    case D3D12_RESOURCE_STATE_COPY_DEST: return "copy-dest";
+    case D3D12_RESOURCE_STATE_COPY_SOURCE: return "copy-source";
+    case D3D12_RESOURCE_STATE_RESOLVE_DEST: return "resolve-dest";
+    case D3D12_RESOURCE_STATE_RESOLVE_SOURCE: return "resolve-source";
+    case D3D12_RESOURCE_STATE_GENERIC_READ: return "generic-read";
+    default: return "unknown";
+    }
+}
+
 struct ImGuiPass final : render::Pass {
     ImGuiPass(const GraphObject& object, Info& info): Pass(object), info(info) { 
         pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -574,6 +632,7 @@ struct ImGuiPass final : render::Pass {
 
     render::InEdge *pRenderTargetIn = nullptr;
     render::OutEdge *pRenderTargetOut = nullptr;
+
 private:
     Info& info;
     render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
@@ -744,9 +803,10 @@ private:
 
 struct Scene final : render::Graph {
     Scene(render::Context& context, Info& info) : render::Graph(context) {
+        Display display = createLetterBoxDisplay(info.internalResolution, info.windowResolution);
         pGlobalPass = addPass<GlobalPass>("global");
         
-        pScenePass = addPass<ScenePass>("scene", info.internalResolution);
+        pScenePass = addPass<ScenePass>("scene", display);
         pBlitPass = addPass<BlitPass>("blit", info.windowResolution);
 
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
@@ -767,7 +827,7 @@ struct Scene final : render::Graph {
 
 private:
     GlobalPass *pGlobalPass;
-    // TODO
+
     ScenePass *pScenePass;
     BlitPass *pBlitPass;
 
@@ -799,8 +859,7 @@ int commonMain() {
     Window window { detail };
 
     render::Context::Info info = {
-        .windowSize = { 600, 800 },
-        .sceneSize = { 1920, 1080 },
+        .windowSize = { 600, 800 }
     };
     render::Context context { window, info };
     Scene scene { context, detail };

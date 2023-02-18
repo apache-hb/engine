@@ -98,8 +98,17 @@ system::StackTrace system::backtrace() {
 
         char name[kSymbolSize] = { 0 };
 
-        SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol.get());
-        UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);
+        BOOL hasSym = SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol.get());
+        if (hasSym == FALSE) {
+            co_yield std::format("frame@[{:#016x}]", frame.AddrPC.Offset);
+            continue;
+        }
+
+        DWORD len = UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);
+        if (len == 0) {
+            co_yield std::format("frame@[{:#016x}]", frame.AddrPC.Offset);
+            continue;
+        }
 
         co_yield name;
     }
