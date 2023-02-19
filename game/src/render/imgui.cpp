@@ -32,6 +32,7 @@ void ImGuiPass::start() {
     );
 
     ImNodes::CreateContext();
+    ImNodes::LoadCurrentEditorStateFromIniFile("imnodes.ini");
 
     int id = 0;
     for (auto& [name, pass] : getGraph().getPasses()) {
@@ -55,6 +56,7 @@ void ImGuiPass::start() {
 }
 
 void ImGuiPass::stop() {
+    ImNodes::SaveCurrentEditorStateToIniFile("imnodes.ini");
     ImNodes::DestroyContext();
 
     ImGui_ImplDX12_Shutdown();
@@ -89,7 +91,8 @@ void ImGuiPass::enableDock() {
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoBringToFrontOnFocus | 
-        ImGuiWindowFlags_NoNavFocus;
+        ImGuiWindowFlags_NoNavFocus |
+        ImGuiWindowFlags_NoDocking;
         
     const auto *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);

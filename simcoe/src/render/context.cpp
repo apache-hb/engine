@@ -114,12 +114,7 @@ void Context::deleteFactory() {
 
 void Context::newDevice() {
     listAdapters();
-
-    if (info.adapter == kDefaultAdapter) {
-        selectDefaultAdapter();
-    } else {
-        selectAdapter(info.adapter);
-    }
+    selectAdapter(info.adapter);
 
     DXGI_ADAPTER_DESC1 desc;
     HR_CHECK(pAdapter->GetDesc1(&desc));
@@ -187,13 +182,18 @@ void Context::listAdapters() {
 }
 
 void Context::selectAdapter(size_t index) {
-    gRenderLog.info("selecting adapter #{}", index);
-    HRESULT hr = pFactory->EnumAdapters1(UINT(index), &pAdapter);
-    if (!SUCCEEDED(hr)) {
-        gRenderLog.warn("adapter #{} not found. selecting default adapter", index);
+    if (index != kDefaultAdapter) {
+        gRenderLog.info("selecting adapter #{}", index);
+        HRESULT hr = pFactory->EnumAdapters1(UINT(index), &pAdapter);
+        if (SUCCEEDED(hr)) {
+            return;
+        }
+
+        gRenderLog.warn("adapter #{} not found", index);
         info.adapter = kDefaultAdapter;
-        selectDefaultAdapter();
     }
+
+    selectDefaultAdapter();
 }
 
 void Context::selectDefaultAdapter() {
