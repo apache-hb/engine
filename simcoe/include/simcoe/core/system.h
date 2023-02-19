@@ -23,7 +23,7 @@ namespace simcoe::system {
     };
 
     struct Window {
-        Window(const char *pzTitle, const Size& size, WindowStyle style = WindowStyle::eWindow);
+        Window(const char *pzTitle, const Size& size, WindowStyle style = WindowStyle::eBorderless);
         virtual ~Window();
 
         void restyle(WindowStyle style);

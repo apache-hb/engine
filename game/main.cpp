@@ -1,18 +1,18 @@
-#include <filesystem>
+#include "game/gdk.h"
 
 #include "simcoe/core/system.h"
-#include "simcoe/core/win32.h"
 #include "simcoe/core/io.h"
 
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
 
 #include "simcoe/locale/locale.h"
-#include "simcoe/audio/audio.h"
+
 #include "simcoe/render/context.h"
 #include "simcoe/render/graph.h"
 
 #include "imgui/imgui.h"
+#include "imgui/imgui_internal.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_dx12.h"
 
@@ -20,10 +20,14 @@
 
 #include "simcoe/simcoe.h"
 
-//#include "GameInput.h"
-//#include "XGameRuntime.h"
+#include <filesystem>
+
+#include <fastgltf/fastgltf_parser.hpp>
+#include <fastgltf/fastgltf_types.hpp>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+namespace gdk = game::gdk;
 
 using namespace simcoe;
 
@@ -43,65 +47,30 @@ namespace {
     D3D12_SHADER_BYTECODE getShader(ShaderBlob &blob) {
         return D3D12_SHADER_BYTECODE {blob.data(), blob.size()};
     }
-}
 
-#if 0
-struct Feature {
-    XGameRuntimeFeature feature;
-    const char *name;
-};
-
-static inline constexpr auto kFeatures = std::to_array<Feature>({
-    { XGameRuntimeFeature::XAccessibility, "XAccessibility" },
-    { XGameRuntimeFeature::XAppCapture, "XAppCapture" },
-    { XGameRuntimeFeature::XAsync, "XAsync" },
-    { XGameRuntimeFeature::XAsyncProvider, "XAsyncProvider" },
-    { XGameRuntimeFeature::XDisplay, "XDisplay" },
-    { XGameRuntimeFeature::XGame, "XGame" },
-    { XGameRuntimeFeature::XGameInvite, "XGameInvite" },
-    { XGameRuntimeFeature::XGameSave, "XGameSave" },
-    { XGameRuntimeFeature::XGameUI, "XGameUI" },
-    { XGameRuntimeFeature::XLauncher, "XLauncher" },
-    { XGameRuntimeFeature::XNetworking, "XNetworking" },
-    { XGameRuntimeFeature::XPackage, "XPackage" },
-    { XGameRuntimeFeature::XPersistentLocalStorage, "XPersistentLocalStorage" },
-    { XGameRuntimeFeature::XSpeechSynthesizer, "XSpeechSynthesizer" },
-    { XGameRuntimeFeature::XStore, "XStore" },
-    { XGameRuntimeFeature::XSystem, "XSystem" },
-    { XGameRuntimeFeature::XTaskQueue, "XTaskQueue" },
-    { XGameRuntimeFeature::XThread, "XThread" },
-    { XGameRuntimeFeature::XUser, "XUser" },
-    { XGameRuntimeFeature::XError, "XError" },
-    { XGameRuntimeFeature::XGameEvent, "XGameEvent" },
-    { XGameRuntimeFeature::XGameStreaming, "XGameStreaming" },
-});
-
-struct Features {
-    Features() {
-        size_t size = 0;
-        HR_CHECK(XSystemGetConsoleId(sizeof(id), id, &size));
-
-        info = XSystemGetAnalyticsInfo();
-
-        for (size_t i = 0; i < kFeatures.size(); ++i) {
-            features[i] = XGameRuntimeIsFeatureAvailable(kFeatures[i].feature);
+    constexpr const char *stateToString(D3D12_RESOURCE_STATES states) {
+        switch (states) {
+        case D3D12_RESOURCE_STATE_COMMON: return "common/present";
+        case D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER: return "vertex-and-constant-buffer";
+        case D3D12_RESOURCE_STATE_INDEX_BUFFER: return "index-buffer";
+        case D3D12_RESOURCE_STATE_RENDER_TARGET: return "render-target";
+        case D3D12_RESOURCE_STATE_UNORDERED_ACCESS: return "unordered-access";
+        case D3D12_RESOURCE_STATE_DEPTH_WRITE: return "depth-write";
+        case D3D12_RESOURCE_STATE_DEPTH_READ: return "depth-read";
+        case D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE: return "non-pixel-shader-resource";
+        case D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE: return "pixel-shader-resource";
+        case D3D12_RESOURCE_STATE_STREAM_OUT: return "stream-out";
+        case D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT: return "indirect-argument";
+        case D3D12_RESOURCE_STATE_COPY_DEST: return "copy-dest";
+        case D3D12_RESOURCE_STATE_COPY_SOURCE: return "copy-source";
+        case D3D12_RESOURCE_STATE_RESOLVE_DEST: return "resolve-dest";
+        case D3D12_RESOURCE_STATE_RESOLVE_SOURCE: return "resolve-source";
+        case D3D12_RESOURCE_STATE_GENERIC_READ: return "generic-read";
+        default: return "unknown";
         }
     }
-    XSystemAnalyticsInfo info;
-    bool features[kFeatures.size()] = {};
-    char id[128] = {};
-};
+}
 
-struct XGameRuntime {
-    XGameRuntime() {
-        HR_CHECK(XGameRuntimeInitialize());
-    }
-
-    ~XGameRuntime() {
-        XGameRuntimeUninitialize();
-    }
-};
-#endif
 
 struct Info {
     Info() : gamepad(0), keyboard(), mouse(false, true) {
@@ -115,7 +84,7 @@ struct Info {
     }
 
     system::Size windowResolution;
-    system::Size internalResolution;
+    system::Size renderResolution;
 
     Locale locale;
 
@@ -128,11 +97,11 @@ struct Info {
 
 struct Window : system::Window {
     Window(Info& info)
-        : system::Window("game", { 1280, 720 })
+        : system::Window("game", { 1920, 1080 })
         , info(info) 
     { 
         info.windowResolution = Window::size();
-        info.internalResolution = { 1920, 1080 };
+        info.renderResolution = { 800, 600 };
     }
 
     bool poll() {
@@ -352,9 +321,9 @@ private:
 
 // copy resource to back buffer
 struct BlitPass final : render::Pass {
-    BlitPass(const GraphObject& object,const math::size2& windowSize) 
+    BlitPass(const GraphObject& object, const Display& display) 
         : Pass(object) 
-        , window(createDisplay(windowSize))
+        , display(display)
     {
         // create wires
         pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -371,7 +340,6 @@ struct BlitPass final : render::Pass {
     void start() override {
         auto& ctx = getContext();
         auto device = ctx.getDevice();
-        // TODO: create pipeline state
 
         // s0 is the sampler
         CD3DX12_STATIC_SAMPLER_DESC samplers[1];
@@ -412,7 +380,6 @@ struct BlitPass final : render::Pass {
             .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets = 1,
             .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
-            .DSVFormat = DXGI_FORMAT_UNKNOWN,
             .SampleDesc = { 1, 0 },
         };
 
@@ -428,7 +395,7 @@ struct BlitPass final : render::Pass {
             &props,
             D3D12_HEAP_FLAG_NONE,
             &vertexBufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
+            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
             nullptr,
             IID_PPV_ARGS(&pVertexBuffer)
         ));
@@ -437,7 +404,7 @@ struct BlitPass final : render::Pass {
             &props,
             D3D12_HEAP_FLAG_NONE,
             &indexBufferDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
+            D3D12_RESOURCE_STATE_INDEX_BUFFER,
             nullptr,
             IID_PPV_ARGS(&pIndexBuffer)
         ));
@@ -476,8 +443,8 @@ struct BlitPass final : render::Pass {
         auto cmd = ctx.getCommandList();
         auto rtv = pRenderTargetIn->cpuHandle();
         
-        cmd->RSSetViewports(1, &window.viewport);
-        cmd->RSSetScissorRects(1, &window.scissor);
+        cmd->RSSetViewports(1, &display.viewport);
+        cmd->RSSetScissorRects(1, &display.scissor);
         
         cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
 
@@ -500,7 +467,7 @@ struct BlitPass final : render::Pass {
     render::OutEdge *pRenderTargetOut = nullptr;
 
 private:
-    Display window;
+    Display display;
 
     ShaderBlob ps;
     ShaderBlob vs;
@@ -541,28 +508,6 @@ struct PresentPass final : render::Pass {
     render::InEdge *pSceneTargetIn = nullptr;
     render::InEdge *pRenderTargetIn = nullptr;
 };
-
-constexpr const char *stateToString(D3D12_RESOURCE_STATES states) {
-    switch (states) {
-    case D3D12_RESOURCE_STATE_COMMON: return "common/present";
-    case D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER: return "vertex-and-constant-buffer";
-    case D3D12_RESOURCE_STATE_INDEX_BUFFER: return "index-buffer";
-    case D3D12_RESOURCE_STATE_RENDER_TARGET: return "render-target";
-    case D3D12_RESOURCE_STATE_UNORDERED_ACCESS: return "unordered-access";
-    case D3D12_RESOURCE_STATE_DEPTH_WRITE: return "depth-write";
-    case D3D12_RESOURCE_STATE_DEPTH_READ: return "depth-read";
-    case D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE: return "non-pixel-shader-resource";
-    case D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE: return "pixel-shader-resource";
-    case D3D12_RESOURCE_STATE_STREAM_OUT: return "stream-out";
-    case D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT: return "indirect-argument";
-    case D3D12_RESOURCE_STATE_COPY_DEST: return "copy-dest";
-    case D3D12_RESOURCE_STATE_COPY_SOURCE: return "copy-source";
-    case D3D12_RESOURCE_STATE_RESOLVE_DEST: return "resolve-dest";
-    case D3D12_RESOURCE_STATE_RESOLVE_SOURCE: return "resolve-source";
-    case D3D12_RESOURCE_STATE_GENERIC_READ: return "generic-read";
-    default: return "unknown";
-    }
-}
 
 struct ImGuiPass final : render::Pass {
     ImGuiPass(const GraphObject& object, Info& info): Pass(object), info(info) { 
@@ -620,8 +565,9 @@ struct ImGuiPass final : render::Pass {
         ImGui::NewFrame();
 
         enableDock();
+        drawInfo();
         drawRenderGraphInfo();
-        // drawGdkInfo();
+        drawGdkInfo();
         drawInputInfo();
 
         ImGui::ShowDemoWindow();
@@ -636,7 +582,7 @@ struct ImGuiPass final : render::Pass {
 private:
     Info& info;
     render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
-
+    
     void enableDock() {
         constexpr auto kDockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
 
@@ -666,6 +612,9 @@ private:
         ImGui::DockSpace(id, ImVec2(0.f, 0.f), kDockFlags);
         
         if (ImGui::BeginMenuBar()) {
+            ImGui::Text("Editor");
+            ImGui::Separator();
+
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("Import")) {
 
@@ -676,9 +625,29 @@ private:
 
                 ImGui::EndMenu();
             }
+
+            // align the close button to the right of the window
+            auto& style = ImGui::GetStyle();
+            ImVec2 closeButtonPos(ImGui::GetWindowWidth() - (style.FramePadding.x * 2) - ImGui::GetFontSize(), 0.f);
+
+            if (ImGui::CloseButton(ImGui::GetID("CloseEditor"), closeButtonPos)) {
+                PostQuitMessage(0);
+            }
+
             ImGui::EndMenuBar();
         }
 
+        ImGui::End();
+    }
+
+    void drawInfo() {
+        if (ImGui::Begin("Info")) {
+            auto [displayWidth, displayHeight] = info.windowResolution;
+            ImGui::Text("Display: %zu x %zu", displayWidth, displayHeight);
+
+            auto [renderWidth, renderHeight] = info.renderResolution;
+            ImGui::Text("Render: %zu x %zu", renderWidth, renderHeight);
+        }
         ImGui::End();
     }
 
@@ -717,35 +686,36 @@ private:
         ImGui::End();
     }
 
-#if 0
     void drawGdkInfo() {
+        const auto& analytics = gdk::getAnalyticsInfo();
+        
         if (ImGui::Begin("GDK")) {
-            const auto& features = info.features;
-            ImGui::Text("Family: %s", features.info.family);
-            ImGui::SameLine();
+            ImGui::Text("Family: %s", analytics.family);
+            ImGui::Text("Model: %s", analytics.form);
 
-            auto [major, minor, build, revision] = features.info.osVersion;
+            auto [major, minor, build, revision] = analytics.osVersion;
             ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
-            ImGui::Text("ID: %s", features.id);
+            ImGui::Text("ID: %s", gdk::getConsoleId());
 
             if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
                 ImGui::TableHeadersRow();
-                for (size_t i = 0; i < kFeatures.size(); i++) {
+                for (const auto& [feature, detail] : gdk::getFeatures()) {
+                    const auto& [name, available] = detail;
+
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%s", kFeatures[i].name);
+                    ImGui::Text("%s", name);
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", features.features[i] ? "enabled" : "disabled");
+                    ImGui::Text("%s", available ? "enabled" : "disabled");
                 }
                 ImGui::EndTable();
             }
         }
         ImGui::End();
     }
-#endif
 
     void drawInputInfo() {
         constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
@@ -803,11 +773,13 @@ private:
 
 struct Scene final : render::Graph {
     Scene(render::Context& context, Info& info) : render::Graph(context) {
-        Display display = createLetterBoxDisplay(info.internalResolution, info.windowResolution);
+        Display present = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
+        Display render = createDisplay(info.renderResolution);
+
         pGlobalPass = addPass<GlobalPass>("global");
         
-        pScenePass = addPass<ScenePass>("scene", display);
-        pBlitPass = addPass<BlitPass>("blit", info.windowResolution);
+        pScenePass = addPass<ScenePass>("scene", render);
+        pBlitPass = addPass<BlitPass>("blit", present);
 
         pImGuiPass = addPass<ImGuiPass>("imgui", info);
         pPresentPass = addPass<PresentPass>("present");
@@ -852,8 +824,11 @@ struct ImGuiRuntime {
 
 int commonMain() {
     gLog.info("cwd: {}", std::filesystem::current_path().string());
+
     system::System system;
     ImGuiRuntime imgui;
+    game::gdk::Runtime gdk;
+
     Info detail;
 
     Window window { detail };
