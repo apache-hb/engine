@@ -39,7 +39,9 @@ namespace simcoe::render {
         void present();
 
         ID3D12Device *getDevice() const { return pDevice; }
-
+        IDXGISwapChain *getSwapChain() const { return pSwapChain; }
+        ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
+        
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
@@ -47,12 +49,6 @@ namespace simcoe::render {
         Heap& getRtvHeap() { return rtvHeap; }
 
         Queue& getCopyQueue() { return copyQueue; }
-
-        ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
-        
-        D3D12_CPU_DESCRIPTOR_HANDLE getCpuTargetHandle() const;
-        D3D12_GPU_DESCRIPTOR_HANDLE getGpuTargetHandle() const;
-        ID3D12Resource *getRenderTargetResource() const;
 
     private:
         void newFactory();
@@ -117,13 +113,6 @@ namespace simcoe::render {
         IDXGISwapChain3 *pSwapChain = nullptr;
 
         Heap rtvHeap;
-
-        struct FrameData {
-            Heap::Index index;
-            ID3D12Resource *pRenderTarget = nullptr;
-        };
-
-        std::vector<FrameData> frameData;
 
         ID3D12Resource *pSceneTarget = nullptr;
 

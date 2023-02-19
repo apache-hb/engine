@@ -151,7 +151,8 @@ struct RenderEdge final : render::OutEdge {
     { }
 
     ID3D12Resource *getResource() override {
-        return getContext().getRenderTargetResource();
+        auto& data = frameData[getContext().getCurrentFrame()];
+        return data.pRenderTarget;
     }
 
     D3D12_RESOURCE_STATES getState() const override {
@@ -159,12 +160,54 @@ struct RenderEdge final : render::OutEdge {
     }
 
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override {
-        return getContext().getCpuTargetHandle();
+        auto& ctx = getContext();
+
+        auto& data = frameData[ctx.getCurrentFrame()];
+        return ctx.getRtvHeap().cpuHandle(data.index);
     }
 
     D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override {
-        return getContext().getGpuTargetHandle();
+        auto& ctx = getContext();
+        
+        auto& data = frameData[ctx.getCurrentFrame()];
+        return ctx.getRtvHeap().gpuHandle(data.index);
     }
+
+    void init() {
+        auto& ctx = getContext();
+        size_t frames = ctx.getFrames();
+        auto *pDevice = ctx.getDevice();
+        auto *pSwapChain = ctx.getSwapChain();
+        auto& rtvHeap = ctx.getRtvHeap();
+
+        frameData.resize(frames);
+
+        for (UINT i = 0; i < frames; i++) {
+            auto index = rtvHeap.alloc();
+            ID3D12Resource *pRenderTarget = nullptr;
+            HR_CHECK(pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pRenderTarget)));
+            pDevice->CreateRenderTargetView(pRenderTarget, nullptr, rtvHeap.cpuHandle(index));
+
+            frameData[i] = { .index = index, .pRenderTarget = pRenderTarget };
+        }
+    }
+
+    void deinit() {
+        auto& rtvHeap = getContext().getRtvHeap();
+
+        for (auto &frame : frameData) {
+            RELEASE(frame.pRenderTarget);
+            rtvHeap.release(frame.index);
+        }
+    }
+
+private:
+    struct FrameData {
+        render::Heap::Index index;
+        ID3D12Resource *pRenderTarget = nullptr;
+    };
+
+    std::vector<FrameData> frameData;
 };
 
 struct SourceEdge final : render::OutEdge {
@@ -203,9 +246,17 @@ struct GlobalPass final : render::Pass {
         pRenderTargetOut = out<RenderEdge>("render-target");
     }
 
+    void start() override {
+        pRenderTargetOut->init();
+    }
+
+    void stop() override {
+        pRenderTargetOut->deinit();
+    }
+
     void execute() override { }
 
-    render::OutEdge *pRenderTargetOut = nullptr;
+    RenderEdge *pRenderTargetOut = nullptr;
 };
 
 struct ScenePass final : render::Pass {

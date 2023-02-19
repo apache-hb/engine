@@ -35,21 +35,6 @@ namespace {
     }
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE Context::getCpuTargetHandle() const {
-    auto& data = frameData[frameIndex];
-    return rtvHeap.cpuHandle(data.index);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Context::getGpuTargetHandle() const {
-    auto& data = frameData[frameIndex];
-    return rtvHeap.gpuHandle(data.index);
-}
-
-ID3D12Resource *Context::getRenderTargetResource() const {
-    auto& data = frameData[frameIndex];
-    return data.pRenderTarget;
-}
-
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
@@ -261,26 +246,9 @@ void Context::deleteSwapChain() {
 
 void Context::newRenderTargets() {
     rtvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-    frameData.resize(info.frames);
-
-    for (UINT i = 0; i < info.frames; i++) {
-        Heap::Index index = rtvHeap.alloc();
-        ID3D12Resource *pRenderTarget = nullptr;
-        HR_CHECK(pSwapChain->GetBuffer(i, IID_PPV_ARGS(&pRenderTarget)));
-        pDevice->CreateRenderTargetView(pRenderTarget, nullptr, rtvHeap.cpuHandle(index));
-
-        pRenderTarget->SetName(std::format(L"rtv#{}", i).c_str());
-
-        frameData[i] = { .index = index, .pRenderTarget = pRenderTarget };
-    }
 }
 
 void Context::deleteRenderTargets() {
-    for (auto &frame : frameData) {
-        RELEASE(frame.pRenderTarget);
-    }
-
     rtvHeap.deleteHeap();
 }
 
