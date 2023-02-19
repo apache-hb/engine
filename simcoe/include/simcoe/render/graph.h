@@ -2,6 +2,7 @@
 
 #include "simcoe/render/context.h"
 
+#include <d3d12.h>
 #include <unordered_map>
 
 namespace simcoe::render {
@@ -17,12 +18,22 @@ namespace simcoe::render {
         virtual ~GraphObject() = default;
 
         const char *getName() const;
-        Graph& getGraph();
-        Context& getContext();
+        Graph& getGraph() const;
+        Context& getContext() const;
 
     private:
         const char *pzName;
         struct Graph& graph;
+    };
+
+    struct IResource : GraphObject {
+        IResource(const GraphObject& self) : GraphObject(self) { }
+
+        virtual ~IResource() = default;
+
+        virtual ID3D12Resource *getResource() const = 0;
+        virtual D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) const = 0;
+        virtual D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) const = 0;
     };
 
     struct Edge : GraphObject {

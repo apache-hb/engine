@@ -1,15 +1,10 @@
 #include "game/gdk.h"
 
-#include "simcoe/core/system.h"
-#include "simcoe/core/io.h"
+#include "game/game.h"
+#include "game/render.h"
+#include "game/window.h"
 
-#include "simcoe/input/desktop.h"
-#include "simcoe/input/gamepad.h"
-
-#include "simcoe/locale/locale.h"
-
-#include "simcoe/render/context.h"
-#include "simcoe/render/graph.h"
+#include "simcoe/simcoe.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -18,19 +13,13 @@
 
 #include "imnodes/imnodes.h"
 
-#include "simcoe/simcoe.h"
-
 #include <filesystem>
 
 #include <fastgltf/fastgltf_parser.hpp>
 #include <fastgltf/fastgltf_types.hpp>
 
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-namespace gdk = game::gdk;
-
 using namespace simcoe;
-
+#if 0
 namespace {
     using ShaderBlob = std::vector<std::byte>;
 
@@ -97,7 +86,9 @@ namespace {
         return { viewport, scissor };
     }
 }
+#endif
 
+#if 0
 struct Input {
     Input() : gamepad(0), keyboard(), mouse(false, true) {
         manager.add(&gamepad);
@@ -144,7 +135,8 @@ struct Window final : system::Window {
     input::Mouse& mouse;
     input::Keyboard& keyboard;
 };
-
+#endif
+#if 0
 struct RenderEdge final : render::OutEdge {
     RenderEdge(const GraphObject& self, render::Pass *pPass)
         : OutEdge(self, pPass)
@@ -845,6 +837,7 @@ private:
     ImGuiPass *pImGuiPass;
     PresentPass *pPresentPass;
 };
+#endif
 
 struct ImGuiRuntime {
     ImGuiRuntime() {
@@ -867,11 +860,11 @@ int commonMain() {
     system::System system;
     ImGuiRuntime imgui;
     game::gdk::Runtime gdk;
-    Input input;
+    game::Input input;
 
-    Window window { input.mouse, input.keyboard };
+    game::Window window { input.mouse, input.keyboard };
 
-    Info detail = {
+    game::Info detail = {
         .windowResolution = window.size(),
         .renderResolution = { 800, 600 }
     };
@@ -880,7 +873,7 @@ int commonMain() {
         .windowSize = { 600, 800 }
     };
     render::Context context { window, info };
-    Scene scene { context, detail, input.manager };
+    game::Scene scene { context, detail, input.manager };
 
     ImGui_ImplWin32_Init(window.getHandle());
     ImGui_ImplWin32_EnableDpiAwareness();

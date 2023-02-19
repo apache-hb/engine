@@ -1,4 +1,4 @@
-#include "gdk.h"
+#include "game/gdk.h"
 
 #include "simcoe/core/system.h"
 

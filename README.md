@@ -26,3 +26,11 @@ functional if not pretty
 ## todos
 * stop conflating resources and edges
 * make our own asset pipeline, meson is lacking sadly
+
+
+## render graph 
+* graph contains directed graph of passes connected via edges
+* passes are possibly statefull objects that have a list of input and output edges
+* edges are stateless and describe required states of resources that must be met to begin a pass
+* resources are statefull objects that track api resources and their relevant state
+* passes are joined along edges to form acyclic graph

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "simcoe/input/input.h"
 #include "simcoe/core/system.h"
 

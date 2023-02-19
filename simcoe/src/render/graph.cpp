@@ -26,11 +26,11 @@ const char *GraphObject::getName() const {
     return pzName;
 }
 
-Graph& GraphObject::getGraph() {
+Graph& GraphObject::getGraph() const {
     return graph;
 }
 
-Context& GraphObject::getContext() {
+Context& GraphObject::getContext() const {
     return getGraph().getContext();
 }
 
