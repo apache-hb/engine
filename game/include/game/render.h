@@ -1,20 +1,39 @@
 #pragma once
 
 #include "game/game.h"
+#include "game/camera.h"
 
 #include "simcoe/render/context.h"
 #include "simcoe/render/graph.h"
 
+#define CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
+
 namespace game {
     namespace render = simcoe::render;
     namespace system = simcoe::system;
+    namespace math = simcoe::math;
 
     using ShaderBlob = std::vector<std::byte>;
+
+    struct Vertex {
+        math::float3 position;
+        math::float2 uv;
+    };
+
+    struct CBUFFER SceneBuffer {
+        math::float4x4 mvp;
+    };
+
+    struct CBUFFER MaterialBuffer {
+        UINT texture;
+    };
 
     struct Display {
         D3D12_VIEWPORT viewport;
         D3D12_RECT scissor;
     };
+
+    constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
     ShaderBlob loadShader(std::string_view path);
     D3D12_SHADER_BYTECODE getShader(const ShaderBlob &blob);
@@ -43,8 +62,6 @@ namespace game {
 
         std::vector<FrameData> frameData;
     };
-
-    constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
     struct IntermediateTargetEdge final : render::OutEdge {
         IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const system::Size& size);
@@ -86,7 +103,7 @@ namespace game {
     };
 
     struct ScenePass final : render::Pass {
-        ScenePass(const GraphObject& object, const system::Size& size);
+        ScenePass(const GraphObject& object, Info& info);
         void start() override;
         void stop() override;
 
@@ -95,7 +112,26 @@ namespace game {
         IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
     private:
-        system::Size size;
+        Info& info;
+
+        ShaderBlob vs;
+        ShaderBlob ps;
+
+        ID3D12RootSignature *pRootSignature = nullptr;
+        ID3D12PipelineState *pPipelineState = nullptr;
+
+        ID3D12Resource *pSceneBuffer = nullptr;
+        SceneBuffer *pSceneData = nullptr;
+        render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
+
+        ID3D12Resource *pVertexBuffer = nullptr;
+        D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+
+        ID3D12Resource *pIndexBuffer = nullptr;
+        D3D12_INDEX_BUFFER_VIEW indexBufferView;
+
+        ID3D12Resource *pTexture = nullptr;
+        render::Heap::Index textureHandle = render::Heap::Index::eInvalid;
     };
 
     // copy resource to back buffer
@@ -182,7 +218,7 @@ namespace game {
 
             pGlobalPass = addPass<GlobalPass>("global");
             
-            pScenePass = addPass<ScenePass>("scene", info.renderResolution);
+            pScenePass = addPass<ScenePass>("scene", info);
             pBlitPass = addPass<BlitPass>("blit", present);
 
             pImGuiPass = addPass<ImGuiPass>("imgui", info, input);

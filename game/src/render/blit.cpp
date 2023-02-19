@@ -6,11 +6,6 @@ using namespace simcoe;
 namespace {
     constexpr float kClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-    struct Vertex {
-        math::float3 position;
-        math::float2 uv;
-    };
-
     constexpr Vertex kScreenQuadVertices[] = {
         { { -1.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
         { { 1.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
@@ -96,7 +91,7 @@ void BlitPass::start() {
 
     HR_CHECK(device->CreateCommittedResource(
         &props,
-        D3D12_HEAP_FLAG_NONE,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &vertexBufferDesc,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
         nullptr,
@@ -105,7 +100,7 @@ void BlitPass::start() {
 
     HR_CHECK(device->CreateCommittedResource(
         &props,
-        D3D12_HEAP_FLAG_NONE,
+        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         &indexBufferDesc,
         D3D12_RESOURCE_STATE_INDEX_BUFFER,
         nullptr,

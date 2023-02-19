@@ -17,6 +17,9 @@ namespace simcoe::render {
         Index alloc();
         void release(Index index);
 
+        CpuHandle cpuHandle() const;
+        GpuHandle gpuHandle() const;
+
         CpuHandle cpuHandle(Index index) const;
         GpuHandle gpuHandle(Index index) const;
 

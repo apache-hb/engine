@@ -150,7 +150,7 @@ void IntermediateTargetEdge::start() {
 
     HR_CHECK(pDevice->CreateCommittedResource(
         /* heapProperties = */ &props,
-        /* heapFlags = */ D3D12_HEAP_FLAG_NONE,
+        /* heapFlags = */ D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         /* pDesc = */ &desc,
         /* initialState = */ D3D12_RESOURCE_STATE_RENDER_TARGET,
         /* pOptimizedClearValue = */ &clear,

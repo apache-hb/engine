@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game/camera.h"
+
 #include "simcoe/core/system.h"
 
 #include "simcoe/core/logging.h"
@@ -54,5 +56,6 @@ namespace game {
         simcoe::Locale locale;
 
         GuiSink sink;
+        game::ICamera *pCamera = nullptr;
     };
 }

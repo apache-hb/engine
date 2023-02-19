@@ -1,3 +1,4 @@
+#include "game/camera.h"
 #include "game/gdk.h"
 
 #include "game/game.h"
@@ -44,8 +45,11 @@ int commonMain() {
 
     game::Window window { input.mouse, input.keyboard };
 
+    game::ThirdPerson camera { { 1, 1, 1 }, { 2, 2, 2 }, 90.f };
+
     detail.windowResolution = window.size();
     detail.renderResolution = { 800, 600 };
+    detail.pCamera = &camera;
 
     render::Context context { window, { } };
     game::Scene scene { context, detail, input.manager };

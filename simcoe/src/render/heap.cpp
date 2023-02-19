@@ -31,6 +31,14 @@ void Heap::release(Index index) {
     map.release(index);
 }
 
+Heap::CpuHandle Heap::cpuHandle() const {
+    return pHeap->GetCPUDescriptorHandleForHeapStart();
+}
+
+Heap::GpuHandle Heap::gpuHandle() const {
+    return pHeap->GetGPUDescriptorHandleForHeapStart();
+}
+
 Heap::CpuHandle Heap::cpuHandle(Index index) const {
     ASSERT(index != Index::eInvalid);
     ASSERT(map.test(index));

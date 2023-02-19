@@ -1,11 +1,15 @@
 gltf = subproject('fastgltf').get_variable('gltf')
 
-shaders = hlsl.process('../data/shaders/post.hlsl')
+shaders = [
+    hlsl.process('../data/shaders/post.hlsl'),
+    hlsl.process('../data/shaders/scene.hlsl')
+]
 
 src = [
     'main.cpp',
     'src/game.cpp',
     'src/gdk.cpp',
+    'src/camera.cpp',
     'src/window.cpp',
     'src/render.cpp',
     'src/render/imgui.cpp',
