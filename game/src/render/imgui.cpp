@@ -145,6 +145,8 @@ void ImGuiPass::drawInfo() {
 
         auto [renderWidth, renderHeight] = info.renderResolution;
         ImGui::Text("Render: %zu x %zu", renderWidth, renderHeight);
+
+        ImGui::Text("GDK: %s", gdk::enabled() ? "Enabled" : "Disabled");
     }
     ImGui::End();
 }
@@ -187,6 +189,10 @@ void ImGuiPass::drawRenderGraphInfo() {
 void ImGuiPass::drawGdkInfo() {
     const auto& analytics = gdk::getAnalyticsInfo();
     
+    if (!gdk::enabled()) {
+        return;
+    }
+
     if (ImGui::Begin("GDK")) {
         ImGui::Text("Family: %s", analytics.family);
         ImGui::Text("Model: %s", analytics.form);

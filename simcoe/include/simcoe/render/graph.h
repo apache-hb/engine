@@ -26,16 +26,6 @@ namespace simcoe::render {
         struct Graph& graph;
     };
 
-    struct IResource : GraphObject {
-        IResource(const GraphObject& self) : GraphObject(self) { }
-
-        virtual ~IResource() = default;
-
-        virtual ID3D12Resource *getResource() const = 0;
-        virtual D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) const = 0;
-        virtual D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) const = 0;
-    };
-
     struct Edge : GraphObject {
         Edge(const GraphObject& self, Pass *pPass)
             : GraphObject(self)
@@ -47,8 +37,8 @@ namespace simcoe::render {
         virtual ID3D12Resource *getResource() = 0;
         
         virtual D3D12_RESOURCE_STATES getState() const = 0;
-        virtual D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() { return { }; }
-        virtual D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() { return { }; }
+        virtual D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) { return { }; }
+        virtual D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) { return { }; }
 
         Pass *getPass() const { return pPass; }
 
@@ -70,8 +60,8 @@ namespace simcoe::render {
         void updateEdge(OutEdge *pIn);
 
         D3D12_RESOURCE_STATES getState() const override { return state; }
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
 
     private:
         D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;
@@ -86,8 +76,8 @@ namespace simcoe::render {
 
         ID3D12Resource *getResource() override;
         D3D12_RESOURCE_STATES getState() const override;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
 
     private:
         InEdge *pOther;

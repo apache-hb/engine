@@ -144,7 +144,7 @@ void BlitPass::stop() {
 void BlitPass::execute() {
     auto& ctx = getContext();
     auto cmd = ctx.getCommandList();
-    auto rtv = pRenderTargetIn->cpuHandle();
+    auto rtv = pRenderTargetIn->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     
     cmd->RSSetViewports(1, &display.viewport);
     cmd->RSSetScissorRects(1, &display.scissor);
@@ -159,7 +159,7 @@ void BlitPass::execute() {
     cmd->SetPipelineState(pBlitPipeline);
     cmd->SetGraphicsRootSignature(pBlitSignature);
 
-    cmd->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle());
+    cmd->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
     cmd->DrawIndexedInstanced(_countof(kScreenQuadIndices), 1, 0, 0, 0);
 }

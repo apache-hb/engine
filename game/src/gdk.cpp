@@ -2,27 +2,34 @@
 
 #include "simcoe/core/system.h"
 
+#include "simcoe/simcoe.h"
+
 #include "XGameRuntime.h"
 #include "XGameRuntimeFeature.h"
 
 #include <array>
 
 using namespace game;
+using namespace simcoe;
 
 namespace {
-    gdk::FeatureMap gEnabled;
+    bool gEnabled = false;
+    gdk::FeatureMap gFeatures;
 
-    XSystemAnalyticsInfo gInfo;
+    XSystemAnalyticsInfo gInfo = {};
     std::array<char, 256> gConsoleId;
 }
 
 #define CHECK_FEATURE(key) \
     do { \
-        gEnabled[XGameRuntimeFeature::key] = { .name = #key, .enabled = XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature::key) }; \
+        gFeatures[XGameRuntimeFeature::key] = { .name = #key, .enabled = XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature::key) }; \
     } while (false)
 
 void gdk::init() {
-    HR_CHECK(XGameRuntimeInitialize());
+    if (HRESULT hr = XGameRuntimeInitialize(); FAILED(hr)) {
+        gLog.warn("XGameRuntimeInitialize() = {}", system::hrString(hr));
+        return;
+    }
 
     gInfo = XSystemGetAnalyticsInfo();
 
@@ -52,10 +59,16 @@ void gdk::init() {
     CHECK_FEATURE(XError);
     CHECK_FEATURE(XGameEvent);
     CHECK_FEATURE(XGameStreaming);
+
+    gEnabled = true;
 }
 
 void gdk::deinit() {
     XGameRuntimeUninitialize();
+}
+
+bool gdk::enabled() {
+    return gEnabled;
 }
 
 const XSystemAnalyticsInfo& gdk::getAnalyticsInfo() {
@@ -67,5 +80,5 @@ const char *gdk::getConsoleId() {
 }
 
 gdk::FeatureMap& gdk::getFeatures() {
-    return gEnabled;
+    return gFeatures;
 }

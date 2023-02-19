@@ -17,6 +17,7 @@ namespace game::gdk {
 
     void init();
     void deinit();
+    bool enabled();
 
     const XSystemAnalyticsInfo& getAnalyticsInfo();
     const char *getConsoleId();

@@ -72,21 +72,25 @@ D3D12_RESOURCE_STATES RenderEdge::getState() const {
     return D3D12_RESOURCE_STATE_PRESENT;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE RenderEdge::cpuHandle() {
+D3D12_CPU_DESCRIPTOR_HANDLE RenderEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    ASSERT(type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    
     auto& ctx = getContext();
 
     auto& data = frameData[ctx.getCurrentFrame()];
     return ctx.getRtvHeap().cpuHandle(data.index);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE RenderEdge::gpuHandle() {
+D3D12_GPU_DESCRIPTOR_HANDLE RenderEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    ASSERT(type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
     auto& ctx = getContext();
     
     auto& data = frameData[ctx.getCurrentFrame()];
     return ctx.getRtvHeap().gpuHandle(data.index);
 }
 
-void RenderEdge::init() {
+void RenderEdge::start() {
     auto& ctx = getContext();
     size_t frames = ctx.getFrames();
     auto *pDevice = ctx.getDevice();
@@ -105,7 +109,7 @@ void RenderEdge::init() {
     }
 }
 
-void RenderEdge::deinit() {
+void RenderEdge::stop() {
     auto& rtvHeap = getContext().getRtvHeap();
 
     for (auto &frame : frameData) {
@@ -114,27 +118,91 @@ void RenderEdge::deinit() {
     }
 }
 
-SourceEdge::SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state)
-    : SourceEdge(self, pPass, state, nullptr, { }, { })
-{ }
-
-SourceEdge::SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state, ID3D12Resource *pResource, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE gpu)
+IntermediateTargetEdge::IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const system::Size& size)
     : OutEdge(self, pPass)
-    , state(state)
-    , pResource(pResource)
-    , cpu(cpu)
-    , gpu(gpu)
+    , size(size)
 { }
 
-void SourceEdge::setResource(ID3D12Resource *pOther, D3D12_CPU_DESCRIPTOR_HANDLE otherCpu, D3D12_GPU_DESCRIPTOR_HANDLE otherGpu) {
-    pResource = pOther;
-    cpu = otherCpu;
-    gpu = otherGpu;
+void IntermediateTargetEdge::start() {
+    auto& ctx = getContext();
+    auto *pDevice = ctx.getDevice();
+
+    rtvIndex = ctx.getRtvHeap().alloc();
+    cbvIndex = ctx.getCbvHeap().alloc();
+
+    state = D3D12_RESOURCE_STATE_RENDER_TARGET;
+
+    D3D12_CLEAR_VALUE clear = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, kClearColour);
+
+    // create intermediate render target
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+        /* format = */ DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* width = */ UINT(size.width),
+        /* height = */ UINT(size.height),
+        /* arraySize = */ 1,
+        /* mipLevels = */ 1,
+        /* sampleCount = */ 1,
+        /* sampleQuality = */ 0,
+        /* flags = */ D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+    );
+
+    D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        /* heapProperties = */ &props,
+        /* heapFlags = */ D3D12_HEAP_FLAG_NONE,
+        /* pDesc = */ &desc,
+        /* initialState = */ D3D12_RESOURCE_STATE_RENDER_TARGET,
+        /* pOptimizedClearValue = */ &clear,
+        /* riidResource = */ IID_PPV_ARGS(&pResource)
+    ));
+
+    // create render target view for the intermediate target
+    pDevice->CreateRenderTargetView(pResource, nullptr, cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV));
+
+    // create shader resource view of the intermediate render target
+    pDevice->CreateShaderResourceView(pResource, nullptr, cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 }
 
-ID3D12Resource *SourceEdge::getResource() { return pResource; }
-D3D12_RESOURCE_STATES SourceEdge::getState() const { return state; }
-D3D12_CPU_DESCRIPTOR_HANDLE SourceEdge::cpuHandle() { return cpu; }
-D3D12_GPU_DESCRIPTOR_HANDLE SourceEdge::gpuHandle() { return gpu; }
+void IntermediateTargetEdge::stop() {
+    auto& ctx = getContext();
 
-/// passes
+    RELEASE(pResource);
+    ctx.getRtvHeap().release(rtvIndex);
+    ctx.getCbvHeap().release(cbvIndex);
+}
+
+ID3D12Resource *IntermediateTargetEdge::getResource() { 
+    return pResource; 
+}
+
+D3D12_RESOURCE_STATES IntermediateTargetEdge::getState() const { 
+    return state; 
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) { 
+    auto& ctx = getContext();
+
+    switch (type) {
+    case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+        return ctx.getCbvHeap().cpuHandle(cbvIndex);
+    case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+        return ctx.getRtvHeap().cpuHandle(rtvIndex);
+
+    default:
+        ASSERT(false);
+    }
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) { 
+    auto& ctx = getContext();
+    switch (type) {
+    case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
+        return ctx.getCbvHeap().gpuHandle(cbvIndex);
+    case D3D12_DESCRIPTOR_HEAP_TYPE_RTV:
+        return ctx.getRtvHeap().gpuHandle(rtvIndex);
+
+    default:
+        ASSERT(false);
+    }
+}

@@ -43,12 +43,12 @@ ID3D12Resource *InEdge::getResource() {
     return pSource->getResource();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE InEdge::cpuHandle() {
-    return pSource->cpuHandle();
+D3D12_CPU_DESCRIPTOR_HANDLE InEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    return pSource->cpuHandle(type);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE InEdge::gpuHandle() {
-    return pSource->gpuHandle();
+D3D12_GPU_DESCRIPTOR_HANDLE InEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    return pSource->gpuHandle(type);
 }
 
 ID3D12Resource *RelayEdge::getResource() {
@@ -61,12 +61,12 @@ D3D12_RESOURCE_STATES RelayEdge::getState() const {
     return pOther->getState();
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE RelayEdge::cpuHandle() {
-    return pOther->cpuHandle();
+D3D12_CPU_DESCRIPTOR_HANDLE RelayEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    return pOther->cpuHandle(type);
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE RelayEdge::gpuHandle() {
-    return pOther->gpuHandle();
+D3D12_GPU_DESCRIPTOR_HANDLE RelayEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
+    return pOther->gpuHandle(type);
 }
 
 InEdge *Pass::addInput(InEdge *pEdge) {

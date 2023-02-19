@@ -28,12 +28,12 @@ namespace game {
         ID3D12Resource *getResource() override;
 
         D3D12_RESOURCE_STATES getState() const override;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
 
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override;
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE) override;
 
-        void init();
-        void deinit();
+        void start();
+        void stop();
 
     private:
         struct FrameData {
@@ -44,22 +44,27 @@ namespace game {
         std::vector<FrameData> frameData;
     };
 
-    struct SourceEdge final : render::OutEdge {
-        SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state);
-        SourceEdge(const GraphObject& self, render::Pass *pPass, D3D12_RESOURCE_STATES state, ID3D12Resource *pResource, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE gpu);
-        
-        void setResource(ID3D12Resource *pOther, D3D12_CPU_DESCRIPTOR_HANDLE otherCpu, D3D12_GPU_DESCRIPTOR_HANDLE otherGpu);
-        
+    constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+
+    struct IntermediateTargetEdge final : render::OutEdge {
+        IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const system::Size& size);
+
+        void start();
+        void stop();
+
         ID3D12Resource *getResource() override;
         D3D12_RESOURCE_STATES getState() const override;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle() override;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle() override;
+        D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) override;
+        D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) override;
 
     private:
+        system::Size size;
+
         D3D12_RESOURCE_STATES state;
         ID3D12Resource *pResource;
-        D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-        D3D12_GPU_DESCRIPTOR_HANDLE gpu;
+
+        render::Heap::Index cbvIndex = render::Heap::Index::eInvalid;
+        render::Heap::Index rtvIndex = render::Heap::Index::eInvalid;
     };
 
     struct GlobalPass final : render::Pass {
@@ -68,11 +73,11 @@ namespace game {
         }
 
         void start() override {
-            pRenderTargetOut->init();
+            pRenderTargetOut->start();
         }
 
         void stop() override {
-            pRenderTargetOut->deinit();
+            pRenderTargetOut->stop();
         }
 
         void execute() override { }
@@ -87,14 +92,10 @@ namespace game {
 
         void execute() override;
 
-        SourceEdge *pRenderTargetOut = nullptr;
+        IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
     private:
         system::Size size;
-        
-        // TODO: this should be part of SourceEdge maybe?
-        render::Heap::Index cbvIndex = render::Heap::Index::eInvalid;
-        render::Heap::Index rtvIndex = render::Heap::Index::eInvalid;
     };
 
     // copy resource to back buffer
