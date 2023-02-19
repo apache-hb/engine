@@ -39,41 +39,67 @@ namespace {
         math::float2 uv;
     };
 
+    struct Display {
+        D3D12_VIEWPORT viewport;
+        D3D12_RECT scissor;
+    };
+
     ShaderBlob loadShader(std::string_view path) {
         std::unique_ptr<Io> file{Io::open(path, Io::eRead)};
         return file->read<std::byte>();
     }
 
-    D3D12_SHADER_BYTECODE getShader(ShaderBlob &blob) {
+    D3D12_SHADER_BYTECODE getShader(const ShaderBlob &blob) {
         return D3D12_SHADER_BYTECODE {blob.data(), blob.size()};
     }
+    
+    Display createDisplay(const system::Size& size) {
+        auto [width, height] = size;
 
-    constexpr const char *stateToString(D3D12_RESOURCE_STATES states) {
-        switch (states) {
-        case D3D12_RESOURCE_STATE_COMMON: return "common/present";
-        case D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER: return "vertex-and-constant-buffer";
-        case D3D12_RESOURCE_STATE_INDEX_BUFFER: return "index-buffer";
-        case D3D12_RESOURCE_STATE_RENDER_TARGET: return "render-target";
-        case D3D12_RESOURCE_STATE_UNORDERED_ACCESS: return "unordered-access";
-        case D3D12_RESOURCE_STATE_DEPTH_WRITE: return "depth-write";
-        case D3D12_RESOURCE_STATE_DEPTH_READ: return "depth-read";
-        case D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE: return "non-pixel-shader-resource";
-        case D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE: return "pixel-shader-resource";
-        case D3D12_RESOURCE_STATE_STREAM_OUT: return "stream-out";
-        case D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT: return "indirect-argument";
-        case D3D12_RESOURCE_STATE_COPY_DEST: return "copy-dest";
-        case D3D12_RESOURCE_STATE_COPY_SOURCE: return "copy-source";
-        case D3D12_RESOURCE_STATE_RESOLVE_DEST: return "resolve-dest";
-        case D3D12_RESOURCE_STATE_RESOLVE_SOURCE: return "resolve-source";
-        case D3D12_RESOURCE_STATE_GENERIC_READ: return "generic-read";
-        default: return "unknown";
+        Display display = {
+            .viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height)),
+            .scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height))
+        };
+
+        return display;
+    }
+
+    Display createLetterBoxDisplay(const system::Size& render, const system::Size& present) {
+        auto [renderWidth, renderHeight] = render;
+        auto [presentWidth, presentHeight] = present;
+
+        auto widthRatio = float(presentWidth) / renderWidth;
+        auto heightRatio = float(presentHeight) / renderHeight;
+
+        float x = 1.f;
+        float y = 1.f;
+
+        if (widthRatio < heightRatio) {
+            x = widthRatio / heightRatio;
+        } else {
+            y = heightRatio / widthRatio;
         }
+
+        D3D12_VIEWPORT viewport = CD3DX12_VIEWPORT();
+
+        D3D12_RECT scissor = CD3DX12_RECT();
+
+        viewport.TopLeftX = presentWidth * (1.f - x) / 2.f;
+        viewport.TopLeftY = presentHeight * (1.f - y) / 2.f;
+        viewport.Width = x * presentWidth;
+        viewport.Height = y * presentHeight;
+
+        scissor.left = LONG(viewport.TopLeftX);
+        scissor.right = LONG(viewport.TopLeftX + viewport.Width);
+        scissor.top = LONG(viewport.TopLeftY);
+        scissor.bottom = LONG(viewport.TopLeftY + viewport.Height);
+
+        return { viewport, scissor };
     }
 }
 
-
-struct Info {
-    Info() : gamepad(0), keyboard(), mouse(false, true) {
+struct Input {
+    Input() : gamepad(0), keyboard(), mouse(false, true) {
         manager.add(&gamepad);
         manager.add(&keyboard);
         manager.add(&mouse);
@@ -83,11 +109,6 @@ struct Info {
         manager.poll();
     }
 
-    system::Size windowResolution;
-    system::Size renderResolution;
-
-    Locale locale;
-
     input::Gamepad gamepad;
     input::Keyboard keyboard;
     input::Mouse mouse;
@@ -95,27 +116,33 @@ struct Info {
     input::Manager manager;
 };
 
-struct Window : system::Window {
-    Window(Info& info)
+struct Info {
+    system::Size windowResolution;
+    system::Size renderResolution;
+
+    Locale locale;
+};
+
+struct Window final : system::Window {
+    Window(input::Mouse& mouse, input::Keyboard& keyboard)
         : system::Window("game", { 1920, 1080 })
-        , info(info) 
-    { 
-        info.windowResolution = Window::size();
-        info.renderResolution = { 800, 600 };
-    }
+        , mouse(mouse)
+        , keyboard(keyboard)
+    { }
 
     bool poll() {
-        info.mouse.update(getHandle());
+        mouse.update(getHandle());
         return system::Window::poll();
     }
 
     LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override {
-        info.keyboard.update(msg, wparam, lparam);
+        keyboard.update(msg, wparam, lparam);
 
         return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
     }
 
-    Info& info;
+    input::Mouse& mouse;
+    input::Keyboard& keyboard;
 };
 
 struct RenderEdge final : render::OutEdge {
@@ -171,54 +198,6 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE gpu;
 };
 
-struct Display {
-    D3D12_VIEWPORT viewport;
-    D3D12_RECT scissor;
-};
-
-Display createDisplay(const math::size2& size) {
-    auto [width, height] = size;
-
-    Display display;
-    display.viewport = CD3DX12_VIEWPORT(0.0f, 0.0f, float(width), float(height));
-    display.scissor = CD3DX12_RECT(0, 0, LONG(width), LONG(height));
-
-    return display;
-}
-
-Display createLetterBoxDisplay(const math::size2& internal, const math::size2& external) {
-    auto [sceneWidth, sceneHeight] = internal;
-    auto [windowWidth, windowHeight] = external;
-
-    auto widthRatio = float(sceneWidth) / windowWidth;
-    auto heightRatio = float(sceneHeight) / windowHeight;
-
-    float x = 1.f;
-    float y = 1.f;
-
-    if (widthRatio < heightRatio) {
-        x = widthRatio / heightRatio;
-    } else {
-        y = heightRatio / widthRatio;
-    }
-
-    D3D12_VIEWPORT view = CD3DX12_VIEWPORT(
-        /* topLeftX = */ float(windowWidth) * (1.f - x) / 2.f,
-        /* topLeftY = */ float(windowHeight) * (1.f - y) / 2.f,
-        /* width = */ x * float(windowWidth),
-        /* height = */ y * float(windowHeight)
-    );
-
-    D3D12_RECT scissor = CD3DX12_RECT(
-        /* left = */ LONG(view.TopLeftX),
-        /* top = */ LONG(view.TopLeftY),
-        /* right = */ LONG(view.TopLeftX + view.Width),
-        /* bottom = */ LONG(view.TopLeftY + view.Height)
-    );
-
-    return { view, scissor };
-}
-
 struct GlobalPass final : render::Pass {
     GlobalPass(const GraphObject& object) : Pass(object) { 
         pRenderTargetOut = out<RenderEdge>("render-target");
@@ -230,9 +209,9 @@ struct GlobalPass final : render::Pass {
 };
 
 struct ScenePass final : render::Pass {
-    ScenePass(const GraphObject& object, const Display& display) 
+    ScenePass(const GraphObject& object, const system::Size& size) 
         : Pass(object)
-        , scene(display) 
+        , size(size)
     {
         pRenderTargetOut = out<SourceEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
@@ -253,8 +232,8 @@ struct ScenePass final : render::Pass {
         // create intermediate render target
         D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
             /* format = */ DXGI_FORMAT_R8G8B8A8_UNORM,
-            /* width = */ UINT(scene.viewport.Width),
-            /* height = */ UINT(scene.viewport.Height),
+            /* width = */ UINT(size.width),
+            /* height = */ UINT(size.height),
             /* arraySize = */ 1,
             /* mipLevels = */ 1,
             /* sampleCount = */ 1,
@@ -299,9 +278,10 @@ struct ScenePass final : render::Pass {
         auto& rtvHeap = ctx.getRtvHeap();
         auto cmd = getContext().getCommandList();
         auto rtv = rtvHeap.cpuHandle(rtvIndex); // TODO: definetly not right
+        Display display = createDisplay(size);
 
-        cmd->RSSetViewports(1, &scene.viewport);
-        cmd->RSSetScissorRects(1, &scene.scissor);
+        cmd->RSSetViewports(1, &display.viewport);
+        cmd->RSSetScissorRects(1, &display.scissor);
 
         cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
         cmd->ClearRenderTargetView(rtv, kClearColour, 0, nullptr);
@@ -310,7 +290,7 @@ struct ScenePass final : render::Pass {
     SourceEdge *pRenderTargetOut = nullptr;
 
 private:
-    Display scene;
+    system::Size size;
     
     constexpr static float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
@@ -447,6 +427,7 @@ struct BlitPass final : render::Pass {
         cmd->RSSetScissorRects(1, &display.scissor);
         
         cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
+        cmd->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
 
         cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         cmd->IASetVertexBuffers(0, 1, &vertexBufferView);
@@ -468,6 +449,8 @@ struct BlitPass final : render::Pass {
 
 private:
     Display display;
+
+    constexpr static float kClearColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     ShaderBlob ps;
     ShaderBlob vs;
@@ -510,7 +493,7 @@ struct PresentPass final : render::Pass {
 };
 
 struct ImGuiPass final : render::Pass {
-    ImGuiPass(const GraphObject& object, Info& info): Pass(object), info(info) { 
+    ImGuiPass(const GraphObject& object, Info& info, input::Manager& manager): Pass(object), info(info), inputManager(manager) { 
         pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
         pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
     }
@@ -581,6 +564,7 @@ struct ImGuiPass final : render::Pass {
 
 private:
     Info& info;
+    input::Manager& inputManager;
     render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
     
     void enableDock() {
@@ -642,6 +626,11 @@ private:
 
     void drawInfo() {
         if (ImGui::Begin("Info")) {
+            auto display = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
+
+            ImGui::Text("Viewport(%f, %f, %f, %f)", display.viewport.TopLeftX, display.viewport.TopLeftY, display.viewport.Width, display.viewport.Height);
+            ImGui::Text("Scissor(%ld, %ld, %ld, %ld)", display.scissor.left, display.scissor.top, display.scissor.right, display.scissor.bottom);
+
             auto [displayWidth, displayHeight] = info.windowResolution;
             ImGui::Text("Display: %zu x %zu", displayWidth, displayHeight);
 
@@ -722,7 +711,7 @@ private:
         const float kTextWidth = ImGui::CalcTextSize("A").x;
 
         if (ImGui::Begin("Input")) {
-            const auto& state = info.manager.getState();
+            const auto& state = inputManager.getState();
             
             ImGui::Text("Current: %s", state.device == input::Device::eGamepad ? "Gamepad" : "Mouse & Keyboard");
 
@@ -772,16 +761,15 @@ private:
 };
 
 struct Scene final : render::Graph {
-    Scene(render::Context& context, Info& info) : render::Graph(context) {
+    Scene(render::Context& context, Info& info, input::Manager& input) : render::Graph(context) {
         Display present = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
-        Display render = createDisplay(info.renderResolution);
 
         pGlobalPass = addPass<GlobalPass>("global");
         
-        pScenePass = addPass<ScenePass>("scene", render);
+        pScenePass = addPass<ScenePass>("scene", info.renderResolution);
         pBlitPass = addPass<BlitPass>("blit", present);
 
-        pImGuiPass = addPass<ImGuiPass>("imgui", info);
+        pImGuiPass = addPass<ImGuiPass>("imgui", info, input);
         pPresentPass = addPass<PresentPass>("present");
 
         connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
@@ -828,16 +816,20 @@ int commonMain() {
     system::System system;
     ImGuiRuntime imgui;
     game::gdk::Runtime gdk;
+    Input input;
 
-    Info detail;
+    Window window { input.mouse, input.keyboard };
 
-    Window window { detail };
+    Info detail = {
+        .windowResolution = window.size(),
+        .renderResolution = { 800, 600 }
+    };
 
     render::Context::Info info = {
         .windowSize = { 600, 800 }
     };
     render::Context context { window, info };
-    Scene scene { context, detail };
+    Scene scene { context, detail, input.manager };
 
     ImGui_ImplWin32_Init(window.getHandle());
     ImGui_ImplWin32_EnableDpiAwareness();
@@ -845,7 +837,7 @@ int commonMain() {
     scene.start();
 
     while (window.poll()) {
-        detail.poll();
+        input.poll();
         scene.execute();
     }
 
