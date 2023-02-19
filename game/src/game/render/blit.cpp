@@ -31,8 +31,8 @@ BlitPass::BlitPass(const GraphObject& object, const Display& display)
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 
     // load shader objects
-    vs = loadShader("build\\game\\game.exe.p\\post.vs.cso");
-    ps = loadShader("build\\game\\game.exe.p\\post.ps.cso");
+    vs = loadShader("build\\game\\libgame.a.p\\post.vs.cso");
+    ps = loadShader("build\\game\\libgame.a.p\\post.ps.cso");
 }
 
 void BlitPass::start() {

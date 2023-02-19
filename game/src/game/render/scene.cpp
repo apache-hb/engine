@@ -10,8 +10,8 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
 {
     pRenderTargetOut = out<IntermediateTargetEdge>("scene-target", info.renderResolution);
 
-    vs = loadShader("build\\game\\game.exe.p\\scene.vs.cso");
-    ps = loadShader("build\\game\\game.exe.p\\scene.ps.cso");
+    vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
+    ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
 }
 
 void ScenePass::start() {

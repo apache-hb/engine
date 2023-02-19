@@ -74,43 +74,6 @@ memory = declare_dependency(
 )
 
 src = [
-    'include/imgui/imgui_demo.cpp',
-    'include/imgui/imgui_draw.cpp',
-    'include/imgui/imgui_tables.cpp',
-    'include/imgui/imgui_widgets.cpp',
-    'include/imgui/imgui.cpp',
-    'include/imgui/backends/imgui_impl_dx12.cpp',
-    'include/imgui/backends/imgui_impl_win32.cpp'
-]
-
-inc = [ 'include/imgui', 'include/imgui/backends' ]
-
-libimgui = library('imgui', src,
-    dependencies : [ core ],
-    include_directories : inc
-)
-
-imgui = declare_dependency(
-    link_with : libimgui,
-    dependencies : [ core ],
-    include_directories : inc
-)
-
-src = [ 'include/imnodes/src/imnodes.cpp' ]
-
-libimnodes = library('imnodes', src,
-    dependencies : [ imgui ],
-    include_directories : 'include/imnodes/include',
-    cpp_args : args
-)
-
-imnodes = declare_dependency(
-    link_with : libimnodes,
-    dependencies : [ imgui ],
-    include_directories : 'include/imnodes/include'
-)
-
-src = [
     'src/render/context.cpp',
     'src/render/heap.cpp',
     'src/render/graph.cpp',
