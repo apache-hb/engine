@@ -20,8 +20,6 @@ namespace simcoe::render {
         struct Info {
             size_t adapter = kDefaultAdapter; // which adapter to use
             size_t frames = 2; // number of back buffers
-
-            system::Size windowSize = { 1280, 720 }; //presentation resolution
         
             size_t heapSize = 1024;
             size_t queueSize = 1024;

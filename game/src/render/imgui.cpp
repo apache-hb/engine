@@ -12,6 +12,17 @@
 using namespace simcoe;
 using namespace game;
 
+namespace {
+    constexpr const char *getLevelName(logging::Level level) {
+        switch (level) {
+        case logging::eInfo: return "info";
+        case logging::eWarn: return "warn";
+        case logging::eFatal: return "fatal";
+        default: return "unknown";
+        }
+    }
+}
+
 ImGuiPass::ImGuiPass(const GraphObject& object, Info& info, input::Manager& manager): Pass(object), info(info), inputManager(manager) { 
     pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
@@ -147,6 +158,22 @@ void ImGuiPass::drawInfo() {
         ImGui::Text("Render: %zu x %zu", renderWidth, renderHeight);
 
         ImGui::Text("GDK: %s", gdk::enabled() ? "Enabled" : "Disabled");
+
+        ImGui::Separator();
+        ImGui::Text("Logs");
+        
+        if (ImGui::BeginChild("Scrolling", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar)) {
+            ImGuiListClipper clipper;
+            clipper.Begin(int(info.sink.entries.size()));
+            while (clipper.Step()) {
+                for (int offset = clipper.DisplayStart; offset < clipper.DisplayEnd; offset++) {
+                    auto& entry = info.sink.entries[offset];
+                    ImGui::Text("[%s] %s", getLevelName(entry.level), entry.message.c_str());
+                }
+            }
+            clipper.End();
+        }
+        ImGui::EndChild();
     }
     ImGui::End();
 }

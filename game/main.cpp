@@ -32,6 +32,9 @@ struct ImGuiRuntime {
 };
 
 int commonMain() {
+    game::Info detail;
+
+    simcoe::addSink(&detail.sink);
     gLog.info("cwd: {}", std::filesystem::current_path().string());
 
     system::System system;
@@ -41,15 +44,10 @@ int commonMain() {
 
     game::Window window { input.mouse, input.keyboard };
 
-    game::Info detail = {
-        .windowResolution = window.size(),
-        .renderResolution = { 800, 600 }
-    };
+    detail.windowResolution = window.size();
+    detail.renderResolution = { 800, 600 };
 
-    render::Context::Info info = {
-        .windowSize = { 600, 800 }
-    };
-    render::Context context { window, info };
+    render::Context context { window, { } };
     game::Scene scene { context, detail, input.manager };
 
     ImGui_ImplWin32_Init(window.getHandle());

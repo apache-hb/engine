@@ -66,24 +66,31 @@ namespace simcoe::logging {
         const char *pzName;
     };
 
-    struct ConsoleSink final : ISink {
-        ConsoleSink(const char *pzName = "console");
-        
-        void send(Category &category, Level level, const char *pzMessage) override;
+    struct IFilterSink : ISink {
+        IFilterSink(const char *pzName) : ISink(pzName) { }
+        void send(Category &category, Level level, const char *pzMessage) override final;
+
+        virtual void accept(Category &category, Level level, const char *pzMessage) = 0;
     };
 
-    struct FileSink final : ISink {
+    struct ConsoleSink final : IFilterSink {
+        ConsoleSink(const char *pzName = "console");
+        
+        void accept(Category &category, Level level, const char *pzMessage) override;
+    };
+
+    struct FileSink final : IFilterSink {
         FileSink(const char *pzName, const char *pzPath);
 
-        void send(Category &category, Level level, const char *pzMessage) override;
+        void accept(Category &category, Level level, const char *pzMessage) override;
 
     private:
         FILE *pFile;
     };
 
-    struct DebugSink final : ISink {
-        DebugSink() : ISink("debug") { }
+    struct DebugSink final : IFilterSink {
+        DebugSink() : IFilterSink("debug") { }
 
-        void send(Category &category, Level level, const char *pzMessage) override;
+        void accept(Category &category, Level level, const char *pzMessage) override;
     };
 }

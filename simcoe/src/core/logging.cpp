@@ -24,10 +24,6 @@ namespace {
 }
 
 void Category::send(Level level, const char *pzMessage) {
-    if (level < getLevel()) {
-        return;
-    }
-
     for (ISink *pSink : sinks) {
         pSink->send(*this, level, pzMessage);
     }
@@ -41,17 +37,25 @@ void Category::removeSink(ISink *pSink) {
     sinks.erase(pSink);
 }
 
+void IFilterSink::send(Category &category, Level level, const char *pzMessage) {
+    if (level < category.getLevel()) {
+        return;
+    }
+
+    accept(category, level, pzMessage);
+}
+
 ConsoleSink::ConsoleSink(const char *pzName)
-    : ISink(pzName) 
+    : IFilterSink(pzName) 
 { }
 
-void ConsoleSink::send(Category &category, Level level, const char *pzMessage) {
+void ConsoleSink::accept(Category &category, Level level, const char *pzMessage) {
     const auto& [name, colour] = getLevelFormat(level);
 
     printf("[%s%s:%s%s] %s%s\n", colour, category.getName(), name, kpzAnsiReset, pzMessage, kpzAnsiReset);
 }
 
-FileSink::FileSink(const char *pzName, const char *pzPath): ISink(pzName) { 
+FileSink::FileSink(const char *pzName, const char *pzPath): IFilterSink(pzName) { 
     errno_t err = fopen_s(&pFile, pzPath, "w");
     
     if (err != 0) {
@@ -61,13 +65,13 @@ FileSink::FileSink(const char *pzName, const char *pzPath): ISink(pzName) {
     ASSERT(err == 0);
 }
 
-void FileSink::send(Category &category, Level level, const char *pzMessage) {
+void FileSink::accept(Category &category, Level level, const char *pzMessage) {
     const auto& [name, _] = getLevelFormat(level);
 
     fprintf(pFile, "[%s:%s] %s\n", category.getName(), name, pzMessage);
 }
 
-void DebugSink::send(Category &category, Level level, const char *pzMessage) {
+void DebugSink::accept(Category &category, Level level, const char *pzMessage) {
     const auto& [name, _] = getLevelFormat(level);
 
     OutputDebugStringA(std::format("[{}:{}] {}\n", category.getName(), name, pzMessage).c_str());

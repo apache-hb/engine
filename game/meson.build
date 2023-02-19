@@ -4,6 +4,7 @@ shaders = hlsl.process('../data/shaders/post.hlsl')
 
 src = [
     'main.cpp',
+    'src/game.cpp',
     'src/gdk.cpp',
     'src/window.cpp',
     'src/render.cpp',
