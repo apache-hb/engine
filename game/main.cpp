@@ -80,19 +80,19 @@ namespace {
             y = heightRatio / widthRatio;
         }
 
-        D3D12_VIEWPORT viewport = CD3DX12_VIEWPORT();
+        D3D12_VIEWPORT viewport = CD3DX12_VIEWPORT(
+            presentWidth * (1.f - x) / 2.f,
+            presentHeight * (1.f - y) / 2.f,
+            x * presentWidth,
+            y * presentHeight
+        );
 
-        D3D12_RECT scissor = CD3DX12_RECT();
-
-        viewport.TopLeftX = presentWidth * (1.f - x) / 2.f;
-        viewport.TopLeftY = presentHeight * (1.f - y) / 2.f;
-        viewport.Width = x * presentWidth;
-        viewport.Height = y * presentHeight;
-
-        scissor.left = LONG(viewport.TopLeftX);
-        scissor.right = LONG(viewport.TopLeftX + viewport.Width);
-        scissor.top = LONG(viewport.TopLeftY);
-        scissor.bottom = LONG(viewport.TopLeftY + viewport.Height);
+        D3D12_RECT scissor = CD3DX12_RECT(
+            LONG(viewport.TopLeftX),
+            LONG(viewport.TopLeftY),
+            LONG(viewport.TopLeftX + viewport.Width),
+            LONG(viewport.TopLeftY + viewport.Height)
+        );
 
         return { viewport, scissor };
     }
