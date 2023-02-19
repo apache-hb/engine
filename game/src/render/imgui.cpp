@@ -87,6 +87,12 @@ void ImGuiPass::execute() {
 
     fileBrowser.Display();
 
+    if (fileBrowser.HasSelected()) {
+        auto path = fileBrowser.GetSelected().string();
+        gLog.info("Importing gltf: {}", path.c_str());
+        fileBrowser.ClearSelected();
+    }
+
     ImGui::ShowDemoWindow();
     
     ImGui::Render();
