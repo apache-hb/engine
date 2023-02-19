@@ -6,6 +6,9 @@
 #include "simcoe/render/context.h"
 #include "simcoe/render/graph.h"
 
+#include "imgui/imgui.h"
+#include "widgets/imfilebrowser.h"
+
 #define CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 
 namespace game {
@@ -124,14 +127,23 @@ namespace game {
         SceneBuffer *pSceneData = nullptr;
         render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
 
-        ID3D12Resource *pVertexBuffer = nullptr;
-        D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+        struct ObjectBuffer {
+            ID3D12Resource *pVertexBuffer = nullptr;
+            D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
 
-        ID3D12Resource *pIndexBuffer = nullptr;
-        D3D12_INDEX_BUFFER_VIEW indexBufferView;
+            ID3D12Resource *pIndexBuffer = nullptr;
+            D3D12_INDEX_BUFFER_VIEW indexBufferView;
 
-        ID3D12Resource *pTexture = nullptr;
-        render::Heap::Index textureHandle = render::Heap::Index::eInvalid;
+            size_t textureIndex = 0;
+        };
+
+        struct TextureBuffer {
+            ID3D12Resource *pTexture = nullptr;
+            render::Heap::Index handle = render::Heap::Index::eInvalid;
+        };
+
+        std::vector<ObjectBuffer> objectBuffers;
+        std::vector<TextureBuffer> textureBuffers;
     };
 
     // copy resource to back buffer
@@ -210,6 +222,8 @@ namespace game {
         std::unordered_map<render::Pass*, int> passIndices;
         std::unordered_map<render::Edge*, int> edgeIndices;
         std::unordered_map<int, Link> links;
+
+        ImGui::FileBrowser fileBrowser;
     };
 
     struct Scene final : render::Graph {

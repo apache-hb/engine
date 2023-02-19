@@ -35,6 +35,7 @@ namespace simcoe::render {
         void end();
 
         void present();
+        void wait();
 
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }

@@ -170,9 +170,14 @@ void Graph::connect(OutEdge *pSource, InEdge *pTarget) {
 }
 
 void Graph::start() {
+    auto& ctx = getContext();
+
+    ctx.begin();
     for (auto& [pzName, pPass] : passes) {
         pPass->start();
     }
+    ctx.end();
+    ctx.wait();
 }
 
 void Graph::stop() {
@@ -187,6 +192,8 @@ void Graph::execute(Pass *pRoot) {
     ctx.begin();
     GraphBuilder graph{*this, pRoot};
     ctx.end();
+    ctx.present();
+    ctx.wait();
 }
 
 Context& Graph::getContext() {

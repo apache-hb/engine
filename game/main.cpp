@@ -45,7 +45,7 @@ int commonMain() {
 
     game::Window window { input.mouse, input.keyboard };
 
-    game::ThirdPerson camera { { 1, 1, 1 }, { 2, 2, 2 }, 90.f };
+    game::ThirdPerson camera { { 0, 0, 1 }, { 5, 5, 5 }, 90.f };
 
     detail.windowResolution = window.size();
     detail.renderResolution = { 800, 600 };

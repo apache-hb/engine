@@ -78,13 +78,20 @@ void Context::begin() {
 }
 
 void Context::end() {
+    copyQueue.wait();
+    
     HR_CHECK(pCommandList->Close());
 
     // execute command list
     ID3D12CommandList* ppCommandLists[] = { pCommandList };
     pPresentQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+}
 
+void Context::present() {
     HR_CHECK(pSwapChain->Present(0, bTearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0));
+}
+
+void Context::wait() {
     nextFrame();
 }
 

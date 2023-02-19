@@ -85,6 +85,8 @@ void ImGuiPass::execute() {
     drawGdkInfo();
     drawInputInfo();
 
+    fileBrowser.Display();
+
     ImGui::ShowDemoWindow();
     
     ImGui::Render();
@@ -125,8 +127,10 @@ void ImGuiPass::enableDock() {
         ImGui::Separator();
 
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Import")) {
-
+            if (ImGui::MenuItem("Import GLTF")) {
+                fileBrowser.SetTitle("GLTF");
+                fileBrowser.SetTypeFilters({ ".gltf", ".glb" });
+                fileBrowser.Open();
             }
 
             ImGui::MenuItem("Save");

@@ -32,6 +32,16 @@ void Queue::deleteQueue() {
 }
 
 void Queue::wait() {
+    bool flush = false;
+    Action *pCommand;
+    while (queue.try_dequeue(pCommand)) {
+        pCommand->execute(pCommandList);
+        delete pCommand;
+        flush = true;
+    }
+
+    if (!flush) { return; }
+
     HR_CHECK(pQueue->Signal(pFence, fenceValue));
     
     HR_CHECK(pFence->SetEventOnCompletion(fenceValue, fenceEvent));
@@ -40,6 +50,6 @@ void Queue::wait() {
     fenceValue += 1;
 }
 
-void Queue::push(void *pCommand) {
-    queue.try_enqueue(pCommand);
+void Queue::push(Action *pCommand) {
+    ASSERT(queue.try_enqueue(pCommand));
 }
