@@ -2,29 +2,27 @@
 functional if not pretty
 
 # layout
-* common - shared code that both the game and editor use
-    * include/engine
-        * base - core stuff that everything else depends on
-        * ui - TODO: put this somewhere better
-        * memory - memory allocators
-        * container - general use containers
-        * math - linear algebra and utilities
-        * window - windowing
-        * locale - translation
-        * input - keyboard and gamepad input handling
-        * rhi - d3d12 abstraction layer
-        * render - core renderer
+* simcoe - common code
+    * include/imgui - dear imgui
+    * include/imnodes - dear imgui node editor widget
+    * include/simcoe - engine code
+        * async - c++20 couroutine helper library
+        * audio - xaudio utils
+        * core - core platform abstractions
+        * input - user input handling
+        * locale - internationalization
+        * math - linear algebra library
+        * memory - allocators and other memory management utils
+        * render - d3d12 render impl
 
-    * vendor - third party libraries
-        * imgui - dear imgui used for debug gui
+* game - game + editor
+    * game/gdk - microsoft gdk abstraction
 
-* editor - editor specific code
-    * include/editor/shaders - shader compilation
-    * include/editor/widgets - dear imgui widgets
-
-* game - gameplay specific code
-
-* resources - data
+* data - resource and config files
     * agility - d3d12 agility sdk
-    * locale - translations
-    * shaders - d3d12 shaders
+    * shaders - hlsl shaders
+    * tools - tools required as parts of the build pipeline
+
+## todos
+* stop conflating resources and edges
+* make our own asset pipeline, meson is lacking sadly
