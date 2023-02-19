@@ -6,7 +6,10 @@ src = [
     'main.cpp',
     'src/gdk.cpp',
     'src/window.cpp',
-    'src/render.cpp'
+    'src/render.cpp',
+    'src/render/imgui.cpp',
+    'src/render/scene.cpp',
+    'src/render/blit.cpp'
 ]
 
 executable('game', src + shaders,
