@@ -39,15 +39,13 @@ namespace simcoe::render {
 
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }
-        ID3D12GraphicsCommandList *getCommandList() const { return pCommandList; }
+        ID3D12GraphicsCommandList *getCommandList() const { return pDirectCommandList; }
         
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
         Heap& getCbvHeap() { return cbvHeap; }
         Heap& getRtvHeap() { return rtvHeap; }
-
-        Queue& getCopyQueue() { return copyQueue; }
 
     private:
         void newFactory();
@@ -64,8 +62,11 @@ namespace simcoe::render {
         void selectAdapter(size_t index);
         void selectDefaultAdapter();
 
-        void newPresentQueue();
-        void deletePresentQueue();
+        void newDirectQueue();
+        void deleteDirectQueue();
+
+        void newCopyQueue();
+        void deleteCopyQueue();
 
         void newSwapChain();
         void deleteSwapChain();
@@ -73,17 +74,11 @@ namespace simcoe::render {
         void newRenderTargets();
         void deleteRenderTargets();
 
-        void newCommandList();
-        void deleteCommandList();
-
         void newFence();
         void deleteFence();
 
         void newDescriptorHeap();
         void deleteDescriptorHeap();
-
-        void newCopyQueue();
-        void deleteCopyQueue();
 
         void waitForFence();
         void nextFrame();
@@ -95,6 +90,8 @@ namespace simcoe::render {
         system::Window& window;
         Info info;
 
+        ReportOnceMap reportOnceMap;
+
         ID3D12Debug* pDebug = nullptr;
 
         IDXGIFactory6 *pFactory = nullptr;
@@ -103,27 +100,25 @@ namespace simcoe::render {
 
         ID3D12Device *pDevice = nullptr;
 
-        ReportOnceMap reportOnceMap;
         ID3D12InfoQueue1 *pInfoQueue = nullptr;
-
-        ID3D12CommandQueue *pPresentQueue = nullptr;
 
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
 
-        Heap rtvHeap;
+        ID3D12CommandQueue *pDirectQueue = nullptr;
+        std::vector<ID3D12CommandAllocator*> directCommandAllocators;
+        ID3D12GraphicsCommandList *pDirectCommandList = nullptr;
 
-        ID3D12Resource *pSceneTarget = nullptr;
-
-        std::vector<ID3D12CommandAllocator*> commandAllocators;
-        ID3D12GraphicsCommandList *pCommandList = nullptr;
+        ID3D12CommandQueue *pCopyQueue = nullptr;
+        ID3D12CommandAllocator* pCopyAllocator = nullptr;
+        ID3D12GraphicsCommandList *pCopyCommandList = nullptr;
 
         UINT64 fenceValue = 1;
         UINT frameIndex = 0;
         HANDLE fenceEvent = nullptr;
         ID3D12Fence *pFence = nullptr;
 
+        Heap rtvHeap;
         Heap cbvHeap;
-        Queue copyQueue;
     };
 }
