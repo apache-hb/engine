@@ -1,5 +1,13 @@
 #pragma once
 
+#include "simcoe/core/panic.h"
+
+#ifdef assert
+#   undef assert
+#endif
+
+#define assert ASSERT
+
 #include <algorithm>
 #include <array>
 #include <cctype>

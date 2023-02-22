@@ -35,6 +35,30 @@ namespace {
     }
 }
 
+void Fence::newFence(ID3D12Device *pDevice) {
+    HR_CHECK(pDevice->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence)));
+    hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (hEvent == nullptr) {
+        HR_CHECK(HRESULT_FROM_WIN32(GetLastError()));
+    }
+}
+
+void Fence::deleteFence() {
+    CloseHandle(hEvent);
+    RELEASE(pFence);
+}
+
+void Fence::wait(ID3D12CommandQueue *pQueue) {
+    HR_CHECK(pQueue->Signal(pFence, fenceValue));
+
+    if (pFence->GetCompletedValue() < fenceValue) {
+        HR_CHECK(pFence->SetEventOnCompletion(fenceValue, hEvent));
+        WaitForSingleObject(hEvent, INFINITE);
+    }
+
+    fenceValue += 1;
+}
+
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
@@ -64,7 +88,7 @@ Context::~Context() {
     deleteFactory();
 }
 
-void Context::begin() {
+void Context::beginRender() {
     // populate command list
     HR_CHECK(directCommandAllocators[frameIndex]->Reset());
     HR_CHECK(pDirectCommandList->Reset(directCommandAllocators[frameIndex], nullptr));
@@ -74,7 +98,7 @@ void Context::begin() {
     pDirectCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
 }
 
-void Context::end() {
+void Context::endRender() {
     HR_CHECK(pDirectCommandList->Close());
 
     // execute command list
@@ -84,9 +108,6 @@ void Context::end() {
 
 void Context::present() {
     HR_CHECK(pSwapChain->Present(0, bTearingSupported ? DXGI_PRESENT_ALLOW_TEARING : 0));
-}
-
-void Context::wait() {
     nextFrame();
 }
 
@@ -134,10 +155,9 @@ void Context::deleteDevice() {
 void Context::newInfoQueue() {
     if (HRESULT hr = pDevice->QueryInterface(IID_PPV_ARGS(&pInfoQueue)); SUCCEEDED(hr)) {
         D3D12MessageFunc pfn = [](D3D12_MESSAGE_CATEGORY category, D3D12_MESSAGE_SEVERITY severity, D3D12_MESSAGE_ID id, LPCSTR pDescription, void *pUser) {
-            ReportOnceMap& pMap = *reinterpret_cast<ReportOnceMap*>(pUser);
-            util::DoOnce& once = pMap[id];
+            DoOnceGroup& once = *reinterpret_cast<DoOnceGroup*>(pUser);
 
-            once([&]{
+            once(id, [&]{
                 const char *categoryStr = categoryToString(category);
                 const char *severityStr = severityToString(severity);
 
@@ -160,7 +180,7 @@ void Context::newInfoQueue() {
         };
 
         DWORD cookie = 0;
-        pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, &reportOnceMap, &cookie);
+        HR_CHECK(pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, &reportOnce, &cookie));
 
         gRenderLog.info("ID3D12InfoQueue::RegisterMessageCallback() = {}", cookie);
     } else {
@@ -286,38 +306,25 @@ void Context::deleteRenderTargets() {
 }
 
 void Context::newFence() {
-    HR_CHECK(pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence)));
-    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    ASSERT(fenceEvent != nullptr);
+    presentFence.newFence(pDevice);
+    copyFence.newFence(pDevice);
 
     waitForFence();
 }
 
 void Context::deleteFence() {
-    CloseHandle(fenceEvent);
-    RELEASE(pFence);
+    presentFence.deleteFence();
+    copyFence.deleteFence();
 }
 
 void Context::waitForFence() {
-    HR_CHECK(pDirectQueue->Signal(pFence, fenceValue));
-
-    HR_CHECK(pFence->SetEventOnCompletion(fenceValue, fenceEvent));
-    WaitForSingleObject(fenceEvent, INFINITE);
-
-    fenceValue += 1;
+    presentFence.wait(pDirectQueue);
 }
 
 void Context::nextFrame() {
-    HR_CHECK(pDirectQueue->Signal(pFence, fenceValue));
-
     frameIndex = pSwapChain->GetCurrentBackBufferIndex();
 
-    if (pFence->GetCompletedValue() < fenceValue) {
-        HR_CHECK(pFence->SetEventOnCompletion(fenceValue, fenceEvent));
-        WaitForSingleObject(fenceEvent, INFINITE);
-    }
-
-    fenceValue += 1;
+    presentFence.wait(pDirectQueue);
 }
 
 void Context::newDescriptorHeap() {

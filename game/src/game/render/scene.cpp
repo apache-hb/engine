@@ -1,8 +1,36 @@
 #include "game/render.h"
-#include "simcoe/render/queue.h"
+#include "simcoe/core/units.h"
+
+#include "fastgltf/fastgltf_types.hpp"
 
 using namespace game;
 using namespace simcoe;
+
+using namespace simcoe::units;
+
+namespace {
+    template<typename... T>
+    struct Overload : T... {
+        using T::operator()...;
+    };
+
+    template<typename... T>
+    Overload(T...) -> Overload<T...>;
+
+    constexpr const char *gltfMimeToString(fastgltf::MimeType mine) {
+#define MIME_CASE(x) case fastgltf::MimeType::x: return #x
+        switch (mine) {
+        MIME_CASE(None);
+        MIME_CASE(JPEG);
+        MIME_CASE(PNG);
+        MIME_CASE(KTX2);
+        MIME_CASE(DDS);
+        MIME_CASE(GltfBuffer);
+        MIME_CASE(OctetStream);
+        default: return "Unknown";
+        }
+    }
+}
 
 ScenePass::ScenePass(const GraphObject& object, Info& info)
     : Pass(object)
@@ -113,7 +141,7 @@ void ScenePass::execute() {
     pSceneData->mvp = info.pCamera->mvp(float4x4::identity(), info.renderResolution.aspectRatio<float>());
 
     auto& ctx = getContext();
-    auto cmd = ctx.getCommandList();
+    auto cmd = ctx.getDirectCommands();
     auto& cbvHeap = ctx.getCbvHeap();
 
     auto rtv = pRenderTargetOut->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -139,4 +167,38 @@ void ScenePass::execute() {
 
     cmd->DrawIndexedInstanced(_countof(kCubeIndices), 1, 0, 0, 0);
 #endif
+}
+
+void ScenePass::load(AssetPtr asset) {
+    scene = std::move(asset);
+
+    if (scene->assetInfo.has_value()) {
+        const auto& [version, copyright, generator] = scene->assetInfo.value();
+        gLog.info("asset(version = `{}`, copyright = `{}`, generator = `{}`)", version, copyright, generator);
+    }
+
+    for (auto& buffer : scene->buffers) {
+        std::visit(Overload {
+            [&](fastgltf::sources::Vector& vector) {
+                gLog.info("vector(name=`{}`, size={}, mime={})", buffer.name, Memory(buffer.byteLength).string(), gltfMimeToString(vector.mimeType));
+                uploadBuffer(vector.bytes);
+            },
+            [&](fastgltf::sources::CustomBuffer& custom) {
+                gLog.info("custom(name=`{}`, id={}, mime={})", buffer.name, custom.id, gltfMimeToString(custom.mimeType));
+            },
+            [&](fastgltf::sources::FilePath& file) {
+                gLog.info("file(name=`{}`, path=`{}`, mime={}, offset={})", buffer.name, file.path.string(), gltfMimeToString(file.mimeType), file.fileByteOffset);
+            },
+            [&](fastgltf::sources::BufferView& view) {
+                gLog.info("view(name=`{}`, mime={}, index={})", buffer.name, gltfMimeToString(view.mimeType), view.bufferViewIndex);
+            },
+            [&](auto&) {
+                gLog.warn("buffer(name=`{}`) unhandled source type", buffer.name);
+            }
+        }, buffer.data);
+    }
+}
+
+void ScenePass::uploadBuffer(std::span<const uint8_t> data) {
+    gRenderLog.info("uploading buffer(size={})", Memory(data.size_bytes()).string());
 }

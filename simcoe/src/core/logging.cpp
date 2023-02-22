@@ -1,6 +1,7 @@
 #include "simcoe/core/logging.h"
 #include "simcoe/core/win32.h"
 #include "simcoe/core/panic.h"
+#include <ranges>
 
 using namespace simcoe;
 using namespace simcoe::logging;

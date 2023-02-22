@@ -88,15 +88,15 @@ void ImGuiPass::execute() {
     fileBrowser.Display();
 
     if (fileBrowser.HasSelected()) {
-        auto path = fileBrowser.GetSelected().string();
-        gLog.info("Importing gltf: {}", path.c_str());
+        auto path = fileBrowser.GetSelected();
+        static_cast<game::Scene&>(getGraph()).load(path);
         fileBrowser.ClearSelected();
     }
 
     ImGui::ShowDemoWindow();
     
     ImGui::Render();
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getCommandList());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getDirectCommands());
 }
 
 void ImGuiPass::enableDock() {

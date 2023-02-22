@@ -124,7 +124,7 @@ namespace simcoe::render {
         void start();
         void stop();
 
-        Context& getContext();
+        Context& getContext() const;
         
         const PassMap& getPasses() const { return passes; }
         const EdgeMap& getEdges() const { return edges; }

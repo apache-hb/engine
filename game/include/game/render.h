@@ -9,6 +9,9 @@
 #include "imgui/imgui.h"
 #include "widgets/imfilebrowser.h"
 
+#include <fastgltf/fastgltf_types.hpp>
+#include <span>
+
 #define CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 
 namespace game {
@@ -106,16 +109,23 @@ namespace game {
     };
 
     struct ScenePass final : render::Pass {
+        using AssetPtr = std::unique_ptr<fastgltf::Asset>;
         ScenePass(const GraphObject& object, Info& info);
         void start() override;
         void stop() override;
 
         void execute() override;
 
+        void load(AssetPtr asset);
+
         IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
     private:
+        void uploadBuffer(std::span<const uint8_t> data);
+
         Info& info;
+
+        AssetPtr scene;
 
         ShaderBlob vs;
         ShaderBlob ps;
@@ -250,6 +260,8 @@ namespace game {
         void execute() {
             Graph::execute(pPresentPass);
         }
+
+        void load(const std::filesystem::path& path);
 
     private:
         GlobalPass *pGlobalPass;

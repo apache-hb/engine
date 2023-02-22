@@ -5,6 +5,7 @@ src = [
     'src/core/panic.cpp',
     'src/core/util.cpp',
     'src/core/io.cpp',
+    'src/core/units.cpp',
 
     'src/core/simcoe.cpp'
 ]

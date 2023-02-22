@@ -22,3 +22,14 @@ std::wstring util::widen(std::string_view str) {
     MultiByteToWideChar(CP_UTF8, 0, str.data(), (int)str.size(), result.data(), (int)result.size());
     return result;
 }
+
+std::string util::join(std::string_view sep, std::span<const std::string> parts) {
+    std::string result;
+    for (auto& part : parts) {
+        if (!result.empty()) {
+            result += sep;
+        }
+        result += part;
+    }
+    return result;
+}

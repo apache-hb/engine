@@ -6,8 +6,8 @@
 
 #define HR_CHECK(expr) \
     do { \
-        if (HRESULT hr = (expr); FAILED(hr)) { \
-            PANIC("{} = {}", #expr, simcoe::system::hrString(hr)); \
+        if (HRESULT err = (expr); FAILED(err)) { \
+            PANIC("{} = {}", #expr, simcoe::system::hrString(err)); \
         } \
     } while (false) 
 

@@ -136,7 +136,7 @@ private:
         }
 
         if (!barriers.empty()) {
-            graph.getContext().getCommandList()->ResourceBarrier(
+            graph.getContext().getDirectCommands()->ResourceBarrier(
                 /* NumBarriers = */ UINT(barriers.size()),
                 /* pBarriers = */ barriers.data()
             );
@@ -170,14 +170,9 @@ void Graph::connect(OutEdge *pSource, InEdge *pTarget) {
 }
 
 void Graph::start() {
-    auto& ctx = getContext();
-
-    ctx.begin();
     for (auto& [pzName, pPass] : passes) {
         pPass->start();
     }
-    ctx.end();
-    ctx.wait();
 }
 
 void Graph::stop() {
@@ -189,13 +184,12 @@ void Graph::stop() {
 void Graph::execute(Pass *pRoot) {
     auto& ctx = getContext();
 
-    ctx.begin();
+    ctx.beginRender();
     GraphBuilder graph{*this, pRoot};
-    ctx.end();
+    ctx.endRender();
     ctx.present();
-    ctx.wait();
 }
 
-Context& Graph::getContext() {
+Context& Graph::getContext() const {
     return context;
 }

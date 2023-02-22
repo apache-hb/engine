@@ -1,11 +1,11 @@
 #pragma once
 
+#include "dx/d3d12.h"
 #include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
 #include "simcoe/core/util.h"
 
 #include "simcoe/render/heap.h"
-#include "simcoe/render/queue.h"
 
 #include "simcoe/simcoe.h"
 
@@ -14,6 +14,17 @@
 #include <unordered_map>
 
 namespace simcoe::render {
+    struct Fence {
+        void newFence(ID3D12Device *pDevice);
+        void deleteFence();
+        
+        void wait(ID3D12CommandQueue *pQueue);
+
+        ID3D12Fence *pFence = nullptr;
+        HANDLE hEvent = nullptr;
+        UINT64 fenceValue = 1;
+    };
+
     struct Context {
         constexpr static inline size_t kDefaultAdapter = SIZE_MAX;
 
@@ -31,16 +42,20 @@ namespace simcoe::render {
 
         void update(const Info& info);
 
-        void begin();
-        void end();
+        void beginRender();
+        void endRender();
+
+        void beginCopy();
+        void endCopy();
 
         void present();
-        void wait();
 
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }
-        ID3D12GraphicsCommandList *getCommandList() const { return pDirectCommandList; }
         
+        ID3D12GraphicsCommandList *getDirectCommands() const { return pDirectCommandList; }
+        ID3D12GraphicsCommandList *getCopyCommands() const { return pCopyCommandList; }
+
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
@@ -85,12 +100,12 @@ namespace simcoe::render {
 
         constexpr size_t getRenderHeapSize() const { return info.frames + 1; }
 
-        using ReportOnceMap = std::unordered_map<D3D12_MESSAGE_ID, util::DoOnce>;
+        using DoOnceGroup = util::DoOnceGroup<D3D12_MESSAGE_ID>;
 
         system::Window& window;
         Info info;
 
-        ReportOnceMap reportOnceMap;
+        DoOnceGroup reportOnce;
 
         ID3D12Debug* pDebug = nullptr;
 
@@ -113,10 +128,10 @@ namespace simcoe::render {
         ID3D12CommandAllocator* pCopyAllocator = nullptr;
         ID3D12GraphicsCommandList *pCopyCommandList = nullptr;
 
-        UINT64 fenceValue = 1;
         UINT frameIndex = 0;
-        HANDLE fenceEvent = nullptr;
-        ID3D12Fence *pFence = nullptr;
+
+        Fence presentFence;
+        Fence copyFence;
 
         Heap rtvHeap;
         Heap cbvHeap;

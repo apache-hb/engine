@@ -138,7 +138,7 @@ void BlitPass::stop() {
 
 void BlitPass::execute() {
     auto& ctx = getContext();
-    auto cmd = ctx.getCommandList();
+    auto cmd = ctx.getDirectCommands();
     auto rtv = pRenderTargetIn->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     
     cmd->RSSetViewports(1, &display.viewport);
