@@ -50,7 +50,11 @@ void BlitPass::start() {
     rootParameters[0].InitAsDescriptorTable(1, &range);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(_countof(rootParameters), (D3D12_ROOT_PARAMETER*)rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(
+        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters, 
+        UINT(std::size(samplers)), samplers, 
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+    );
 
     ID3DBlob *pSignature = nullptr;
     ID3DBlob *pError = nullptr;
@@ -74,7 +78,7 @@ void BlitPass::start() {
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
         .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(),
-        .InputLayout = { layout, _countof(layout) },
+        .InputLayout = { layout, UINT(std::size(layout)) },
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
@@ -84,28 +88,21 @@ void BlitPass::start() {
     HR_CHECK(device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pBlitPipeline)));
 
     // upload fullscreen quad vertex and index data
-    D3D12_RESOURCE_DESC vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(kScreenQuadVertices));
-    D3D12_RESOURCE_DESC indexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(kScreenQuadIndices));
-
     D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
-    HR_CHECK(device->CreateCommittedResource(
+    pVertexBuffer = ctx.newBuffer(
+        sizeof(kScreenQuadVertices), 
         &props,
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
-        &vertexBufferDesc,
-        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-        nullptr,
-        IID_PPV_ARGS(&pVertexBuffer)
-    ));
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+    );
 
-    HR_CHECK(device->CreateCommittedResource(
+    pIndexBuffer = ctx.newBuffer(
+        sizeof(kScreenQuadIndices),
         &props,
         D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
-        &indexBufferDesc,
-        D3D12_RESOURCE_STATE_INDEX_BUFFER,
-        nullptr,
-        IID_PPV_ARGS(&pIndexBuffer)
-    ));
+        D3D12_RESOURCE_STATE_INDEX_BUFFER
+    );
 
     void *pVertexData = nullptr;
     void *pIndexData = nullptr;
@@ -156,5 +153,5 @@ void BlitPass::execute() {
 
     cmd->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-    cmd->DrawIndexedInstanced(_countof(kScreenQuadIndices), 1, 0, 0, 0);
+    cmd->DrawIndexedInstanced(UINT(std::size(kScreenQuadIndices)), 1, 0, 0, 0);
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "dx/d3d12.h"
 #include "simcoe/core/system.h"
 #include "simcoe/core/logging.h"
 #include "simcoe/core/util.h"
@@ -9,9 +8,9 @@
 
 #include "simcoe/simcoe.h"
 
+#include "dx/d3d12.h"
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
-#include <unordered_map>
 
 namespace simcoe::render {
     struct Fence {
@@ -61,6 +60,13 @@ namespace simcoe::render {
 
         Heap& getCbvHeap() { return cbvHeap; }
         Heap& getRtvHeap() { return rtvHeap; }
+
+        ID3D12Resource *newBuffer(
+            size_t size, 
+            const D3D12_HEAP_PROPERTIES *pProps, 
+            D3D12_HEAP_FLAGS flags,
+            D3D12_RESOURCE_STATES state
+        );
 
     private:
         void newFactory();

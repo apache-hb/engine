@@ -413,7 +413,7 @@ inline void ImGui::FileBrowser::Display()
         {
             SameLine();
         }
-        if(SmallButton(u8StrToStr(sec.u8string()).c_str()))
+        if(Button(u8StrToStr(sec.u8string()).c_str()))
         {
             newPwdLastSecIdx = secIdx;
         }
@@ -447,7 +447,7 @@ inline void ImGui::FileBrowser::Display()
 
     SameLine();
 
-    if(SmallButton("*"))
+    if(Button("*"))
     {
         UpdateFileRecords();
 
@@ -476,7 +476,7 @@ inline void ImGui::FileBrowser::Display()
     if(newDirNameBuf_)
     {
         SameLine();
-        if(SmallButton("+"))
+        if(Button("+"))
         {
             OpenPopup(openNewDirLabel_.c_str());
             (*newDirNameBuf_)[0] = '\0';

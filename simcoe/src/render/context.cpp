@@ -59,6 +59,27 @@ void Fence::wait(ID3D12CommandQueue *pQueue) {
     fenceValue += 1;
 }
 
+ID3D12Resource *Context::newBuffer(
+    size_t size, 
+    const D3D12_HEAP_PROPERTIES *pProps, 
+    D3D12_HEAP_FLAGS flags,
+    D3D12_RESOURCE_STATES state
+) 
+{
+    D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    ID3D12Resource *pResource = nullptr;
+    HR_CHECK(pDevice->CreateCommittedResource(
+        pProps,
+        flags,
+        &desc,
+        state,
+        nullptr,
+        IID_PPV_ARGS(&pResource)
+    ));
+
+    return pResource;
+}
+
 Context::Context(system::Window &window, const Info& info) 
     : window(window)
     , info(info)
@@ -95,7 +116,7 @@ void Context::beginRender() {
     
     ID3D12DescriptorHeap *ppHeaps[] = { cbvHeap.getHeap() };
     
-    pDirectCommandList->SetDescriptorHeaps(_countof(ppHeaps), ppHeaps);
+    pDirectCommandList->SetDescriptorHeaps(UINT(std::size(ppHeaps)), ppHeaps);
 }
 
 void Context::endRender() {
@@ -103,7 +124,7 @@ void Context::endRender() {
 
     // execute command list
     ID3D12CommandList* ppCommandLists[] = { pDirectCommandList };
-    pDirectQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    pDirectQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
 }
 
 void Context::present() {

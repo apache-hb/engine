@@ -65,7 +65,11 @@ void ScenePass::start() {
     rootParameters[2].InitAsConstants(1, 1, 0);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(_countof(rootParameters), (D3D12_ROOT_PARAMETER*)rootParameters, _countof(samplers), samplers, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(
+        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters, 
+        UINT(std::size(samplers)), samplers, 
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+    );
 
     ID3DBlob *pSignature = nullptr;
     ID3DBlob *pError = nullptr;
@@ -89,7 +93,7 @@ void ScenePass::start() {
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
         .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(),
-        .InputLayout = { layout, _countof(layout) },
+        .InputLayout = { layout, UINT(std::size(layout)) },
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
@@ -165,7 +169,7 @@ void ScenePass::execute() {
     cmd->IASetVertexBuffers(0, 1, &vertexBufferView);
     cmd->IASetIndexBuffer(&indexBufferView);
 
-    cmd->DrawIndexedInstanced(_countof(kCubeIndices), 1, 0, 0, 0);
+    cmd->DrawIndexedInstanced(std::size(kCubeIndices), 1, 0, 0, 0);
 #endif
 }
 
