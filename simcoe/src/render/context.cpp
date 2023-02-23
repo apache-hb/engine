@@ -154,6 +154,7 @@ Context::Context(system::Window &window, const Info& info)
     , info(info)
     , rtvHeap(getRenderHeapSize())
     , cbvHeap(info.heapSize)
+    , dsvHeap(1)
 {
     newFactory();
     newDevice();
@@ -161,15 +162,13 @@ Context::Context(system::Window &window, const Info& info)
     newDirectQueue();
     newCopyQueue();
     newSwapChain();
-    newRenderTargets();
-    newDescriptorHeap();
+    newHeaps();
     newFence();
 }
 
 Context::~Context() {
     deleteFence();
-    deleteDescriptorHeap();
-    deleteRenderTargets();
+    deleteHeaps();
     deleteSwapChain();
     deleteCopyQueue();
     deleteDirectQueue();
@@ -269,7 +268,6 @@ void Context::newInfoQueue() {
             });
         };
 
-        DWORD cookie = 0;
         HR_CHECK(pInfoQueue->RegisterMessageCallback(pfn, D3D12_MESSAGE_CALLBACK_FLAG_NONE, &reportOnce, &cookie));
 
         gRenderLog.info("ID3D12InfoQueue::RegisterMessageCallback() = {}", cookie);
@@ -279,6 +277,7 @@ void Context::newInfoQueue() {
 }
 
 void Context::deleteInfoQueue() {
+    HR_CHECK(pInfoQueue->UnregisterMessageCallback(cookie));
     RELEASE(pInfoQueue);
 }
 
@@ -375,12 +374,16 @@ void Context::deleteSwapChain() {
     RELEASE(pSwapChain);
 }
 
-void Context::newRenderTargets() {
+void Context::newHeaps() {
     rtvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    dsvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    cbvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 }
 
-void Context::deleteRenderTargets() {
+void Context::deleteHeaps() {
     rtvHeap.deleteHeap();
+    dsvHeap.deleteHeap();
+    cbvHeap.deleteHeap();
 }
 
 void Context::newFence() {
@@ -401,12 +404,4 @@ void Context::nextFrame() {
     frameIndex = pSwapChain->GetCurrentBackBufferIndex();
 
     presentFence.wait(directQueue);
-}
-
-void Context::newDescriptorHeap() {
-    cbvHeap.newHeap(pDevice, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-}
-
-void Context::deleteDescriptorHeap() {
-    cbvHeap.deleteHeap();
 }

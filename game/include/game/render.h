@@ -18,6 +18,7 @@ namespace game {
     namespace system = simcoe::system;
     namespace assets = simcoe::assets;
     namespace math = simcoe::math;
+    namespace util = simcoe::util;
     namespace fs = std::filesystem;
 
     using ShaderBlob = std::vector<std::byte>;
@@ -139,6 +140,7 @@ namespace game {
 
         std::string name;
         std::shared_ptr<assets::IUpload> upload;
+        std::unique_ptr<util::Entry> debug;
 
     private:
         ScenePass *pSelf;
@@ -148,6 +150,8 @@ namespace game {
     };
 
     struct ScenePass final : render::Pass {
+        friend UploadHandle;
+        
         ScenePass(const GraphObject& object, Info& info);
         void start() override;
         void stop() override;
@@ -166,6 +170,9 @@ namespace game {
 
         ID3D12RootSignature *pRootSignature = nullptr;
         ID3D12PipelineState *pPipelineState = nullptr;
+
+        ID3D12Resource *pDepthStencil = nullptr;
+        render::Heap::Index depthHandle = render::Heap::Index::eInvalid;
 
         ID3D12Resource *pSceneBuffer = nullptr;
         SceneBuffer *pSceneData = nullptr;
@@ -191,7 +198,8 @@ namespace game {
 
         void renderNode(size_t idx, const float4x4& parent);
 
-    public:
+        std::unique_ptr<util::Entry> debug;
+
         std::mutex mutex;
         std::vector<std::unique_ptr<UploadHandle>> uploads;
 
@@ -235,6 +243,8 @@ namespace game {
 
         ID3D12Resource *pIndexBuffer = nullptr;
         D3D12_INDEX_BUFFER_VIEW indexBufferView;
+
+        std::unique_ptr<util::Entry> debug;
     };
 
     struct PresentPass final : render::Pass {
@@ -269,43 +279,13 @@ namespace game {
         
         void enableDock();
         void drawInfo();
-        void drawRenderGraphInfo();
-        void drawGdkInfo();
         void drawInputInfo();
-        void drawSceneInfo();
-
-        struct Link {
-            int src;
-            int dst;
-        };
-
-        std::unordered_map<render::Pass*, int> passIndices;
-        std::unordered_map<render::Edge*, int> edgeIndices;
-        std::unordered_map<int, Link> links;
 
         ImGui::FileBrowser fileBrowser;
     };
 
     struct Scene final : render::Graph {
-        Scene(render::Context& context, Info& info, input::Manager& input) : render::Graph(context) {
-            Display present = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
-
-            pGlobalPass = addPass<GlobalPass>("global");
-            
-            pScenePass = addPass<ScenePass>("scene", info);
-            pBlitPass = addPass<BlitPass>("blit", present);
-
-            pImGuiPass = addPass<ImGuiPass>("imgui", info, input);
-            pPresentPass = addPass<PresentPass>("present");
-
-            connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
-            connect(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
-
-            connect(pBlitPass->pRenderTargetOut, pImGuiPass->pRenderTargetIn);
-
-            connect(pBlitPass->pSceneTargetOut, pPresentPass->pSceneTargetIn);
-            connect(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
-        }
+        Scene(render::Context& context, Info& info, input::Manager& input);
 
         void execute() {
             Graph::execute(pPresentPass);
@@ -316,6 +296,8 @@ namespace game {
         ScenePass& getScenePass() { return *pScenePass; }
 
     private:
+        std::unique_ptr<util::Entry> debug;
+
         GlobalPass *pGlobalPass;
 
         ScenePass *pScenePass;

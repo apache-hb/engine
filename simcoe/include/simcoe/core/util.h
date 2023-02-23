@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <string_view>
 #include <span>
 #include <unordered_set>
@@ -88,4 +89,44 @@ namespace simcoe::util {
 
         return Range { progress, size };
     }
+
+    using EntrySet = std::unordered_set<struct Entry*>;
+
+    struct Entry {
+        Entry(EntrySet& set);
+        virtual ~Entry();
+
+        virtual void apply() = 0;
+
+    private:
+        EntrySet& entries;
+    };
+
+    template<typename>
+    struct Registry {
+        template<typename F>
+        std::unique_ptr<Entry> newEntry(F&& func) {
+            struct EntryImpl : Entry {
+                EntryImpl(EntrySet& set, F&& func) \
+                    : Entry(set)
+                    , func(std::move(func)) 
+                { }
+
+                void apply() override { func(); }
+            private:
+                F func;
+            };
+
+            Entry *pImpl = new EntryImpl(entries, std::move(func));
+            return std::unique_ptr<Entry>(pImpl);
+        }
+
+        void apply() {
+            for (auto& entry : entries) {
+                entry->apply();
+            }
+        }
+        
+        std::unordered_set<Entry*> entries = {};
+    };
 }

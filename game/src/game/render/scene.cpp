@@ -1,4 +1,8 @@
+#include "dx/d3d12.h"
+#include "dx/d3dx12/d3dx12_core.h"
 #include "game/render.h"
+#include "game/registry.h"
+
 #include "simcoe/assets/assets.h"
 #include "simcoe/core/units.h"
 
@@ -20,6 +24,31 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
 
     vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
     ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
+
+    debug = game::debug.newEntry([&] {
+        auto& ctx = getContext();
+        auto& cbvHeap = ctx.getCbvHeap();
+
+        if (ImGui::Begin("Scene")) {
+            ImGui::Text("Nodes: %zu", nodes.size());
+            int root = int(rootNode);
+            ImGui::InputInt("Root node", &root);
+            rootNode = size_t(root);
+            if (ImGui::BeginTable("textures", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableNextRow();
+                for (const auto& [name, size, resource, handle] : textures) {
+                    ImGui::TableNextColumn();
+                    auto windowAvail = ImGui::GetContentRegionAvail();
+                    math::Resolution<float> res = { float(size.x), float(size.y) };
+
+                    ImGui::Text("%s: %zu x %zu", name.c_str(), size.x, size.y);
+                    ImGui::Image(ImTextureID(cbvHeap.gpuHandle(handle).ptr), ImVec2(windowAvail.x, res.aspectRatio<float>() * windowAvail.x));
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    });
 }
 
 void ScenePass::start() {
@@ -28,6 +57,7 @@ void ScenePass::start() {
     auto& ctx = getContext();
     auto *pDevice = ctx.getDevice();
     auto& cbvHeap = ctx.getCbvHeap();
+    auto& dsvHeap = ctx.getDsvHeap();
 
     CD3DX12_STATIC_SAMPLER_DESC samplers[1];
     samplers[0].Init(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
@@ -75,21 +105,21 @@ void ScenePass::start() {
         .BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
         .SampleMask = UINT_MAX,
         .RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-        .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(),
+        .DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT),
         .InputLayout = { layout, UINT(std::size(layout)) },
         .PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         .NumRenderTargets = 1,
         .RTVFormats = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat = DXGI_FORMAT_D32_FLOAT,
         .SampleDesc = { 1, 0 },
     };
 
     HR_CHECK(pDevice->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pPipelineState)));
 
     D3D12_RESOURCE_DESC cameraBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(SceneBuffer));
-    D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
     HR_CHECK(pDevice->CreateCommittedResource(
-        &props,
+        &kUploadProps,
         D3D12_HEAP_FLAG_NONE,
         &cameraBufferDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -97,14 +127,45 @@ void ScenePass::start() {
         IID_PPV_ARGS(&pSceneBuffer)
     ));
 
+    // create depth stencil
+    D3D12_RESOURCE_DESC depthStencilDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        DXGI_FORMAT_D32_FLOAT,
+        UINT(info.renderResolution.width),
+        UINT(info.renderResolution.height),
+        1, 0, 1, 0,
+        D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+    );
+    
+    D3D12_CLEAR_VALUE clearValue = {
+        .Format = DXGI_FORMAT_D32_FLOAT,
+        .DepthStencil = { 1.0f, 0 }
+    };
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &kDefaultProps,
+        D3D12_HEAP_FLAG_NONE,
+        &depthStencilDesc,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &clearValue,
+        IID_PPV_ARGS(&pDepthStencil)
+    ));
+
     sceneHandle = cbvHeap.alloc();
+    depthHandle = dsvHeap.alloc();
 
     D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {
         .BufferLocation = pSceneBuffer->GetGPUVirtualAddress(),
         .SizeInBytes = sizeof(SceneBuffer)
     };
 
+    D3D12_DEPTH_STENCIL_VIEW_DESC stencilDesc = {
+        .Format = DXGI_FORMAT_D32_FLOAT,
+        .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+        .Flags = D3D12_DSV_FLAG_NONE
+    };
+
     pDevice->CreateConstantBufferView(&bufferDesc, cbvHeap.cpuHandle(sceneHandle));
+    pDevice->CreateDepthStencilView(pDepthStencil, &stencilDesc, dsvHeap.cpuHandle(depthHandle));
 
     CD3DX12_RANGE read(0, 0);
     HR_CHECK(pSceneBuffer->Map(0, &read, (void**)&pSceneData));
@@ -112,6 +173,8 @@ void ScenePass::start() {
 
 void ScenePass::stop() {
     auto& ctx = getContext();
+
+    ctx.getDsvHeap().release(depthHandle);
 
     ctx.getCbvHeap().release(sceneHandle);
     pSceneData = nullptr;
@@ -130,18 +193,22 @@ void ScenePass::execute() {
     auto& ctx = getContext();
     auto cmd = ctx.getDirectCommands();
     auto& cbvHeap = ctx.getCbvHeap();
+    auto& dsvHeap = ctx.getDsvHeap();
 
     auto rtv = pRenderTargetOut->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    auto dsv = dsvHeap.cpuHandle(depthHandle);
+
     Display display = createDisplay(info.renderResolution);
 
     cmd->RSSetViewports(1, &display.viewport);
     cmd->RSSetScissorRects(1, &display.scissor);
 
-    cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
-    cmd->ClearRenderTargetView(rtv, kClearColour, 0, nullptr);
-
     cmd->SetGraphicsRootSignature(pRootSignature);
     cmd->SetPipelineState(pPipelineState);
+
+    cmd->OMSetRenderTargets(1, &rtv, false, &dsv);
+    cmd->ClearRenderTargetView(rtv, kClearColour, 0, nullptr);
+    cmd->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 
     cmd->SetGraphicsRootDescriptorTable(0, cbvHeap.gpuHandle());
     cmd->SetGraphicsRootConstantBufferView(1, pSceneBuffer->GetGPUVirtualAddress());

@@ -1,6 +1,7 @@
 #include "game/render.h"
 
 #include "game/gdk.h"
+#include "game/registry.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
@@ -41,29 +42,6 @@ void ImGuiPass::start() {
         heap.cpuHandle(fontHandle),
         heap.gpuHandle(fontHandle)
     );
-
-    ImNodes::CreateContext();
-    ImNodes::LoadCurrentEditorStateFromIniFile("imnodes.ini");
-
-    int id = 0;
-    for (auto& [name, pass] : getGraph().getPasses()) {
-        passIndices[pass.get()] = id++;
-        for (auto& input : pass->getInputs()) {
-            edgeIndices[input.get()] = id++;
-        }
-
-        for (auto& output : pass->getOutputs()) {
-            edgeIndices[output.get()] = id++;
-        }
-    }
-
-    int link = 0;
-    for (auto& [src, dst] : getGraph().getEdges()) {
-        int srcId = edgeIndices[src];
-        int dstId = edgeIndices[dst];
-
-        links[link++] = { srcId, dstId };
-    }
 }
 
 void ImGuiPass::stop() {
@@ -81,10 +59,9 @@ void ImGuiPass::execute() {
 
     enableDock();
     drawInfo();
-    drawRenderGraphInfo();
-    drawGdkInfo();
     drawInputInfo();
-    drawSceneInfo();
+
+    game::debug.apply();
 
     fileBrowser.Display();
 
@@ -190,76 +167,6 @@ void ImGuiPass::drawInfo() {
     ImGui::End();
 }
 
-void ImGuiPass::drawRenderGraphInfo() {
-    if (ImGui::Begin("Render Graph")) {
-        ImNodes::BeginNodeEditor();
-
-        for (auto& [name, pass] : getGraph().getPasses()) {
-            ImNodes::BeginNode(passIndices[pass.get()]);
-
-            ImNodes::BeginNodeTitleBar();
-            ImGui::Text("%s", name);
-            ImNodes::EndNodeTitleBar();
-
-            for (auto& output : pass->getOutputs()) {
-                ImNodes::BeginOutputAttribute(edgeIndices[output.get()]);
-                ImGui::Text("%s", output->getName());
-                ImNodes::EndOutputAttribute();
-            }
-
-            for (auto& input : pass->getInputs()) {
-                ImNodes::BeginInputAttribute(edgeIndices[input.get()]);
-                ImGui::Text("%s", input->getName());
-                ImNodes::EndInputAttribute();
-            }
-
-            ImNodes::EndNode();
-        }
-
-        for (auto& [id, link] : links) {
-            ImNodes::Link(id, link.src, link.dst);
-        }
-
-        ImNodes::EndNodeEditor();
-    }
-    ImGui::End();
-}
-
-void ImGuiPass::drawGdkInfo() {
-    const auto& analytics = gdk::getAnalyticsInfo();
-    
-    if (!gdk::enabled()) {
-        return;
-    }
-
-    if (ImGui::Begin("GDK")) {
-        ImGui::Text("Family: %s", analytics.family);
-        ImGui::Text("Model: %s", analytics.form);
-
-        auto [major, minor, build, revision] = analytics.osVersion;
-        ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
-        ImGui::Text("ID: %s", gdk::getConsoleId());
-
-        if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableHeadersRow();
-            for (const auto& [feature, detail] : gdk::getFeatures()) {
-                const auto& [name, available] = detail;
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", name);
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s", available ? "enabled" : "disabled");
-            }
-            ImGui::EndTable();
-        }
-    }
-    ImGui::End();
-}
-
 void ImGuiPass::drawInputInfo() {
     constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
     const float kTextWidth = ImGui::CalcTextSize("A").x;
@@ -297,52 +204,6 @@ void ImGuiPass::drawInputInfo() {
                 ImGui::Text("%s", info.locale.get(input::Axis(i)));
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%f", state.axis[i]);
-            }
-            ImGui::EndTable();
-        }
-    }
-    ImGui::End();
-}
-
-void ImGuiPass::drawSceneInfo() {
-    auto& ctx = getContext();
-    auto& cbvHeap = ctx.getCbvHeap();
-
-    auto& scene = static_cast<Scene&>(getGraph()).getScenePass();
-    auto& textures = scene.textures;
-    std::lock_guard guard(scene.mutex);
-
-    if (ImGui::Begin("Scene")) {
-        for (auto& entry : scene.uploads) {
-            ImGui::ProgressBar(
-                entry->upload->getProgress(), 
-                ImVec2(0.f, 0.f), 
-                entry->name.c_str()
-            );
-        }
-
-        size_t rootNodeMin = 0;
-        size_t rootNodeMax = scene.nodes.size() > 0 ? scene.nodes.size() - 1 : 0;
-        ImGui::SliderScalar("Root node", ImGuiDataType_U64, &scene.rootNode, &rootNodeMin, &rootNodeMax);
-
-        ImGui::Text("Primitives: %zu", scene.primitives.size());
-        ImGui::Text("Nodes: %zu", scene.nodes.size());
-
-        ImGui::Text("Index buffers: %zu", scene.indices.size());
-        ImGui::Text("Vertex buffers: %zu", scene.vertices.size());
-
-        ImGui::Text("Textures: %zu", textures.size());
-
-        // draw grid of available textures
-        if (ImGui::BeginTable("textures", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
-            ImGui::TableNextRow();
-            for (const auto& [name, size, resource, handle] : textures) {
-                ImGui::TableNextColumn();
-                auto windowAvail = ImGui::GetContentRegionAvail();
-                math::Resolution<float> res = { float(size.x), float(size.y) };
-
-                ImGui::Text("%s: %zu x %zu", name.c_str(), size.x, size.y);
-                ImGui::Image(ImTextureID(cbvHeap.gpuHandle(handle).ptr), ImVec2(windowAvail.x, res.aspectRatio<float>() * windowAvail.x));
             }
             ImGui::EndTable();
         }

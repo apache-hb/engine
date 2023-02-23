@@ -2,6 +2,7 @@
 #include "game/gdk.h"
 
 #include "game/game.h"
+#include "game/registry.h"
 #include "game/render.h"
 #include "game/window.h"
 
@@ -42,7 +43,7 @@ int commonMain() {
 
     game::Window window { input.mouse, input.keyboard };
 
-    game::ThirdPerson camera { { 0, 0, 50 }, { 0, 10, 50 }, 90.f };
+    game::FirstPerson camera { { 0, 0, 50 }, { 0, 10, 50 }, 90.f };
 
     detail.windowResolution = window.size();
     detail.renderResolution = { 1920, 1080 };
@@ -53,6 +54,15 @@ int commonMain() {
 
     ImGui_ImplWin32_Init(window.getHandle());
     ImGui_ImplWin32_EnableDpiAwareness();
+
+    auto debug = game::debug.newEntry([&] {
+        if (ImGui::Begin("Camera")) {
+            ImGui::SliderFloat("FOV", &camera.fov, 45.f, 120.f);
+            ImGui::InputFloat3("Position", &camera.position.x);
+            ImGui::InputFloat3("Direction", &camera.direction.x);
+        }
+        ImGui::End();
+    });
 
     scene.start();
 

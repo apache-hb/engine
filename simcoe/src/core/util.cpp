@@ -2,6 +2,7 @@
 #include "simcoe/core/win32.h"
 
 using namespace simcoe;
+using namespace simcoe::util;
 
 std::string util::narrow(std::wstring_view wstr) {
     std::string result(wstr.size() + 1, '\0');
@@ -32,4 +33,12 @@ std::string util::join(std::string_view sep, std::span<const std::string> parts)
         result += part;
     }
     return result;
+}
+
+Entry::Entry(EntrySet& set) : entries(set) {
+    entries.insert(this);
+}
+
+Entry::~Entry() {
+    entries.erase(this);
 }

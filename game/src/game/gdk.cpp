@@ -1,4 +1,5 @@
 #include "game/gdk.h"
+#include "game/registry.h"
 
 #include "simcoe/core/system.h"
 
@@ -6,6 +7,8 @@
 
 #include "XGameRuntime.h"
 #include "XGameRuntimeFeature.h"
+
+#include "imgui/imgui.h"
 
 #include <array>
 
@@ -71,14 +74,47 @@ bool gdk::enabled() {
     return gEnabled;
 }
 
-const XSystemAnalyticsInfo& gdk::getAnalyticsInfo() {
-    return gInfo;
-}
-
-const char *gdk::getConsoleId() {
-    return gConsoleId.data();
-}
-
 gdk::FeatureMap& gdk::getFeatures() {
     return gFeatures;
+}
+
+gdk::Runtime::Runtime() { 
+    init(); 
+    
+    debug = game::debug.newEntry([] {
+        if (!gdk::enabled()) {
+            return;
+        }
+
+        if (ImGui::Begin("GDK")) {
+            ImGui::Text("Family: %s", gInfo.family);
+            ImGui::Text("Model: %s", gInfo.form);
+
+            auto [major, minor, build, revision] = gInfo.osVersion;
+            ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
+            ImGui::Text("ID: %s", gConsoleId.data());
+
+            if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableHeadersRow();
+                for (const auto& [feature, detail] : gdk::getFeatures()) {
+                    const auto& [name, available] = detail;
+
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", name);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%s", available ? "enabled" : "disabled");
+                }
+                ImGui::EndTable();
+            }
+        }
+        ImGui::End();
+    });
+}
+
+gdk::Runtime::~Runtime() { 
+    deinit(); 
 }

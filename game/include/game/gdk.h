@@ -3,11 +3,14 @@
 #include <unordered_map>
 
 #include "simcoe/core/win32.h"
+#include "simcoe/core/util.h"
 
 #include "XSystem.h"
 #include "XGameRuntimeFeature.h"
 
 namespace game::gdk {
+    namespace util = simcoe::util;
+
     struct FeatureInfo {
         const char *name;
         bool enabled;
@@ -19,13 +22,13 @@ namespace game::gdk {
     void deinit();
     bool enabled();
 
-    const XSystemAnalyticsInfo& getAnalyticsInfo();
-    const char *getConsoleId();
-
     FeatureMap& getFeatures();
 
     struct Runtime {
-        Runtime() { init(); }
-        ~Runtime() { deinit(); }
+        Runtime();
+        ~Runtime();
+
+    private:
+        std::unique_ptr<util::Entry> debug;
     };
 }

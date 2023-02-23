@@ -1,7 +1,11 @@
 #include "game/render.h"
+#include "game/registry.h"
 
 #include "simcoe/core/io.h"
 #include "simcoe/simcoe.h"
+
+#include "imgui/imgui.h"
+#include "imnodes/imnodes.h"
 
 using namespace simcoe;
 using namespace game;
@@ -214,6 +218,93 @@ D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_H
     default:
         ASSERT(false);
     }
+}
+
+Scene::Scene(render::Context& context, Info& info, input::Manager& input) : render::Graph(context) {
+    Display present = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
+
+    pGlobalPass = addPass<GlobalPass>("global");
+    
+    pScenePass = addPass<ScenePass>("scene", info);
+    pBlitPass = addPass<BlitPass>("blit", present);
+
+    pImGuiPass = addPass<ImGuiPass>("imgui", info, input);
+    pPresentPass = addPass<PresentPass>("present");
+
+    connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
+    connect(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
+
+    connect(pBlitPass->pRenderTargetOut, pImGuiPass->pRenderTargetIn);
+
+    connect(pBlitPass->pSceneTargetOut, pPresentPass->pSceneTargetIn);
+    connect(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
+
+    ImNodes::CreateContext();
+    ImNodes::LoadCurrentEditorStateFromIniFile("imnodes.ini");
+
+    struct Link {
+        int src;
+        int dst;
+    };
+
+    std::unordered_map<render::Pass*, int> passIndices;
+    std::unordered_map<render::Edge*, int> edgeIndices;
+    std::unordered_map<int, Link> links;
+
+    int id = 0;
+    for (auto& [name, pass] : getPasses()) {
+        passIndices[pass.get()] = id++;
+        for (auto& in : pass->getInputs()) {
+            edgeIndices[in.get()] = id++;
+        }
+
+        for (auto& out : pass->getOutputs()) {
+            edgeIndices[out.get()] = id++;
+        }
+    }
+
+    int link = 0;
+    for (auto& [src, dst] : getEdges()) {
+        int srcId = edgeIndices[src];
+        int dstId = edgeIndices[dst];
+
+        links[link++] = { srcId, dstId };
+    }
+
+    debug = game::debug.newEntry([=, this] {
+        if (ImGui::Begin("Render Graph")) {
+            ImNodes::BeginNodeEditor();
+
+            for (auto& [name, pass] : getPasses()) {
+                ImNodes::BeginNode(passIndices.at(pass.get()));
+
+                ImNodes::BeginNodeTitleBar();
+                ImGui::Text("%s", name);
+                ImNodes::EndNodeTitleBar();
+
+                for (auto& output : pass->getOutputs()) {
+                    ImNodes::BeginOutputAttribute(edgeIndices.at(output.get()));
+                    ImGui::Text("%s", output->getName());
+                    ImNodes::EndOutputAttribute();
+                }
+
+                for (auto& input : pass->getInputs()) {
+                    ImNodes::BeginInputAttribute(edgeIndices.at(input.get()));
+                    ImGui::Text("%s", input->getName());
+                    ImNodes::EndInputAttribute();
+                }
+
+                ImNodes::EndNode();
+            }
+
+            for (auto& [id, link] : links) {
+                ImNodes::Link(id, link.src, link.dst);
+            }
+
+            ImNodes::EndNodeEditor();
+        }
+        ImGui::End();
+    });
 }
 
 void Scene::load(const std::filesystem::path &path) {

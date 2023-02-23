@@ -75,6 +75,7 @@ namespace simcoe::render {
 
         Heap& getCbvHeap() { return cbvHeap; }
         Heap& getRtvHeap() { return rtvHeap; }
+        Heap& getDsvHeap() { return dsvHeap; }
 
         ID3D12Resource *newBuffer(
             size_t size, 
@@ -112,14 +113,11 @@ namespace simcoe::render {
         void newSwapChain();
         void deleteSwapChain();
 
-        void newRenderTargets();
-        void deleteRenderTargets();
+        void newHeaps();
+        void deleteHeaps();
 
         void newFence();
         void deleteFence();
-
-        void newDescriptorHeap();
-        void deleteDescriptorHeap();
 
         void waitForFence();
         void nextFrame();
@@ -142,6 +140,7 @@ namespace simcoe::render {
         ID3D12Device *pDevice = nullptr;
 
         ID3D12InfoQueue1 *pInfoQueue = nullptr;
+        DWORD cookie = 0;
 
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
@@ -158,5 +157,6 @@ namespace simcoe::render {
 
         Heap rtvHeap;
         Heap cbvHeap;
+        Heap dsvHeap;
     };
 }
