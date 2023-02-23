@@ -186,9 +186,7 @@ void Graph::execute(Pass *pRoot) {
 
     // TODO: ugly
     ctx.beginRender();
-    ctx.beginCopy();
     GraphBuilder graph{*this, pRoot};
-    ctx.endCopy();
     ctx.endRender();
     ctx.present();
 }

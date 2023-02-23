@@ -31,8 +31,8 @@ namespace game {
         math::float4x4 mvp;
     };
 
-    struct CBUFFER MaterialBuffer {
-        UINT texture;
+    struct CBUFFER NodeBuffer {
+        math::float4x4 transform;
     };
 
     struct Display {
@@ -113,6 +113,13 @@ namespace game {
 
     struct ScenePass;
 
+    struct Node {
+        assets::Node asset;
+        ID3D12Resource *pResource = nullptr;
+        NodeBuffer *pNodeData = nullptr;
+        render::Heap::Index handle = render::Heap::Index::eInvalid;
+    };
+
     struct UploadHandle : assets::IScene {
         friend ScenePass;
 
@@ -121,10 +128,14 @@ namespace game {
         size_t getDefaultTexture() override;
 
         size_t addVertexBuffer(std::span<const assets::Vertex> data) override;
-        size_t addIndexBuffer(std::span<const uint16_t> data) override;
+        size_t addIndexBuffer(std::span<const uint32_t> data) override;
+        
         size_t addTexture(const assets::Texture& texture) override;
-        size_t addMesh(const assets::Mesh& mesh) override;
+
+        size_t addPrimitive(const assets::Primitive& mesh) override;
         size_t addNode(const assets::Node& node) override;
+
+        void setNodeChildren(size_t idx, std::span<const size_t> children) override;
 
         std::string name;
         std::shared_ptr<assets::IUpload> upload;
@@ -167,11 +178,31 @@ namespace game {
             render::Heap::Index handle = render::Heap::Index::eInvalid;
         };
 
+        struct IndexBuffer {
+            ID3D12Resource *pResource = nullptr;
+            D3D12_INDEX_BUFFER_VIEW view;
+            UINT size;
+        };
+        
+        struct VertexBuffer {
+            ID3D12Resource *pResource = nullptr;
+            D3D12_VERTEX_BUFFER_VIEW view;
+        };
+
+        void renderNode(size_t idx, const float4x4& parent);
+
     public:
         std::mutex mutex;
         std::vector<std::unique_ptr<UploadHandle>> uploads;
 
+        std::vector<assets::Primitive> primitives;
+        std::vector<Node> nodes;
+
         std::vector<TextureHandle> textures;
+        std::vector<IndexBuffer> indices;
+        std::vector<VertexBuffer> vertices;
+
+        size_t rootNode = SIZE_MAX;
     };
 
     // copy resource to back buffer

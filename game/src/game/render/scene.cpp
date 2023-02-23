@@ -1,10 +1,16 @@
 #include "game/render.h"
+#include "simcoe/assets/assets.h"
 #include "simcoe/core/units.h"
 
 using namespace game;
 using namespace simcoe;
 
 using namespace simcoe::units;
+
+namespace {
+    const D3D12_HEAP_PROPERTIES kUploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+    const D3D12_HEAP_PROPERTIES kDefaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+}
 
 ScenePass::ScenePass(const GraphObject& object, Info& info)
     : Pass(object)
@@ -28,15 +34,18 @@ void ScenePass::start() {
 
     CD3DX12_DESCRIPTOR_RANGE1 textureRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, UINT_MAX, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_VOLATILE);
 
-    CD3DX12_ROOT_PARAMETER1 rootParameters[3];
+    CD3DX12_ROOT_PARAMETER1 rootParameters[4];
     // t0[] textures
     rootParameters[0].InitAsDescriptorTable(1, &textureRange);
 
-    // b0 camera buffer
+    // b0 scene buffer
     rootParameters[1].InitAsConstantBufferView(0, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
     // b1 material buffer
     rootParameters[2].InitAsConstants(1, 1, 0);
+
+    // b2 node buffer
+    rootParameters[3].InitAsConstantBufferView(2, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE);
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(
@@ -136,15 +145,40 @@ void ScenePass::execute() {
 
     cmd->SetGraphicsRootDescriptorTable(0, cbvHeap.gpuHandle());
     cmd->SetGraphicsRootConstantBufferView(1, pSceneBuffer->GetGPUVirtualAddress());
-#if 0
-    cmd->SetGraphicsRoot32BitConstant(2, UINT32(textureHandle), 0);
 
     cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    cmd->IASetVertexBuffers(0, 1, &vertexBufferView);
-    cmd->IASetIndexBuffer(&indexBufferView);
 
-    cmd->DrawIndexedInstanced(std::size(kCubeIndices), 1, 0, 0, 0);
-#endif
+    if (rootNode != SIZE_MAX) {
+        renderNode(rootNode, float4x4::identity());
+    }
+}
+
+void ScenePass::renderNode(size_t idx, const float4x4& parent) {
+    auto& ctx = getContext();
+    auto cmd = ctx.getDirectCommands();
+    const auto& node = nodes[idx];
+
+    float4x4 transform = parent * node.asset.transform;
+    node.pNodeData->transform = transform;
+
+    cmd->SetGraphicsRootConstantBufferView(3, node.pResource->GetGPUVirtualAddress());
+
+    for (const auto& primitive : node.asset.primitives) {
+        const auto& prim = primitives[primitive];
+        const auto& vertexBuffer = vertices[prim.vertexBuffer];
+        const auto& indexBuffer = indices[prim.indexBuffer];
+
+        cmd->SetGraphicsRoot32BitConstant(2, UINT32(prim.texture), 0);
+
+        cmd->IASetVertexBuffers(0, 1, &vertexBuffer.view);
+        cmd->IASetIndexBuffer(&indexBuffer.view);
+
+        cmd->DrawIndexedInstanced(UINT(indexBuffer.size), 1, 0, 0, 0);
+    }
+
+    for (const auto& child : node.asset.children) {
+        renderNode(child, transform);
+    }
 }
 
 UploadHandle::UploadHandle(ScenePass *pSelf, const fs::path& path) 
@@ -160,15 +194,131 @@ UploadHandle::UploadHandle(ScenePass *pSelf, const fs::path& path)
 }
 
 size_t UploadHandle::getDefaultTexture() {
-    return SIZE_MAX;
+    return 0;
 }
 
-size_t UploadHandle::addVertexBuffer(std::span<const assets::Vertex>) {
-    return SIZE_MAX;
+size_t UploadHandle::addVertexBuffer(std::span<const assets::Vertex> buffer) {
+    auto& ctx = pSelf->getContext();
+    auto pDevice = ctx.getDevice();
+
+    auto direct = directCommands.pCommandList;
+    auto copy = copyCommands.pCommandList;
+
+    ID3D12Resource *pStagingBuffer = nullptr;
+    ID3D12Resource *pVertexBuffer = nullptr;
+
+    D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(buffer.size_bytes());
+    
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &kUploadProps,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&pStagingBuffer)
+    ));
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &kDefaultProps,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&pVertexBuffer)
+    ));
+
+    void *pStagingData = nullptr;
+    HR_CHECK(pStagingBuffer->Map(0, nullptr, &pStagingData));
+    memcpy(pStagingData, buffer.data(), buffer.size_bytes());
+    pStagingBuffer->Unmap(0, nullptr);
+
+    std::lock_guard guard(pSelf->mutex);
+
+    copy->CopyResource(pVertexBuffer, pStagingBuffer);
+
+    D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        pVertexBuffer,
+        D3D12_RESOURCE_STATE_COMMON,
+        D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
+    );
+
+    direct->ResourceBarrier(1, &barrier);
+
+    D3D12_VERTEX_BUFFER_VIEW bufferView = {
+        .BufferLocation = pVertexBuffer->GetGPUVirtualAddress(),
+        .SizeInBytes = UINT(buffer.size_bytes()),
+        .StrideInBytes = sizeof(assets::Vertex)
+    };
+
+    ctx.submitCopyCommands(copyCommands);
+    ctx.submitDirectCommands(directCommands);
+
+    size_t result = pSelf->vertices.size();
+    pSelf->vertices.push_back({ pVertexBuffer, bufferView });
+
+    return result;
 }
 
-size_t UploadHandle::addIndexBuffer(std::span<const uint16_t>) {
-    return SIZE_MAX;
+size_t UploadHandle::addIndexBuffer(std::span<const uint32_t> buffer) {
+    auto& ctx = pSelf->getContext();
+    auto pDevice = ctx.getDevice();
+    
+    auto direct = directCommands.pCommandList;
+    auto copy = copyCommands.pCommandList;
+
+    ID3D12Resource *pStagingBuffer = nullptr;
+    ID3D12Resource *pIndexBuffer = nullptr;
+
+    D3D12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(buffer.size_bytes());
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &kUploadProps,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&pStagingBuffer)
+    ));
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &kDefaultProps,
+        D3D12_HEAP_FLAG_NONE,
+        &bufferDesc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&pIndexBuffer)
+    ));
+
+    void *pStagingData = nullptr;
+    HR_CHECK(pStagingBuffer->Map(0, nullptr, &pStagingData));
+    memcpy(pStagingData, buffer.data(), buffer.size_bytes());
+    pStagingBuffer->Unmap(0, nullptr);
+
+    std::lock_guard guard(pSelf->mutex);
+
+    copy->CopyResource(pIndexBuffer, pStagingBuffer);
+
+    D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        pIndexBuffer,
+        D3D12_RESOURCE_STATE_COMMON,
+        D3D12_RESOURCE_STATE_INDEX_BUFFER
+    );
+
+    direct->ResourceBarrier(1, &barrier);
+
+    D3D12_INDEX_BUFFER_VIEW bufferView = {
+        .BufferLocation = pIndexBuffer->GetGPUVirtualAddress(),
+        .SizeInBytes = UINT(buffer.size_bytes()),
+        .Format = DXGI_FORMAT_R32_UINT
+    };
+
+    ctx.submitCopyCommands(copyCommands);
+    ctx.submitDirectCommands(directCommands);
+
+    size_t result = pSelf->indices.size();
+    pSelf->indices.push_back({ pIndexBuffer, bufferView, UINT(buffer.size()) });
+    
+    return result;
 }
 
 size_t UploadHandle::addTexture(const assets::Texture& texture) {
@@ -182,8 +332,6 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
     auto direct = directCommands.pCommandList;
     auto copy = copyCommands.pCommandList;
 
-    std::lock_guard guard(pSelf->mutex);
-
     ID3D12Resource *pStagingTexture = nullptr;
     ID3D12Resource *pTexture = nullptr;
 
@@ -193,11 +341,8 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
         /* height = */ UINT(size.y)
     );
 
-    D3D12_HEAP_PROPERTIES defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    D3D12_HEAP_PROPERTIES uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
-
     HR_CHECK(pDevice->CreateCommittedResource(
-        &defaultProps,
+        &kDefaultProps,
         D3D12_HEAP_FLAG_NONE,
         &textureDesc,
         D3D12_RESOURCE_STATE_COPY_DEST,
@@ -209,7 +354,7 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
     D3D12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
 
     HR_CHECK(pDevice->CreateCommittedResource(
-        &uploadProps,
+        &kUploadProps,
         D3D12_HEAP_FLAG_NONE,
         &uploadDesc,
         D3D12_RESOURCE_STATE_GENERIC_READ,
@@ -227,10 +372,6 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
         pTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
     );
 
-    UpdateSubresources(copy, pTexture, pStagingTexture, 0, 0, 1, &subresourceData);
-
-    direct->ResourceBarrier(1, &barrier);
-    
     auto handle = cbvHeap.alloc();
     size_t result = textures.size();
 
@@ -241,6 +382,12 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
         .Texture2D = { .MipLevels = 1 }
     };
 
+    std::lock_guard guard(pSelf->mutex);
+
+    UpdateSubresources(copy, pTexture, pStagingTexture, 0, 0, 1, &subresourceData);
+
+    direct->ResourceBarrier(1, &barrier);
+    
     pDevice->CreateShaderResourceView(pTexture, &srvDesc, cbvHeap.cpuHandle(handle));
 
     ctx.submitCopyCommands(copyCommands);
@@ -258,12 +405,54 @@ size_t UploadHandle::addTexture(const assets::Texture& texture) {
     return result;
 }
 
-size_t UploadHandle::addMesh(const assets::Mesh&) {
-    return SIZE_MAX;
+size_t UploadHandle::addPrimitive(const assets::Primitive& primitive) {
+    auto& prims = pSelf->primitives;
+
+    std::lock_guard guard(pSelf->mutex);
+    size_t result = prims.size();
+    prims.push_back(primitive);
+    return result;
 }
 
-size_t UploadHandle::addNode(const assets::Node&) {
-    return SIZE_MAX;
+size_t UploadHandle::addNode(const assets::Node& node) {
+    auto& ctx = pSelf->getContext();
+    auto& cbvHeap = ctx.getCbvHeap();
+    auto& nodes = pSelf->nodes;
+    auto pDevice = ctx.getDevice();
+
+    ID3D12Resource *pResource = ctx.newBuffer(
+        sizeof(NodeBuffer),
+        &kUploadProps,
+        D3D12_RESOURCE_STATE_GENERIC_READ
+    );
+    
+    auto handle = cbvHeap.alloc();
+
+    Node it = {
+        .asset = node,
+        .pResource = pResource,
+        .handle = handle
+    };
+
+    HR_CHECK(pResource->Map(0, nullptr, (void**)&it.pNodeData));
+    it.pNodeData->transform = node.transform;
+
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {
+        .BufferLocation = pResource->GetGPUVirtualAddress(),
+        .SizeInBytes = sizeof(NodeBuffer)
+    };
+
+    pDevice->CreateConstantBufferView(&cbvDesc, cbvHeap.cpuHandle(handle));
+
+    std::lock_guard guard(pSelf->mutex);
+    size_t result = nodes.size();
+    nodes.push_back(it);
+    return result;
+}
+
+void UploadHandle::setNodeChildren(size_t idx, std::span<const size_t> children) {
+    std::lock_guard guard(pSelf->mutex);
+    std::copy(children.begin(), children.end(), std::back_inserter(pSelf->nodes[idx].asset.children));
 }
 
 void ScenePass::addUpload(const fs::path& path) {

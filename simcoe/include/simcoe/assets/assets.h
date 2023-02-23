@@ -18,7 +18,7 @@ namespace simcoe::assets {
         math::size2 size;
     };
 
-    struct Mesh {
+    struct Primitive {
         size_t vertexBuffer;
         size_t indexBuffer;
         size_t texture;
@@ -28,7 +28,7 @@ namespace simcoe::assets {
         math::float4x4 transform;
 
         std::vector<size_t> children;
-        std::vector<size_t> meshes;
+        std::vector<size_t> primitives;
     };
 
     struct IScene {
@@ -37,10 +37,12 @@ namespace simcoe::assets {
         virtual size_t getDefaultTexture() = 0;
 
         virtual size_t addVertexBuffer(std::span<const Vertex> data) = 0;
-        virtual size_t addIndexBuffer(std::span<const uint16_t> data) = 0;
+        virtual size_t addIndexBuffer(std::span<const uint32_t> data) = 0;
         virtual size_t addTexture(const Texture& texture) = 0;
-        virtual size_t addMesh(const Mesh& mesh) = 0;
+        virtual size_t addPrimitive(const Primitive& primitive) = 0;
         virtual size_t addNode(const Node& node) = 0;
+
+        virtual void setNodeChildren(size_t node, std::span<const size_t> children) = 0;
     };
 
     struct IUpload {

@@ -13,22 +13,29 @@
 #include <dxgidebug.h>
 
 namespace simcoe::render {
+    struct CommandQueue {
+        void newCommandQueue(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName);
+        void deleteCommandQueue();
+
+        ID3D12CommandQueue *pQueue = nullptr;
+    };
+
     struct Fence {
-        void newFence(ID3D12Device *pDevice);
+        void newFence(ID3D12Device *pDevice, const char *pzName);
         void deleteFence();
         
-        void wait(ID3D12CommandQueue *pQueue);
+        void wait(CommandQueue& queue);
 
         ID3D12Fence *pFence = nullptr;
         HANDLE hEvent = nullptr;
-        UINT64 fenceValue = 1;
+        UINT value = 1;
     };
 
     struct CommandBuffer {
-        void newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type);
+        void newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName);
         void deleteCommandBuffer();
 
-        void execute(ID3D12CommandQueue *pQueue);
+        void execute(CommandQueue& queue);
 
         ID3D12CommandAllocator *pAllocator = nullptr;
         ID3D12GraphicsCommandList *pCommandList = nullptr;
@@ -56,16 +63,12 @@ namespace simcoe::render {
         void beginRender();
         void endRender();
 
-        void beginCopy();
-        void endCopy();
-
         void present();
 
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }
         
         ID3D12GraphicsCommandList *getDirectCommands() const { return pDirectCommandList; }
-        ID3D12GraphicsCommandList *getCopyCommands() const { return pCopyCommandList; }
 
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
@@ -80,7 +83,7 @@ namespace simcoe::render {
             D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
         );
 
-        CommandBuffer newCommandBuffer(D3D12_COMMAND_LIST_TYPE type);
+        CommandBuffer newCommandBuffer(D3D12_COMMAND_LIST_TYPE type, const char *pzName = "command-buffer");
         
         void submitDirectCommands(CommandBuffer& buffer);
         void submitCopyCommands(CommandBuffer& buffer);
@@ -143,18 +146,15 @@ namespace simcoe::render {
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
 
-        ID3D12CommandQueue *pDirectQueue = nullptr;
         std::vector<ID3D12CommandAllocator*> directCommandAllocators;
         ID3D12GraphicsCommandList *pDirectCommandList = nullptr;
 
-        ID3D12CommandQueue *pCopyQueue = nullptr;
-        ID3D12CommandAllocator* pCopyAllocator = nullptr;
-        ID3D12GraphicsCommandList *pCopyCommandList = nullptr;
+        CommandQueue directQueue;
+        CommandQueue copyQueue;
 
         UINT frameIndex = 0;
 
         Fence presentFence;
-        Fence copyFence;
 
         Heap rtvHeap;
         Heap cbvHeap;

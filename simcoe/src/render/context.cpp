@@ -35,12 +35,18 @@ namespace {
     }
 }
 
-void Fence::newFence(ID3D12Device *pDevice) {
-    HR_CHECK(pDevice->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence)));
+///
+/// fence api
+///
+
+void Fence::newFence(ID3D12Device *pDevice, const char *pzName) {
+    HR_CHECK(pDevice->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&pFence)));
     hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (hEvent == nullptr) {
         HR_CHECK(HRESULT_FROM_WIN32(GetLastError()));
     }
+
+    pFence->SetName(util::widen(std::format("{}-fence", pzName)).c_str());
 }
 
 void Fence::deleteFence() {
@@ -48,22 +54,46 @@ void Fence::deleteFence() {
     RELEASE(pFence);
 }
 
-void Fence::wait(ID3D12CommandQueue *pQueue) {
-    HR_CHECK(pQueue->Signal(pFence, fenceValue));
+void Fence::wait(CommandQueue& queue) {
+    HR_CHECK(queue.pQueue->Signal(pFence, value));
 
-    if (pFence->GetCompletedValue() < fenceValue) {
-        HR_CHECK(pFence->SetEventOnCompletion(fenceValue, hEvent));
+    if (pFence->GetCompletedValue() < value) {
+        HR_CHECK(pFence->SetEventOnCompletion(value, hEvent));
         WaitForSingleObject(hEvent, INFINITE);
     }
 
-    fenceValue += 1;
+    value += 1;
 }
 
-void CommandBuffer::newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type) {
+///
+/// queue api
+///
+
+void CommandQueue::newCommandQueue(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName) {
+    D3D12_COMMAND_QUEUE_DESC desc = {
+        .Type = type
+    };
+
+    HR_CHECK(pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&pQueue)));
+    pQueue->SetName(util::widen(std::format("{}-queue", pzName)).c_str());
+}
+
+void CommandQueue::deleteCommandQueue() {
+    RELEASE(pQueue);
+}
+
+///
+/// commands api
+///
+
+void CommandBuffer::newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName) {
     HR_CHECK(pDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&pAllocator)));
     HR_CHECK(pDevice->CreateCommandList(0, type, pAllocator, nullptr, IID_PPV_ARGS(&pCommandList)));
+    
+    fence.newFence(pDevice, pzName);
 
-    fence.newFence(pDevice);
+    pCommandList->SetName(util::widen(std::format("{}-commands", pzName)).c_str());
+    pAllocator->SetName(util::widen(std::format("{}-allocator", pzName)).c_str());
 }
 
 void CommandBuffer::deleteCommandBuffer() {
@@ -73,12 +103,12 @@ void CommandBuffer::deleteCommandBuffer() {
     RELEASE(pCommandList);
 }
 
-void CommandBuffer::execute(ID3D12CommandQueue *pQueue) {
+void CommandBuffer::execute(CommandQueue& queue) {
     HR_CHECK(pCommandList->Close());
 
     ID3D12CommandList *ppCommandLists[] = { pCommandList };
-    pQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
-    fence.wait(pQueue);
+    queue.pQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
+    fence.wait(queue);
 
     HR_CHECK(pAllocator->Reset());
     HR_CHECK(pCommandList->Reset(pAllocator, nullptr));
@@ -105,18 +135,18 @@ ID3D12Resource *Context::newBuffer(
     return pResource;
 }
 
-CommandBuffer Context::newCommandBuffer(D3D12_COMMAND_LIST_TYPE type) {
+CommandBuffer Context::newCommandBuffer(D3D12_COMMAND_LIST_TYPE type, const char *pzName) {
     CommandBuffer buffer;
-    buffer.newCommandBuffer(pDevice, type);
+    buffer.newCommandBuffer(pDevice, type, pzName);
     return buffer;
 }
 
 void Context::submitDirectCommands(CommandBuffer& buffer) {
-    buffer.execute(pDirectQueue);
+    buffer.execute(directQueue);
 }
 
 void Context::submitCopyCommands(CommandBuffer& buffer) {
-    buffer.execute(pCopyQueue);
+    buffer.execute(copyQueue);
 }
 
 Context::Context(system::Window &window, const Info& info) 
@@ -163,21 +193,7 @@ void Context::endRender() {
 
     // execute command list
     ID3D12CommandList* ppCommandLists[] = { pDirectCommandList };
-    pDirectQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
-}
-
-void Context::beginCopy() {
-    HR_CHECK(pCopyAllocator->Reset());
-    HR_CHECK(pCopyCommandList->Reset(pCopyAllocator, nullptr));
-}
-
-void Context::endCopy() {
-    HR_CHECK(pCopyCommandList->Close());
-    ID3D12CommandList* ppCommandLists[] = { pCopyCommandList };
-    pCopyQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
-
-    // wait for copy queue to finish
-    copyFence.wait(pCopyQueue);
+    directQueue.pQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
 }
 
 void Context::present() {
@@ -301,17 +317,14 @@ void Context::selectDefaultAdapter() {
 void Context::newDirectQueue() {
     directCommandAllocators.resize(info.frames);
     
-    const D3D12_COMMAND_QUEUE_DESC desc = {
-        .Type = D3D12_COMMAND_LIST_TYPE_DIRECT
-    };
-
     for (UINT i = 0; i < info.frames; i++) {
         HR_CHECK(pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&directCommandAllocators[i])));
     }
 
-    HR_CHECK(pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&pDirectQueue)));
     HR_CHECK(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, directCommandAllocators[0], nullptr, IID_PPV_ARGS(&pDirectCommandList)));
     HR_CHECK(pDirectCommandList->Close());
+
+    directQueue.newCommandQueue(pDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, "context-direct");
 }
 
 void Context::deleteDirectQueue() {
@@ -321,24 +334,15 @@ void Context::deleteDirectQueue() {
         RELEASE(pCommandAllocator);
     }
 
-    RELEASE(pDirectQueue);
+    directQueue.deleteCommandQueue();
 }
 
 void Context::newCopyQueue() {
-    const D3D12_COMMAND_QUEUE_DESC desc = {
-        .Type = D3D12_COMMAND_LIST_TYPE_COPY
-    };
-
-    HR_CHECK(pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&pCopyAllocator)));
-    HR_CHECK(pDevice->CreateCommandQueue(&desc, IID_PPV_ARGS(&pCopyQueue)));
-    HR_CHECK(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, pCopyAllocator, nullptr, IID_PPV_ARGS(&pCopyCommandList)));
-    HR_CHECK(pCopyCommandList->Close());
+    copyQueue.newCommandQueue(pDevice, D3D12_COMMAND_LIST_TYPE_COPY, "context-copy");
 }
 
 void Context::deleteCopyQueue() {
-    RELEASE(pCopyCommandList);
-    RELEASE(pCopyAllocator);
-    RELEASE(pCopyQueue);
+    copyQueue.deleteCommandQueue();
 }
 
 void Context::newSwapChain() {
@@ -360,7 +364,7 @@ void Context::newSwapChain() {
     };
 
     IDXGISwapChain1 *pSwapChain1 = nullptr;
-    HR_CHECK(pFactory->CreateSwapChainForHwnd(pDirectQueue, window.getHandle(), &desc, nullptr, nullptr, &pSwapChain1));
+    HR_CHECK(pFactory->CreateSwapChainForHwnd(directQueue.pQueue, window.getHandle(), &desc, nullptr, nullptr, &pSwapChain1));
     HR_CHECK(pFactory->MakeWindowAssociation(window.getHandle(), DXGI_MWA_NO_ALT_ENTER));
 
     HR_CHECK(pSwapChain1->QueryInterface(IID_PPV_ARGS(&pSwapChain)));
@@ -380,26 +384,23 @@ void Context::deleteRenderTargets() {
 }
 
 void Context::newFence() {
-    presentFence.newFence(pDevice);
-    copyFence.newFence(pDevice);
+    presentFence.newFence(pDevice, "context");
 
     waitForFence();
 }
 
 void Context::deleteFence() {
     presentFence.deleteFence();
-    copyFence.deleteFence();
 }
 
 void Context::waitForFence() {
-    presentFence.wait(pDirectQueue);
-    copyFence.wait(pCopyQueue);
+    presentFence.wait(directQueue);
 }
 
 void Context::nextFrame() {
     frameIndex = pSwapChain->GetCurrentBackBufferIndex();
 
-    presentFence.wait(pDirectQueue);
+    presentFence.wait(directQueue);
 }
 
 void Context::newDescriptorHeap() {

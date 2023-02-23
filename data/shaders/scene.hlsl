@@ -11,6 +11,10 @@ cbuffer MaterialBuffer : register(b1) {
     uint texture;
 }
 
+cbuffer NodeBuffer : register(b2) {
+    float4x4 transform;
+};
+
 Texture2D gTextures[] : register(t0);
 SamplerState gSampler : register(s0);
 

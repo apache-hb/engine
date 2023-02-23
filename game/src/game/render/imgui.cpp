@@ -321,6 +321,16 @@ void ImGuiPass::drawSceneInfo() {
             );
         }
 
+        size_t rootNodeMin = 0;
+        size_t rootNodeMax = scene.nodes.size() > 0 ? scene.nodes.size() - 1 : 0;
+        ImGui::SliderScalar("Root node", ImGuiDataType_U64, &scene.rootNode, &rootNodeMin, &rootNodeMax);
+
+        ImGui::Text("Primitives: %zu", scene.primitives.size());
+        ImGui::Text("Nodes: %zu", scene.nodes.size());
+
+        ImGui::Text("Index buffers: %zu", scene.indices.size());
+        ImGui::Text("Vertex buffers: %zu", scene.vertices.size());
+
         ImGui::Text("Textures: %zu", textures.size());
 
         // draw grid of available textures
