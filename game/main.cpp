@@ -42,10 +42,10 @@ int commonMain() {
 
     game::Window window { input.mouse, input.keyboard };
 
-    game::ThirdPerson camera { { 0, 0, 1 }, { 50, 50, 50 }, 90.f };
+    game::ThirdPerson camera { { 0, 0, 50 }, { 0, 10, 50 }, 90.f };
 
     detail.windowResolution = window.size();
-    detail.renderResolution = { 800, 600 };
+    detail.renderResolution = { 1920, 1080 };
     detail.pCamera = &camera;
 
     render::Context context { window, { } };
@@ -59,6 +59,8 @@ int commonMain() {
     while (window.poll()) {
         input.poll();
         scene.execute();
+
+        // TODO: move camera
     }
 
     scene.stop();
