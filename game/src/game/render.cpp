@@ -1,34 +1,16 @@
 #include "game/render.h"
 
-#include "fastgltf/fastgltf_util.hpp"
 #include "simcoe/core/io.h"
 #include "simcoe/simcoe.h"
-
-#include <fastgltf/fastgltf_parser.hpp>
 
 using namespace simcoe;
 using namespace game;
 
-namespace {
-    constexpr fastgltf::Options kOptions = fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
-
-    constexpr const char *gltfErrorToString(fastgltf::Error err) {
-#define ERROR_CASE(x) case fastgltf::Error::x: return #x
-        switch (err) {
-        ERROR_CASE(None);
-        ERROR_CASE(InvalidPath);
-        ERROR_CASE(MissingExtensions);
-        ERROR_CASE(UnknownRequiredExtension);
-        ERROR_CASE(InvalidJson);
-        ERROR_CASE(InvalidGltf);
-        case fastgltf::Error::InvalidOrMissingAssetField: 
-            return "InvalidOrMissingAssetField/InvalidGLB";
-        ERROR_CASE(MissingField);
-        ERROR_CASE(MissingExternalBuffer);
-        ERROR_CASE(UnsupportedVersion);
-        default: return "Unknown";
-        }
-    }
+void game::uploadData(ID3D12Resource *pResource, size_t size, const void *pData) {
+    void *ptr = nullptr;
+    HR_CHECK(pResource->Map(0, nullptr, &ptr));
+    memcpy(ptr, pData, size);
+    pResource->Unmap(0, nullptr);
 }
 
 ShaderBlob game::loadShader(std::string_view path) {
@@ -234,37 +216,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_H
     }
 }
 
-void Scene::load(const std::filesystem::path& path) {
-    fastgltf::Parser parser;
-    fastgltf::GltfDataBuffer buffer;
-    std::unique_ptr<fastgltf::glTF> data;
-
-    buffer.loadFromFile(path);
-
-    switch (fastgltf::determineGltfFileType(&buffer)) {
-    case fastgltf::GltfType::glTF:
-        gRenderLog.info("Loading glTF file: {}", path.string());
-        data = parser.loadGLTF(&buffer, path.parent_path(), kOptions);
-        break;
-    case fastgltf::GltfType::GLB:
-        gRenderLog.info("Loading GLB file: {}", path.string());
-        data = parser.loadBinaryGLTF(&buffer, path.parent_path(), kOptions);
-        break;
-
-    default:
-        gRenderLog.warn("Unknown glTF file type");
-        return;
-    }
-
-    if (fastgltf::Error err = parser.getError(); err != fastgltf::Error::None) {
-        gRenderLog.warn("Failed to load glTF file: {} ({})", gltfErrorToString(err), fastgltf::to_underlying(err));
-        return;
-    }
-
-    if (fastgltf::Error err = data->parse(); err != fastgltf::Error::None) {
-        gRenderLog.warn("Failed to parse glTF file: {} ({})", gltfErrorToString(err), fastgltf::to_underlying(err));
-        return;
-    }
-
-    pScenePass->load(data->getParsedAsset());
+void Scene::load(const std::filesystem::path &path) {
+    pScenePass->addUpload(path);
 }

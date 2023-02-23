@@ -1,5 +1,3 @@
-gltf = subproject('fastgltf').get_variable('gltf')
-
 src = [
     'include/imgui/imgui_demo.cpp',
     'include/imgui/imgui_draw.cpp',
@@ -54,7 +52,7 @@ src = [
 ]
 
 libgame = library('game', src + shaders,
-    dependencies : [ core, input, locale, imnodes, render, gdk, gltf ],
+    dependencies : [ core, input, locale, imnodes, render, gdk, assets ],
     include_directories : 'include',
     cpp_args : args,
     install : true,
@@ -63,7 +61,7 @@ libgame = library('game', src + shaders,
 
 game = declare_dependency(
     link_with : libgame,
-    dependencies : [ core, input, locale, imnodes, render, gdk, gltf ],
+    dependencies : [ core, input, locale, imnodes, render, gdk, assets ],
     include_directories : 'include'
 )
 

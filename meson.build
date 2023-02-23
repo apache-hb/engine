@@ -18,6 +18,8 @@ project('engine', [ 'cpp', 'c' ],
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gdk = subproject('gdk').get_variable('gdk')
 queue = subproject('atomic-queue').get_variable('queue')
+gltf = subproject('fastgltf').get_variable('gltf')
+stb_image = subproject('stb').get_variable('stb_image')
 
 agility = get_option('d3d12-agility').enabled()
 

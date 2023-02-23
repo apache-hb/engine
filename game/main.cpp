@@ -12,9 +12,6 @@
 
 #include <filesystem>
 
-#include <fastgltf/fastgltf_parser.hpp>
-#include <fastgltf/fastgltf_types.hpp>
-
 using namespace simcoe;
 
 struct ImGuiRuntime {

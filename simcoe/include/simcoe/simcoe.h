@@ -12,6 +12,7 @@ namespace simcoe {
     extern logging::Category gLog;
     extern logging::Category gRenderLog;
     extern logging::Category gInputLog;
+    extern logging::Category gAssetLog;
 
     void addSink(logging::ISink *pSink);
     void removeSink(logging::ISink *pSink);

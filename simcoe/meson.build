@@ -119,3 +119,19 @@ locale = declare_dependency(
     link_with : liblocale,
     dependencies : [ core, input ]
 )
+
+src = [
+    'src/assets/gltf.cpp'
+]
+
+libassets = library('assets', src,
+    include_directories : 'include',
+    cpp_args : args,
+    dependencies : [ core, memory, gltf, stb_image ]
+)
+
+assets = declare_dependency(
+    include_directories : 'include',
+    link_with : libassets,
+    dependencies : [ core, memory ]
+)

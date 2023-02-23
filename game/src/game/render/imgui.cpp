@@ -84,6 +84,7 @@ void ImGuiPass::execute() {
     drawRenderGraphInfo();
     drawGdkInfo();
     drawInputInfo();
+    drawSceneInfo();
 
     fileBrowser.Display();
 
@@ -149,6 +150,7 @@ void ImGuiPass::enableDock() {
         auto& style = ImGui::GetStyle();
         ImVec2 closeButtonPos(ImGui::GetWindowWidth() - (style.FramePadding.x * 2) - ImGui::GetFontSize(), 0.f);
 
+        // TODO: icky
         if (ImGui::CloseButton(ImGui::GetID("CloseEditor"), closeButtonPos)) {
             PostQuitMessage(0);
         }
@@ -295,6 +297,42 @@ void ImGuiPass::drawInputInfo() {
                 ImGui::Text("%s", info.locale.get(input::Axis(i)));
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%f", state.axis[i]);
+            }
+            ImGui::EndTable();
+        }
+    }
+    ImGui::End();
+}
+
+void ImGuiPass::drawSceneInfo() {
+    auto& ctx = getContext();
+    auto& cbvHeap = ctx.getCbvHeap();
+
+    auto& scene = static_cast<Scene&>(getGraph()).getScenePass();
+    auto& textures = scene.textures;
+    std::lock_guard guard(scene.mutex);
+
+    if (ImGui::Begin("Scene")) {
+        for (auto& entry : scene.uploads) {
+            ImGui::ProgressBar(
+                entry->upload->getProgress(), 
+                ImVec2(0.f, 0.f), 
+                entry->name.c_str()
+            );
+        }
+
+        ImGui::Text("Textures: %zu", textures.size());
+
+        // draw grid of available textures
+        if (ImGui::BeginTable("textures", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+            ImGui::TableNextRow();
+            for (const auto& [name, size, resource, handle] : textures) {
+                ImGui::TableNextColumn();
+                auto windowAvail = ImGui::GetContentRegionAvail();
+                math::Resolution<float> res = { float(size.x), float(size.y) };
+
+                ImGui::Text("%s: %zu x %zu", name.c_str(), size.x, size.y);
+                ImGui::Image(ImTextureID(cbvHeap.gpuHandle(handle).ptr), ImVec2(windowAvail.x, res.aspectRatio<float>() * windowAvail.x));
             }
             ImGui::EndTable();
         }

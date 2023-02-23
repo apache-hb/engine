@@ -22,6 +22,7 @@ logging::DebugSink simcoe::gDebugSink = logging::DebugSink();
 logging::Category simcoe::gLog = category("general");
 logging::Category simcoe::gRenderLog = category("render");
 logging::Category simcoe::gInputLog = category("input");
+logging::Category simcoe::gAssetLog = category("asset");
 
 void simcoe::addSink(logging::ISink *pSink) {
     gSinks.insert(pSink);

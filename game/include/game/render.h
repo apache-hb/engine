@@ -6,18 +6,19 @@
 #include "simcoe/render/context.h"
 #include "simcoe/render/graph.h"
 
+#include "simcoe/assets/assets.h"
+
 #include "imgui/imgui.h"
 #include "widgets/imfilebrowser.h"
-
-#include <fastgltf/fastgltf_types.hpp>
-#include <span>
 
 #define CBUFFER alignas(D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT)
 
 namespace game {
     namespace render = simcoe::render;
     namespace system = simcoe::system;
+    namespace assets = simcoe::assets;
     namespace math = simcoe::math;
+    namespace fs = std::filesystem;
 
     using ShaderBlob = std::vector<std::byte>;
 
@@ -40,6 +41,8 @@ namespace game {
     };
 
     constexpr float kClearColour[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+
+    void uploadData(ID3D12Resource *pResource, size_t size, const void *pData);
 
     ShaderBlob loadShader(std::string_view path);
     D3D12_SHADER_BYTECODE getShader(const ShaderBlob &blob);
@@ -108,24 +111,44 @@ namespace game {
         RenderEdge *pRenderTargetOut = nullptr;
     };
 
+    struct ScenePass;
+
+    struct UploadHandle : assets::IScene {
+        friend ScenePass;
+
+        UploadHandle(ScenePass *pSelf, const fs::path& path);
+
+        size_t getDefaultTexture() override;
+
+        size_t addVertexBuffer(std::span<const assets::Vertex> data) override;
+        size_t addIndexBuffer(std::span<const uint16_t> data) override;
+        size_t addTexture(const assets::Texture& texture) override;
+        size_t addMesh(const assets::Mesh& mesh) override;
+        size_t addNode(const assets::Node& node) override;
+
+        std::string name;
+        std::shared_ptr<assets::IUpload> upload;
+
+    private:
+        ScenePass *pSelf;
+
+        render::CommandBuffer copyCommands;
+        render::CommandBuffer directCommands;
+    };
+
     struct ScenePass final : render::Pass {
-        using AssetPtr = std::unique_ptr<fastgltf::Asset>;
         ScenePass(const GraphObject& object, Info& info);
         void start() override;
         void stop() override;
 
         void execute() override;
 
-        void load(AssetPtr asset);
-
         IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
+        void addUpload(const fs::path& name);
+
     private:
-        void uploadBuffer(std::span<const uint8_t> data);
-
         Info& info;
-
-        AssetPtr scene;
 
         ShaderBlob vs;
         ShaderBlob ps;
@@ -137,23 +160,18 @@ namespace game {
         SceneBuffer *pSceneData = nullptr;
         render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
 
-        struct ObjectBuffer {
-            ID3D12Resource *pVertexBuffer = nullptr;
-            D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
-
-            ID3D12Resource *pIndexBuffer = nullptr;
-            D3D12_INDEX_BUFFER_VIEW indexBufferView;
-
-            size_t textureIndex = 0;
-        };
-
-        struct TextureBuffer {
-            ID3D12Resource *pTexture = nullptr;
+        struct TextureHandle {
+            std::string name;
+            math::size2 size;
+            ID3D12Resource *pResource = nullptr;
             render::Heap::Index handle = render::Heap::Index::eInvalid;
         };
 
-        std::vector<ObjectBuffer> objectBuffers;
-        std::vector<TextureBuffer> textureBuffers;
+    public:
+        std::mutex mutex;
+        std::vector<std::unique_ptr<UploadHandle>> uploads;
+
+        std::vector<TextureHandle> textures;
     };
 
     // copy resource to back buffer
@@ -223,6 +241,7 @@ namespace game {
         void drawRenderGraphInfo();
         void drawGdkInfo();
         void drawInputInfo();
+        void drawSceneInfo();
 
         struct Link {
             int src;
@@ -262,6 +281,8 @@ namespace game {
         }
 
         void load(const std::filesystem::path& path);
+
+        ScenePass& getScenePass() { return *pScenePass; }
 
     private:
         GlobalPass *pGlobalPass;

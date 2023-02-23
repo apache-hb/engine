@@ -24,6 +24,18 @@ namespace simcoe::render {
         UINT64 fenceValue = 1;
     };
 
+    struct CommandBuffer {
+        void newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type);
+        void deleteCommandBuffer();
+
+        void execute(ID3D12CommandQueue *pQueue);
+
+        ID3D12CommandAllocator *pAllocator = nullptr;
+        ID3D12GraphicsCommandList *pCommandList = nullptr;
+
+        Fence fence;
+    };
+
     struct Context {
         constexpr static inline size_t kDefaultAdapter = SIZE_MAX;
 
@@ -64,9 +76,14 @@ namespace simcoe::render {
         ID3D12Resource *newBuffer(
             size_t size, 
             const D3D12_HEAP_PROPERTIES *pProps, 
-            D3D12_HEAP_FLAGS flags,
-            D3D12_RESOURCE_STATES state
+            D3D12_RESOURCE_STATES state,
+            D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
         );
+
+        CommandBuffer newCommandBuffer(D3D12_COMMAND_LIST_TYPE type);
+        
+        void submitDirectCommands(CommandBuffer& buffer);
+        void submitCopyCommands(CommandBuffer& buffer);
 
     private:
         void newFactory();

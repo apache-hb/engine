@@ -93,28 +93,17 @@ void BlitPass::start() {
     pVertexBuffer = ctx.newBuffer(
         sizeof(kScreenQuadVertices), 
         &props,
-        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
 
     pIndexBuffer = ctx.newBuffer(
         sizeof(kScreenQuadIndices),
         &props,
-        D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
         D3D12_RESOURCE_STATE_INDEX_BUFFER
     );
 
-    void *pVertexData = nullptr;
-    void *pIndexData = nullptr;
-
-    HR_CHECK(pVertexBuffer->Map(0, nullptr, &pVertexData));
-    memcpy(pVertexData, kScreenQuadVertices, sizeof(kScreenQuadVertices));
-    
-    HR_CHECK(pIndexBuffer->Map(0, nullptr, &pIndexData));
-    memcpy(pIndexData, kScreenQuadIndices, sizeof(kScreenQuadIndices));
-
-    pVertexBuffer->Unmap(0, nullptr);
-    pIndexBuffer->Unmap(0, nullptr);
+    uploadData(pVertexBuffer, sizeof(kScreenQuadVertices), kScreenQuadVertices);
+    uploadData(pIndexBuffer, sizeof(kScreenQuadIndices), kScreenQuadIndices);
 
     vertexBufferView.BufferLocation = pVertexBuffer->GetGPUVirtualAddress();
     vertexBufferView.StrideInBytes = sizeof(Vertex);

@@ -102,6 +102,11 @@ namespace simcoe::math {
             return clamp(*this, low, high);
         }
 
+        template<typename O>
+        constexpr Vec2<O> as() const {
+            return { O(x), O(y) };
+        }
+
         static constexpr Vec2 clamp(const Vec2 &it, const Vec2 &low, const Vec2 &high) {
             return from(math::clamp(it.x, low.x, high.x), math::clamp(it.y, low.y, high.y));
         }
@@ -112,6 +117,10 @@ namespace simcoe::math {
 
         static constexpr Vec2 from(T x, T y) {
             return { x, y };
+        }
+
+        static constexpr Vec2 from(const T *pData) {
+            return { pData[0], pData[1] };
         }
 
         static constexpr Vec2 of(T it) {
@@ -135,6 +144,10 @@ namespace simcoe::math {
 
         static constexpr Vec3 from(T x, T y, T z) {
             return { x, y, z };
+        }
+
+        static constexpr Vec3 from(const T *pData) {
+            return { pData[0], pData[1], pData[2] };
         }
 
         static constexpr Vec3 of(T it) {
@@ -210,6 +223,10 @@ namespace simcoe::math {
             return { x, y, z, w };
         }
 
+        static constexpr Vec4 from(const T *pData) {
+            return { pData[0], pData[1], pData[2], pData[3] };
+        }
+
         static constexpr Vec4 of(T it) {
             return from(it, it, it, it);
         }
@@ -231,9 +248,6 @@ namespace simcoe::math {
             return Vec3<T>::from(x, y, z);
         }
 
-        constexpr const T& at(size_t index) const { return this->*components[index];}
-        constexpr T& at(size_t index) { return this->*components[index]; }
-
         constexpr const T& operator[](size_t index) const { return at(index); }
         constexpr T& operator[](size_t index) { return at(index); }
 
@@ -244,6 +258,9 @@ namespace simcoe::math {
         constexpr Vec4 operator+(const Vec4& other) const {
             return add(other);
         }
+        
+        constexpr const T& at(size_t index) const { return this->*components[index];}
+        constexpr T& at(size_t index) { return this->*components[index]; }
 
     private:
         static constexpr T Vec4::*components[] { &Vec4::x, &Vec4::y, &Vec4::z, &Vec4::w };
@@ -376,6 +393,15 @@ namespace simcoe::math {
 
         static constexpr Mat4x4 from(const Row& row0, const Row& row1, const Row& row2, const Row& row3) {
             return { { row0, row1, row2, row3 } };
+        }
+
+        static constexpr Mat4x4 from(const T *it) {
+            return from(
+                Row::from(it), 
+                Row::from(it + 4), 
+                Row::from(it + 8), 
+                Row::from(it + 12)
+            );
         }
 
         static constexpr Mat4x4 of(T it) {

@@ -1,36 +1,10 @@
 #include "game/render.h"
 #include "simcoe/core/units.h"
 
-#include "fastgltf/fastgltf_types.hpp"
-
 using namespace game;
 using namespace simcoe;
 
 using namespace simcoe::units;
-
-namespace {
-    template<typename... T>
-    struct Overload : T... {
-        using T::operator()...;
-    };
-
-    template<typename... T>
-    Overload(T...) -> Overload<T...>;
-
-    constexpr const char *gltfMimeToString(fastgltf::MimeType mine) {
-#define MIME_CASE(x) case fastgltf::MimeType::x: return #x
-        switch (mine) {
-        MIME_CASE(None);
-        MIME_CASE(JPEG);
-        MIME_CASE(PNG);
-        MIME_CASE(KTX2);
-        MIME_CASE(DDS);
-        MIME_CASE(GltfBuffer);
-        MIME_CASE(OctetStream);
-        default: return "Unknown";
-        }
-    }
-}
 
 ScenePass::ScenePass(const GraphObject& object, Info& info)
     : Pass(object)
@@ -173,36 +147,127 @@ void ScenePass::execute() {
 #endif
 }
 
-void ScenePass::load(AssetPtr asset) {
-    scene = std::move(asset);
+UploadHandle::UploadHandle(ScenePass *pSelf, const fs::path& path) 
+    : name(path.filename().string())
+    , pSelf(pSelf)
+{
+    auto& ctx = pSelf->getContext();
 
-    if (scene->assetInfo.has_value()) {
-        const auto& [version, copyright, generator] = scene->assetInfo.value();
-        gLog.info("asset(version = `{}`, copyright = `{}`, generator = `{}`)", version, copyright, generator);
-    }
+    copyCommands = ctx.newCommandBuffer(D3D12_COMMAND_LIST_TYPE_COPY);
+    directCommands = ctx.newCommandBuffer(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    for (auto& buffer : scene->buffers) {
-        std::visit(Overload {
-            [&](fastgltf::sources::Vector& vector) {
-                gLog.info("vector(name=`{}`, size={}, mime={})", buffer.name, Memory(buffer.byteLength).string(), gltfMimeToString(vector.mimeType));
-                uploadBuffer(vector.bytes);
-            },
-            [&](fastgltf::sources::CustomBuffer& custom) {
-                gLog.info("custom(name=`{}`, id={}, mime={})", buffer.name, custom.id, gltfMimeToString(custom.mimeType));
-            },
-            [&](fastgltf::sources::FilePath& file) {
-                gLog.info("file(name=`{}`, path=`{}`, mime={}, offset={})", buffer.name, file.path.string(), gltfMimeToString(file.mimeType), file.fileByteOffset);
-            },
-            [&](fastgltf::sources::BufferView& view) {
-                gLog.info("view(name=`{}`, mime={}, index={})", buffer.name, gltfMimeToString(view.mimeType), view.bufferViewIndex);
-            },
-            [&](auto&) {
-                gLog.warn("buffer(name=`{}`) unhandled source type", buffer.name);
-            }
-        }, buffer.data);
-    }
+    upload = assets::gltf(path, *this);
 }
 
-void ScenePass::uploadBuffer(std::span<const uint8_t> data) {
-    gRenderLog.info("uploading buffer(size={})", Memory(data.size_bytes()).string());
+size_t UploadHandle::getDefaultTexture() {
+    return SIZE_MAX;
+}
+
+size_t UploadHandle::addVertexBuffer(std::span<const assets::Vertex>) {
+    return SIZE_MAX;
+}
+
+size_t UploadHandle::addIndexBuffer(std::span<const uint16_t>) {
+    return SIZE_MAX;
+}
+
+size_t UploadHandle::addTexture(const assets::Texture& texture) {
+    const auto& [data, size] = texture;
+
+    auto& ctx = pSelf->getContext();
+    auto pDevice = ctx.getDevice();
+    auto& cbvHeap = ctx.getCbvHeap();
+    auto& textures = pSelf->textures;
+
+    auto direct = directCommands.pCommandList;
+    auto copy = copyCommands.pCommandList;
+
+    std::lock_guard guard(pSelf->mutex);
+
+    ID3D12Resource *pStagingTexture = nullptr;
+    ID3D12Resource *pTexture = nullptr;
+
+    D3D12_RESOURCE_DESC textureDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+        /* format = */ DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* width = */ UINT(size.x),
+        /* height = */ UINT(size.y)
+    );
+
+    D3D12_HEAP_PROPERTIES defaultProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    D3D12_HEAP_PROPERTIES uploadProps = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &defaultProps,
+        D3D12_HEAP_FLAG_NONE,
+        &textureDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST,
+        nullptr,
+        IID_PPV_ARGS(&pTexture)
+    ));
+
+    UINT64 uploadSize = GetRequiredIntermediateSize(pTexture, 0, 1);
+    D3D12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+
+    HR_CHECK(pDevice->CreateCommittedResource(
+        &uploadProps,
+        D3D12_HEAP_FLAG_NONE,
+        &uploadDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&pStagingTexture)
+    ));
+
+    D3D12_SUBRESOURCE_DATA subresourceData = {
+        .pData = data,
+        .RowPitch = LONG_PTR(size.x * 4),
+        .SlicePitch = LONG_PTR(size.x * size.y * 4)
+    };
+
+    D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+        pTexture, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+    );
+
+    UpdateSubresources(copy, pTexture, pStagingTexture, 0, 0, 1, &subresourceData);
+
+    direct->ResourceBarrier(1, &barrier);
+    
+    auto handle = cbvHeap.alloc();
+    size_t result = textures.size();
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = { .MipLevels = 1 }
+    };
+
+    pDevice->CreateShaderResourceView(pTexture, &srvDesc, cbvHeap.cpuHandle(handle));
+
+    ctx.submitCopyCommands(copyCommands);
+    ctx.submitDirectCommands(directCommands);
+
+    textures.push_back({ 
+        .name = std::format("texture {}", result), 
+        .size = size, 
+        .pResource = pTexture, 
+        .handle = handle 
+    });
+
+    gRenderLog.info("added texture {} ({}x{})", result, size.x, size.y);
+
+    return result;
+}
+
+size_t UploadHandle::addMesh(const assets::Mesh&) {
+    return SIZE_MAX;
+}
+
+size_t UploadHandle::addNode(const assets::Node&) {
+    return SIZE_MAX;
+}
+
+void ScenePass::addUpload(const fs::path& path) {
+    std::lock_guard guard(mutex);
+    
+    uploads.emplace_back(new UploadHandle(this, path));
 }

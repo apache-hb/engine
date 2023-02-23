@@ -184,8 +184,11 @@ void Graph::stop() {
 void Graph::execute(Pass *pRoot) {
     auto& ctx = getContext();
 
+    // TODO: ugly
     ctx.beginRender();
+    ctx.beginCopy();
     GraphBuilder graph{*this, pRoot};
+    ctx.endCopy();
     ctx.endRender();
     ctx.present();
 }

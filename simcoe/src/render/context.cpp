@@ -59,11 +59,36 @@ void Fence::wait(ID3D12CommandQueue *pQueue) {
     fenceValue += 1;
 }
 
+void CommandBuffer::newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type) {
+    HR_CHECK(pDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&pAllocator)));
+    HR_CHECK(pDevice->CreateCommandList(0, type, pAllocator, nullptr, IID_PPV_ARGS(&pCommandList)));
+
+    fence.newFence(pDevice);
+}
+
+void CommandBuffer::deleteCommandBuffer() {
+    fence.deleteFence();
+
+    RELEASE(pAllocator);
+    RELEASE(pCommandList);
+}
+
+void CommandBuffer::execute(ID3D12CommandQueue *pQueue) {
+    HR_CHECK(pCommandList->Close());
+
+    ID3D12CommandList *ppCommandLists[] = { pCommandList };
+    pQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
+    fence.wait(pQueue);
+
+    HR_CHECK(pAllocator->Reset());
+    HR_CHECK(pCommandList->Reset(pAllocator, nullptr));
+}
+
 ID3D12Resource *Context::newBuffer(
     size_t size, 
     const D3D12_HEAP_PROPERTIES *pProps, 
-    D3D12_HEAP_FLAGS flags,
-    D3D12_RESOURCE_STATES state
+    D3D12_RESOURCE_STATES state,
+    D3D12_HEAP_FLAGS flags
 ) 
 {
     D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(size);
@@ -78,6 +103,20 @@ ID3D12Resource *Context::newBuffer(
     ));
 
     return pResource;
+}
+
+CommandBuffer Context::newCommandBuffer(D3D12_COMMAND_LIST_TYPE type) {
+    CommandBuffer buffer;
+    buffer.newCommandBuffer(pDevice, type);
+    return buffer;
+}
+
+void Context::submitDirectCommands(CommandBuffer& buffer) {
+    buffer.execute(pDirectQueue);
+}
+
+void Context::submitCopyCommands(CommandBuffer& buffer) {
+    buffer.execute(pCopyQueue);
 }
 
 Context::Context(system::Window &window, const Info& info) 
@@ -125,6 +164,20 @@ void Context::endRender() {
     // execute command list
     ID3D12CommandList* ppCommandLists[] = { pDirectCommandList };
     pDirectQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
+}
+
+void Context::beginCopy() {
+    HR_CHECK(pCopyAllocator->Reset());
+    HR_CHECK(pCopyCommandList->Reset(pCopyAllocator, nullptr));
+}
+
+void Context::endCopy() {
+    HR_CHECK(pCopyCommandList->Close());
+    ID3D12CommandList* ppCommandLists[] = { pCopyCommandList };
+    pCopyQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
+
+    // wait for copy queue to finish
+    copyFence.wait(pCopyQueue);
 }
 
 void Context::present() {
@@ -340,6 +393,7 @@ void Context::deleteFence() {
 
 void Context::waitForFence() {
     presentFence.wait(pDirectQueue);
+    copyFence.wait(pCopyQueue);
 }
 
 void Context::nextFrame() {
