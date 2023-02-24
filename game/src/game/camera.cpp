@@ -7,11 +7,11 @@ using namespace game;
 namespace {
     constexpr float3 kUpVector = float3::from(0.f, 0.f, 1.f); // z-up
     constexpr float kPiDiv180 = (kPi<float> / 180.f);
-    constexpr float kPitchLimit = kPiDiv4<float>;
+    constexpr float kPitchLimit = kPi<float> / 2.5f;
 }
 
 float4x4 ICamera::getProjection(float aspectRatio) const {
-    return float4x4::perspectiveRH(fov * kPiDiv180, aspectRatio, 0.1f, 1000.f).transpose();
+    return float4x4::perspectiveRH(fov * kPiDiv180, aspectRatio, 0.1f, 2000.f).transpose();
 }
 
 FirstPerson::FirstPerson(float3 position, float3 direction, float fov)

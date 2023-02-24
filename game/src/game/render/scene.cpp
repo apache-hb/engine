@@ -25,7 +25,7 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
     vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
     ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
 
-    debug = game::debug.newEntry([&] {
+    debug = game::debug.newEntry([this] {
         auto& ctx = getContext();
         auto& cbvHeap = ctx.getCbvHeap();
 
