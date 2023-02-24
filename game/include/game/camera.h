@@ -21,7 +21,7 @@ namespace game {
         float fov;
     };
 
-    struct FirstPerson final : ICamera {
+    struct FirstPerson : ICamera {
         FirstPerson(float3 position, float3 direction, float fov);
 
         float4x4 mvp(const float4x4& model, float aspectRatio) const override;
@@ -34,7 +34,7 @@ namespace game {
         float yaw;
     };
 
-    struct ThirdPerson final : ICamera {
+    struct ThirdPerson : ICamera {
         ThirdPerson(float3 focus, float3 position, float fov);
 
         float4x4 mvp(const float4x4& model, float aspectRatio) const override;

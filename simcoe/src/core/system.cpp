@@ -23,7 +23,23 @@ namespace {
             release
         );
     }
+
+    size_t getPerfCounter() {
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        return size_t(now.QuadPart);
+    }
+
+    size_t getPerfFrequency() {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+
+        return size_t(freq.QuadPart);
+    }
+
+    auto kFrequency = getPerfFrequency();
 }
+
 
 system::System::System() {
     // enable stackwalker
@@ -42,6 +58,17 @@ system::System::System() {
 system::System::~System() {
     CoUninitialize();
     SymCleanup(GetCurrentProcess());
+}
+
+system::Timer::Timer() 
+    : last(getPerfCounter()) 
+{ }
+
+float system::Timer::tick() {
+    size_t now = getPerfCounter();
+    float elapsed = float(now - last) / kFrequency;
+    last = now;
+    return elapsed;
 }
 
 system::StackTrace system::backtrace() {

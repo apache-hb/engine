@@ -48,6 +48,14 @@ namespace simcoe::system {
         ~System();
     };
 
+    struct Timer {
+        Timer();
+        float tick();
+
+    private:
+        size_t last;
+    };
+
     StackTrace backtrace();
 
     std::string hrString(HRESULT hr);

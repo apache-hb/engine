@@ -27,6 +27,10 @@ namespace game {
             manager.poll();
         }
 
+        void add(input::ITarget *pTarget) {
+            manager.add(pTarget);
+        }
+
         input::Gamepad gamepad;
         input::Keyboard keyboard;
         input::Mouse mouse;

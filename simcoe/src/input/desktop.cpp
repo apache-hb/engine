@@ -227,6 +227,7 @@ void Mouse::update(HWND hWnd) {
     }
 
     if (captured) {
+        absolute = getCursorPoint();
         auto [cx, cy] = getWindowCenter(hWnd);
         SetCursorPos(cx, cy);
 
@@ -235,7 +236,6 @@ void Mouse::update(HWND hWnd) {
     } else {
         // set the base to the last absolute position
         base = absolute;
+        absolute = getCursorPoint();
     }
-
-    absolute = getCursorPoint();
 }

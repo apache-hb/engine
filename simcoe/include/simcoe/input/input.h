@@ -70,4 +70,16 @@ namespace simcoe::input {
         std::vector<ITarget*> targets;
         State state = {};
     };
+
+    struct Toggle {
+        Toggle(bool initial);
+        bool update(size_t key);
+
+        operator bool() const;
+        bool get() const;
+        void set(bool value);
+    private:
+        size_t last = 0;
+        bool enabled;
+    };
 }
