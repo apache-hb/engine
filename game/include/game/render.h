@@ -114,6 +114,19 @@ namespace game {
 
     struct ScenePass;
 
+    struct Mesh {
+        ID3D12Resource *pVertexBuffer = nullptr;
+        ID3D12Resource *pIndexBuffer = nullptr;
+
+        D3D12_VERTEX_BUFFER_VIEW vertexView;
+        D3D12_INDEX_BUFFER_VIEW indexView;
+    };
+
+    struct PipelineState {
+        ID3D12PipelineState *pState = nullptr;
+        ID3D12RootSignature *pRootSignature = nullptr;
+    };
+
     struct Node {
         assets::Node asset;
         ID3D12Resource *pResource = nullptr;
@@ -149,9 +162,25 @@ namespace game {
         render::CommandBuffer directCommands;
     };
 
+    struct CubeMapPass final : render::Pass {
+        CubeMapPass(const GraphObject& object);
+
+        void start() override;
+        void stop() override;
+
+        void execute() override;
+
+        render::InEdge *pRenderTargetIn = nullptr;
+        render::OutEdge *pRenderTargetOut = nullptr;
+
+    private:
+        Mesh cubeMapMesh;
+        PipelineState cubeMapPSO;
+    };
+
     struct ScenePass final : render::Pass {
         friend UploadHandle;
-        
+
         ScenePass(const GraphObject& object, Info& info);
         void start() override;
         void stop() override;
