@@ -12,7 +12,7 @@ namespace simcoe::render {
     struct Edge;
 
     struct GraphObject {
-        GraphObject(const char *pzName, Graph& graph);
+        GraphObject(const std::string& name, Graph& graph);
         GraphObject(const GraphObject& other);
 
         virtual ~GraphObject() = default;
@@ -22,7 +22,7 @@ namespace simcoe::render {
         Context& getContext() const;
 
     private:
-        const char *pzName;
+        std::string name;
         struct Graph& graph;
     };
 
@@ -89,22 +89,22 @@ namespace simcoe::render {
 
         Pass(const GraphObject& other) : GraphObject(other) {}
 
-        virtual void start() { }
+        virtual void start(ID3D12GraphicsCommandList*) { }
         virtual void stop() { }
-        virtual void execute() = 0;
+        virtual void execute(ID3D12GraphicsCommandList* pCommands) = 0;
 
         const InEdgeVec& getInputs() const { return inputs; }
         const OutEdgeVec& getOutputs() const { return outputs; }
 
     protected:
         template<typename T> requires (std::is_base_of_v<InEdge, T>)
-        T *in(const char* pzName, auto&&... args) {
-            return static_cast<T*>(addInput(new T(GraphObject(pzName, getGraph()), this, args...)));
+        T *in(const std::string& name, auto&&... args) {
+            return static_cast<T*>(addInput(new T(GraphObject(name, getGraph()), this, args...)));
         }
 
         template<typename T> requires (std::is_base_of_v<OutEdge, T>)
-        T *out(const char* pzName, auto&&... args) {
-            return static_cast<T*>(addOutput(new T(GraphObject(pzName, getGraph()), this, args...)));
+        T *out(const std::string& name, auto&&... args) {
+            return static_cast<T*>(addOutput(new T(GraphObject(name, getGraph()), this, args...)));
         }
 
     private:
@@ -116,7 +116,7 @@ namespace simcoe::render {
     };
 
     struct Graph {
-        using PassMap = std::unordered_map<const char*, std::unique_ptr<Pass>>;
+        using PassMap = std::unordered_map<std::string, std::unique_ptr<Pass>>;
         using EdgeMap = std::unordered_map<InEdge*, OutEdge*>;
 
         Graph(Context& context);
@@ -135,14 +135,15 @@ namespace simcoe::render {
         void execute(Pass *pRoot);
 
         template<typename T> requires (std::is_base_of_v<Pass, T>)
-        T *addPass(const char *pzName, auto&&... args) {
-            T *pPass = new T(GraphObject(pzName, *this), args...);
-            passes[pzName] = std::unique_ptr<Pass>(pPass);
+        T *addPass(const std::string& name, auto&&... args) {
+            T *pPass = new T(GraphObject(name, *this), args...);
+            passes[name] = std::unique_ptr<Pass>(pPass);
             return pPass;
         }
 
     private:
         Context& context;
+        CommandBuffer commands;
 
         PassMap passes;
         EdgeMap edges;

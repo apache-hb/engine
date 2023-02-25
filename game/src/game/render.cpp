@@ -278,7 +278,7 @@ Scene::Scene(render::Context& context, Info& info, input::Manager& input) : rend
             ImNodes::BeginNode(passIndices.at(pass.get()));
 
             ImNodes::BeginNodeTitleBar();
-            ImGui::Text("%s", name);
+            ImGui::Text("%s", name.c_str());
             ImNodes::EndNodeTitleBar();
 
             for (auto& output : pass->getOutputs()) {
@@ -305,5 +305,6 @@ Scene::Scene(render::Context& context, Info& info, input::Manager& input) : rend
 }
 
 void Scene::load(const std::filesystem::path &path) {
-    pScenePass->addUpload(path);
+    ModelPass *pModel = addPass<ModelPass>(path.filename().string(), path);
+    modelPasses.push_back(pModel);
 }

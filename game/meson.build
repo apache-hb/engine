@@ -47,8 +47,12 @@ src = [
     'src/game/window.cpp',
     'src/game/render.cpp',
     'src/game/registry.cpp',
+
+    'src/game/render/global.cpp',
     'src/game/render/imgui.cpp',
     'src/game/render/scene.cpp',
+    'src/game/render/model.cpp',
+    'src/game/render/cubemap.cpp',
     'src/game/render/blit.cpp'
 ]
 

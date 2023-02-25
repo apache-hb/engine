@@ -35,7 +35,7 @@ BlitPass::BlitPass(const GraphObject& object, const Display& display)
     ps = loadShader("build\\game\\libgame.a.p\\post.ps.cso");
 }
 
-void BlitPass::start() {
+void BlitPass::start(ID3D12GraphicsCommandList*) {
     auto& ctx = getContext();
     auto device = ctx.getDevice();
 
@@ -122,25 +122,23 @@ void BlitPass::stop() {
     RELEASE(pIndexBuffer);
 }
 
-void BlitPass::execute() {
-    auto& ctx = getContext();
-    auto cmd = ctx.getDirectCommands();
+void BlitPass::execute(ID3D12GraphicsCommandList *pCommands) {
     auto rtv = pRenderTargetIn->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     
-    cmd->RSSetViewports(1, &display.viewport);
-    cmd->RSSetScissorRects(1, &display.scissor);
+    pCommands->RSSetViewports(1, &display.viewport);
+    pCommands->RSSetScissorRects(1, &display.scissor);
     
-    cmd->OMSetRenderTargets(1, &rtv, false, nullptr);
-    cmd->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
+    pCommands->OMSetRenderTargets(1, &rtv, false, nullptr);
+    pCommands->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
 
-    cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    cmd->IASetVertexBuffers(0, 1, &vertexBufferView);
-    cmd->IASetIndexBuffer(&indexBufferView);
+    pCommands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    pCommands->IASetVertexBuffers(0, 1, &vertexBufferView);
+    pCommands->IASetIndexBuffer(&indexBufferView);
 
-    cmd->SetPipelineState(pBlitPipeline);
-    cmd->SetGraphicsRootSignature(pBlitSignature);
+    pCommands->SetPipelineState(pBlitPipeline);
+    pCommands->SetGraphicsRootSignature(pBlitSignature);
 
-    cmd->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+    pCommands->SetGraphicsRootDescriptorTable(0, pSceneTargetIn->gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 
-    cmd->DrawIndexedInstanced(UINT(std::size(kScreenQuadIndices)), 1, 0, 0, 0);
+    pCommands->DrawIndexedInstanced(UINT(std::size(kScreenQuadIndices)), 1, 0, 0, 0);
 }

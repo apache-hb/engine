@@ -43,6 +43,9 @@ namespace simcoe::assets {
         virtual size_t addNode(const Node& node) = 0;
 
         virtual void setNodeChildren(size_t node, std::span<const size_t> children) = 0;
+        
+        virtual void beginUpload() = 0;
+        virtual void endUpload() = 0;
     };
 
     struct IUpload {

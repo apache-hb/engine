@@ -29,7 +29,7 @@ ImGuiPass::ImGuiPass(const GraphObject& object, Info& info, input::Manager& mana
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 }
 
-void ImGuiPass::start() {
+void ImGuiPass::start(ID3D12GraphicsCommandList*) {
     auto& context = getContext();
     auto& heap = context.getCbvHeap();
     fontHandle = heap.alloc();
@@ -52,7 +52,7 @@ void ImGuiPass::stop() {
     getContext().getCbvHeap().release(fontHandle);
 }
 
-void ImGuiPass::execute() {
+void ImGuiPass::execute(ID3D12GraphicsCommandList *pCommands) {
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -85,7 +85,7 @@ void ImGuiPass::execute() {
     ImGui::ShowDemoWindow();
     
     ImGui::Render();
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), getContext().getDirectCommands());
+    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommands);
 }
 
 void ImGuiPass::enableDock() {

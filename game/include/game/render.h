@@ -95,19 +95,12 @@ namespace game {
     };
 
     struct GlobalPass final : render::Pass {
-        GlobalPass(const GraphObject& object) : Pass(object) { 
-            pRenderTargetOut = out<RenderEdge>("render-target");
-        }
+        GlobalPass(const GraphObject& object);
 
-        void start() override {
-            pRenderTargetOut->start();
-        }
+        void start(ID3D12GraphicsCommandList*) override;
+        void stop() override;
 
-        void stop() override {
-            pRenderTargetOut->stop();
-        }
-
-        void execute() override { }
+        void execute(ID3D12GraphicsCommandList*) override;
 
         RenderEdge *pRenderTargetOut = nullptr;
     };
@@ -134,78 +127,45 @@ namespace game {
         render::Heap::Index handle = render::Heap::Index::eInvalid;
     };
 
-    struct UploadHandle : assets::IScene {
-        friend ScenePass;
+    struct ModelPass final : render::Pass, assets::IScene {
+        ModelPass(const GraphObject& object, const fs::path& path);
+        
+        enum State {
+            ePending,
+            eWorking,
+            eReady,
+        };
 
-        UploadHandle(ScenePass *pSelf, const fs::path& path);
+        // render::Pass
+        void start(ID3D12GraphicsCommandList *pCommands) override;
+        void stop() override;
 
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
+
+        // assets::IScene
         size_t getDefaultTexture() override;
-
         size_t addVertexBuffer(std::span<const assets::Vertex> data) override;
         size_t addIndexBuffer(std::span<const uint32_t> data) override;
-        
         size_t addTexture(const assets::Texture& texture) override;
-
         size_t addPrimitive(const assets::Primitive& mesh) override;
         size_t addNode(const assets::Node& node) override;
-
         void setNodeChildren(size_t idx, std::span<const size_t> children) override;
 
-        std::string name;
-        std::shared_ptr<assets::IUpload> upload;
-        std::unique_ptr<util::Entry> debug;
+        void beginUpload() override {
+            ASSERT(state == ePending);
+            state = eWorking;
+        }
 
-    private:
-        ScenePass *pSelf;
-
-        render::CommandBuffer copyCommands;
-        render::CommandBuffer directCommands;
-    };
-
-    struct CubeMapPass final : render::Pass {
-        CubeMapPass(const GraphObject& object);
-
-        void start() override;
-        void stop() override;
-
-        void execute() override;
+        void endUpload() override {
+            ASSERT(state == eWorking);
+            state = eReady;
+        }
 
         render::InEdge *pRenderTargetIn = nullptr;
-        render::OutEdge *pRenderTargetOut = nullptr;
+        render::InEdge *pRenderTargetOut = nullptr;
 
     private:
-        Mesh cubeMapMesh;
-        PipelineState cubeMapPSO;
-    };
-
-    struct ScenePass final : render::Pass {
-        friend UploadHandle;
-
-        ScenePass(const GraphObject& object, Info& info);
-        void start() override;
-        void stop() override;
-
-        void execute() override;
-
-        IntermediateTargetEdge *pRenderTargetOut = nullptr;
-
-        void addUpload(const fs::path& name);
-
-    private:
-        Info& info;
-
-        ShaderBlob vs;
-        ShaderBlob ps;
-
-        ID3D12RootSignature *pRootSignature = nullptr;
-        ID3D12PipelineState *pPipelineState = nullptr;
-
-        ID3D12Resource *pDepthStencil = nullptr;
-        render::Heap::Index depthHandle = render::Heap::Index::eInvalid;
-
-        ID3D12Resource *pSceneBuffer = nullptr;
-        SceneBuffer *pSceneData = nullptr;
-        render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
+        void renderNode(size_t idx, const float4x4& parent);
 
         struct TextureHandle {
             std::string name;
@@ -225,12 +185,14 @@ namespace game {
             D3D12_VERTEX_BUFFER_VIEW view;
         };
 
-        void renderNode(size_t idx, const float4x4& parent);
+        std::atomic<State> state = ePending;
 
+        std::string name;
+        std::shared_ptr<assets::IUpload> upload;
         std::unique_ptr<util::Entry> debug;
 
-        std::mutex mutex;
-        std::vector<std::unique_ptr<UploadHandle>> uploads;
+        render::CommandBuffer copyCommands;
+        render::CommandBuffer directCommands;
 
         std::vector<assets::Primitive> primitives;
         std::vector<Node> nodes;
@@ -242,14 +204,58 @@ namespace game {
         size_t rootNode = SIZE_MAX;
     };
 
+    struct CubeMapPass final : render::Pass {
+        CubeMapPass(const GraphObject& object);
+
+        void start(ID3D12GraphicsCommandList *pCommands) override;
+        void stop() override;
+
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
+
+        render::InEdge *pRenderTargetIn = nullptr;
+        render::OutEdge *pRenderTargetOut = nullptr;
+
+    private:
+        Mesh cubeMapMesh;
+        PipelineState cubeMapPSO;
+    };
+
+    struct ScenePass final : render::Pass {
+        ScenePass(const GraphObject& object, Info& info);
+        void start(ID3D12GraphicsCommandList *pCommands) override;
+        void stop() override;
+
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
+
+        IntermediateTargetEdge *pRenderTargetOut = nullptr;
+
+    private:
+        Info& info;
+
+        ShaderBlob vs;
+        ShaderBlob ps;
+
+        ID3D12RootSignature *pRootSignature = nullptr;
+        ID3D12PipelineState *pPipelineState = nullptr;
+
+        ID3D12Resource *pDepthStencil = nullptr;
+        render::Heap::Index depthHandle = render::Heap::Index::eInvalid;
+
+        ID3D12Resource *pSceneBuffer = nullptr;
+        SceneBuffer *pSceneData = nullptr;
+        render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
+
+        std::unique_ptr<util::Entry> debug;
+    };
+
     // copy resource to back buffer
     struct BlitPass final : render::Pass {
         BlitPass(const GraphObject& object, const Display& display);
 
-        void start() override;
+        void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
 
-        void execute() override;
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
 
         render::InEdge *pSceneTargetIn = nullptr;
         render::InEdge *pRenderTargetIn = nullptr;
@@ -282,7 +288,7 @@ namespace game {
             pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_PRESENT);
         }
 
-        void execute() override {
+        void execute(ID3D12GraphicsCommandList*) override {
             // empty?
         }
 
@@ -293,10 +299,10 @@ namespace game {
     struct ImGuiPass final : render::Pass {
         ImGuiPass(const GraphObject& object, Info& info, input::Manager& manager);
         
-        void start() override;
+        void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
 
-        void execute() override;
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
 
         render::InEdge *pRenderTargetIn = nullptr;
         render::OutEdge *pRenderTargetOut = nullptr;
@@ -330,6 +336,8 @@ namespace game {
         GlobalPass *pGlobalPass;
 
         ScenePass *pScenePass;
+        std::vector<ModelPass*> modelPasses;
+
         BlitPass *pBlitPass;
 
         ImGuiPass *pImGuiPass;
