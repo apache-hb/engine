@@ -271,39 +271,36 @@ Scene::Scene(render::Context& context, Info& info, input::Manager& input) : rend
         links[link++] = { srcId, dstId };
     }
 
-    debug = game::debug.newEntry([=, this] {
-        if (ImGui::Begin("Render Graph")) {
-            ImNodes::BeginNodeEditor();
+    debug = game::debug.newEntry({ "Render Graph" }, [=, this] {
+        ImNodes::BeginNodeEditor();
 
-            for (auto& [name, pass] : getPasses()) {
-                ImNodes::BeginNode(passIndices.at(pass.get()));
+        for (auto& [name, pass] : getPasses()) {
+            ImNodes::BeginNode(passIndices.at(pass.get()));
 
-                ImNodes::BeginNodeTitleBar();
-                ImGui::Text("%s", name);
-                ImNodes::EndNodeTitleBar();
+            ImNodes::BeginNodeTitleBar();
+            ImGui::Text("%s", name);
+            ImNodes::EndNodeTitleBar();
 
-                for (auto& output : pass->getOutputs()) {
-                    ImNodes::BeginOutputAttribute(edgeIndices.at(output.get()));
-                    ImGui::Text("%s", output->getName());
-                    ImNodes::EndOutputAttribute();
-                }
-
-                for (auto& input : pass->getInputs()) {
-                    ImNodes::BeginInputAttribute(edgeIndices.at(input.get()));
-                    ImGui::Text("%s", input->getName());
-                    ImNodes::EndInputAttribute();
-                }
-
-                ImNodes::EndNode();
+            for (auto& output : pass->getOutputs()) {
+                ImNodes::BeginOutputAttribute(edgeIndices.at(output.get()));
+                ImGui::Text("%s", output->getName());
+                ImNodes::EndOutputAttribute();
             }
 
-            for (auto& [id, link] : links) {
-                ImNodes::Link(id, link.src, link.dst);
+            for (auto& input : pass->getInputs()) {
+                ImNodes::BeginInputAttribute(edgeIndices.at(input.get()));
+                ImGui::Text("%s", input->getName());
+                ImNodes::EndInputAttribute();
             }
 
-            ImNodes::EndNodeEditor();
+            ImNodes::EndNode();
         }
-        ImGui::End();
+
+        for (auto& [id, link] : links) {
+            ImNodes::Link(id, link.src, link.dst);
+        }
+
+        ImNodes::EndNodeEditor();
     });
 }
 

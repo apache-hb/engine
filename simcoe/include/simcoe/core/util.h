@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 #include <span>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace simcoe::util {
@@ -102,12 +103,12 @@ namespace simcoe::util {
         EntrySet& entries;
     };
 
-    template<typename>
+    template<typename T>
     struct Registry {
         template<typename F>
-        std::unique_ptr<Entry> newEntry(F&& func) {
+        std::unique_ptr<Entry> newEntry(const T& data, F&& func) {
             struct EntryImpl : Entry {
-                EntryImpl(EntrySet& set, F&& func) \
+                EntryImpl(EntrySet& set, F&& func)
                     : Entry(set)
                     , func(std::move(func)) 
                 { }
@@ -118,15 +119,16 @@ namespace simcoe::util {
             };
 
             Entry *pImpl = new EntryImpl(entries, std::move(func));
+            extra.emplace(pImpl, data);
             return std::unique_ptr<Entry>(pImpl);
         }
 
-        void apply() {
-            for (auto& entry : entries) {
-                entry->apply();
-            }
+        const T& get(const Entry* entry) const {
+            return extra.at(entry);
         }
         
-        std::unordered_set<Entry*> entries = {};
+        // TODO: remove fungus
+        std::unordered_map<const Entry*, T> extra;
+        EntrySet entries = {};
     };
 }

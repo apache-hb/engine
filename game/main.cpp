@@ -36,13 +36,10 @@ struct Camera final : input::ITarget {
         : camera(position, { 0, 0, 1 }, fov) 
         , input(game)
     { 
-        debug = game::debug.newEntry([&] {
-            if (ImGui::Begin("Camera")) {
-                ImGui::SliderFloat("FOV", &camera.fov, 45.f, 120.f);
-                ImGui::InputFloat3("Position", &camera.position.x);
-                ImGui::InputFloat3("Direction", &camera.direction.x);
-            }
-            ImGui::End();
+        debug = game::debug.newEntry({ "Camera" }, [&] {
+            ImGui::SliderFloat("FOV", &camera.fov, 45.f, 120.f);
+            ImGui::InputFloat3("Position", &camera.position.x);
+            ImGui::InputFloat3("Direction", &camera.direction.x);
         });
 
         game.add(this);

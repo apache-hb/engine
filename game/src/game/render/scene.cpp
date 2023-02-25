@@ -25,29 +25,26 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
     vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
     ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
 
-    debug = game::debug.newEntry([this] {
+    debug = game::debug.newEntry({ "Scene" }, [this] {
         auto& ctx = getContext();
         auto& cbvHeap = ctx.getCbvHeap();
 
-        if (ImGui::Begin("Scene")) {
-            ImGui::Text("Nodes: %zu", nodes.size());
-            int root = int(rootNode);
-            ImGui::InputInt("Root node", &root);
-            rootNode = size_t(root);
-            if (ImGui::BeginTable("textures", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
-                ImGui::TableNextRow();
-                for (const auto& [name, size, resource, handle] : textures) {
-                    ImGui::TableNextColumn();
-                    auto windowAvail = ImGui::GetContentRegionAvail();
-                    math::Resolution<float> res = { float(size.x), float(size.y) };
+        ImGui::Text("Nodes: %zu", nodes.size());
+        int root = int(rootNode);
+        ImGui::InputInt("Root node", &root);
+        rootNode = size_t(root);
+        if (ImGui::BeginTable("textures", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+            ImGui::TableNextRow();
+            for (const auto& [name, size, resource, handle] : textures) {
+                ImGui::TableNextColumn();
+                auto windowAvail = ImGui::GetContentRegionAvail();
+                math::Resolution<float> res = { float(size.x), float(size.y) };
 
-                    ImGui::Text("%s: %zu x %zu", name.c_str(), size.x, size.y);
-                    ImGui::Image(ImTextureID(cbvHeap.gpuHandle(handle).ptr), ImVec2(windowAvail.x, res.aspectRatio<float>() * windowAvail.x));
-                }
-                ImGui::EndTable();
+                ImGui::Text("%s: %zu x %zu", name.c_str(), size.x, size.y);
+                ImGui::Image(ImTextureID(cbvHeap.gpuHandle(handle).ptr), ImVec2(windowAvail.x, res.aspectRatio<float>() * windowAvail.x));
             }
+            ImGui::EndTable();
         }
-        ImGui::End();
     });
 }
 

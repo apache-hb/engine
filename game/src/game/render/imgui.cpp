@@ -61,7 +61,18 @@ void ImGuiPass::execute() {
     drawInfo();
     drawInputInfo();
 
-    game::debug.apply();
+    for (auto& entry : game::debug.entries) {
+        const auto& extra = game::debug.get(entry);
+
+        if (!extra.enabled) {
+            continue;
+        }
+
+        if (ImGui::Begin(extra.pzName)) {
+            entry->apply();
+        }
+        ImGui::End();
+    }
 
     fileBrowser.Display();
 

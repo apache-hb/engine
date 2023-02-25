@@ -5,7 +5,10 @@
 namespace game {
     namespace util = simcoe::util;
 
-    struct DebugGui;
+    struct DebugGui {
+        const char *pzName;
+        bool enabled = true;
+    };
 
     extern util::Registry<DebugGui> debug;
 }
