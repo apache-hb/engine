@@ -134,6 +134,25 @@ void ImGuiPass::enableDock() {
             ImGui::EndMenu();
         }
 
+        if (ImGui::BeginMenu("Style")) {
+            if (ImGui::MenuItem("Classic")) {
+                ImGui::StyleColorsClassic();
+                ImNodes::StyleColorsClassic();
+            }
+
+            if (ImGui::MenuItem("Dark")) {
+                ImGui::StyleColorsDark();
+                ImNodes::StyleColorsDark();
+            }
+
+            if (ImGui::MenuItem("Light")) {
+                ImGui::StyleColorsLight();
+                ImNodes::StyleColorsLight();
+            }
+
+            ImGui::EndMenu();
+        }
+
         // align the close button to the right of the window
         auto& style = ImGui::GetStyle();
         ImVec2 closeButtonPos(ImGui::GetWindowWidth() - (style.FramePadding.x * 2) - ImGui::GetFontSize(), 0.f);

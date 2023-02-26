@@ -244,8 +244,6 @@ namespace game {
         ID3D12Resource *pSceneBuffer = nullptr;
         SceneBuffer *pSceneData = nullptr;
         render::Heap::Index sceneHandle = render::Heap::Index::eInvalid;
-
-        std::unique_ptr<util::Entry> debug;
     };
 
     // copy resource to back buffer

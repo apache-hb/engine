@@ -22,11 +22,6 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
 
     vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
     ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
-
-    debug = game::debug.newEntry({ "Scene" }, [info] {
-        auto [width, height] = info.renderResolution;
-        ImGui::Text("Resolution: %zu x %zu", width, height);
-    });
 }
 
 void ScenePass::start(ID3D12GraphicsCommandList*) {
