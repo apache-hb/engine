@@ -31,6 +31,7 @@ namespace simcoe::render {
         UINT value = 1;
     };
 
+    // TODO: optional multi-allocator support
     struct CommandBuffer {
         void newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName);
         void deleteCommandBuffer();
@@ -68,8 +69,6 @@ namespace simcoe::render {
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }
         
-        ID3D12GraphicsCommandList *getDirectCommands() const { return pDirectCommandList; }
-
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
@@ -104,11 +103,8 @@ namespace simcoe::render {
         void selectAdapter(size_t index);
         void selectDefaultAdapter();
 
-        void newDirectQueue();
-        void deleteDirectQueue();
-
-        void newCopyQueue();
-        void deleteCopyQueue();
+        void newCommandQueues();
+        void deleteCommandQueues();
 
         void newSwapChain();
         void deleteSwapChain();
@@ -144,9 +140,6 @@ namespace simcoe::render {
 
         BOOL bTearingSupported = FALSE;
         IDXGISwapChain3 *pSwapChain = nullptr;
-
-        std::vector<ID3D12CommandAllocator*> directCommandAllocators;
-        ID3D12GraphicsCommandList *pDirectCommandList = nullptr;
 
         CommandQueue directQueue;
         CommandQueue copyQueue;

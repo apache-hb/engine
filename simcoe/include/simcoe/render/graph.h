@@ -5,6 +5,12 @@
 #include <d3d12.h>
 #include <unordered_map>
 
+// TODO: need some way to specify input state requirements
+// and output state specifications
+
+// EG: pass B requires X, Y, and Z to be bound
+// and pass A binds X, Y, and Z 
+
 namespace simcoe::render {
     struct Graph;
     struct GraphObject;

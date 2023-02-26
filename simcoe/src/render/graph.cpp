@@ -151,13 +151,11 @@ private:
         }
 
         for (auto& dep : deps) {
-            gRenderLog.info("executing dependency {} of {}", dep.pPass->getName(), pPass->getName());
             run(dep, pCommands);
         }
 
         wireBarriers(pPass, pCommands);
 
-        gRenderLog.info("executing pass {}", pPass->getName());
         pPass->execute(pCommands);
     }
 
@@ -189,6 +187,10 @@ void Graph::stop() {
 }
 
 void Graph::execute(Pass *pRoot) {
+    // TODO: track effects somehow
+    ID3D12DescriptorHeap *ppHeaps[] = { context.getCbvHeap().getHeap() };
+    commands.pCommandList->SetDescriptorHeaps(UINT(std::size(ppHeaps)), ppHeaps);
+
     GraphBuilder graph{*this, pRoot, commands.pCommandList};
     context.submitDirectCommands(commands);
     context.present();

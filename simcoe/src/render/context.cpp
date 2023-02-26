@@ -159,8 +159,7 @@ Context::Context(system::Window &window, const Info& info)
     newFactory();
     newDevice();
     newInfoQueue();
-    newDirectQueue();
-    newCopyQueue();
+    newCommandQueues();
     newSwapChain();
     newHeaps();
     newFence();
@@ -170,29 +169,10 @@ Context::~Context() {
     deleteFence();
     deleteHeaps();
     deleteSwapChain();
-    deleteCopyQueue();
-    deleteDirectQueue();
+    deleteCommandQueues();
     deleteInfoQueue();
     deleteDevice();
     deleteFactory();
-}
-
-void Context::beginRender() {
-    // populate command list
-    HR_CHECK(directCommandAllocators[frameIndex]->Reset());
-    HR_CHECK(pDirectCommandList->Reset(directCommandAllocators[frameIndex], nullptr));
-    
-    ID3D12DescriptorHeap *ppHeaps[] = { cbvHeap.getHeap() };
-    
-    pDirectCommandList->SetDescriptorHeaps(UINT(std::size(ppHeaps)), ppHeaps);
-}
-
-void Context::endRender() {
-    HR_CHECK(pDirectCommandList->Close());
-
-    // execute command list
-    ID3D12CommandList* ppCommandLists[] = { pDirectCommandList };
-    directQueue.pQueue->ExecuteCommandLists(UINT(std::size(ppCommandLists)), ppCommandLists);
 }
 
 void Context::present() {
@@ -313,35 +293,14 @@ void Context::selectDefaultAdapter() {
     ASSERT(pAdapter != nullptr);
 }
 
-void Context::newDirectQueue() {
-    directCommandAllocators.resize(info.frames);
-    
-    for (UINT i = 0; i < info.frames; i++) {
-        HR_CHECK(pDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&directCommandAllocators[i])));
-    }
-
-    HR_CHECK(pDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, directCommandAllocators[0], nullptr, IID_PPV_ARGS(&pDirectCommandList)));
-    HR_CHECK(pDirectCommandList->Close());
-
+void Context::newCommandQueues() {
     directQueue.newCommandQueue(pDevice, D3D12_COMMAND_LIST_TYPE_DIRECT, "context-direct");
-}
-
-void Context::deleteDirectQueue() {
-    RELEASE(pDirectCommandList);
-
-    for (auto &pCommandAllocator : directCommandAllocators) {
-        RELEASE(pCommandAllocator);
-    }
-
-    directQueue.deleteCommandQueue();
-}
-
-void Context::newCopyQueue() {
     copyQueue.newCommandQueue(pDevice, D3D12_COMMAND_LIST_TYPE_COPY, "context-copy");
 }
 
-void Context::deleteCopyQueue() {
+void Context::deleteCommandQueues() {
     copyQueue.deleteCommandQueue();
+    directQueue.deleteCommandQueue();
 }
 
 void Context::newSwapChain() {
