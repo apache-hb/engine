@@ -242,8 +242,19 @@ struct Grid {
             break;
         }
 
+        doDirty(recalcPath);
+    }
+
+    void doDirty(bool recalc = false) {
+        if (!path.empty()) {
+            path.clear();
+            recalc = true;
+        }
+        
+        doAStar();
+        distance = 0;
         calcCosts();
-        if (recalcPath) {
+        if (recalc) {
             doAStar();
         }
     }
@@ -328,10 +339,19 @@ struct Grid {
     
         error = "No path found";
     }
+
+    enum Scene { eSceneStart, eScenePlay } scene = eSceneStart;
 };
 
 auto newGame() {
     return game::debug.newEntry({ "Game", true }, [grid = new Grid(10)] {
+        if (grid->scene == Grid::eSceneStart) {
+            if (ImGui::Button("Play")) {
+                grid->scene = Grid::eScenePlay;
+            }
+            return;
+        }
+
         auto drawTile = [&](int x, int y) -> std::string {
             std::string label;
             switch (grid->getType(x, y)) {
@@ -386,9 +406,7 @@ auto newGame() {
         }
 
         if (dirty) {
-            grid->distance = 0;
-            grid->calcCosts();
-            grid->error = "";
+            grid->doDirty();
         }
 
         ImGui::Separator();
