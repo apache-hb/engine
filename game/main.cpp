@@ -25,7 +25,6 @@ struct ImGuiRuntime {
 
         auto& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.IniFilename = "imgui.ini";
     }
 
     ~ImGuiRuntime() {
