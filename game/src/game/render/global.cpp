@@ -4,7 +4,9 @@
 
 using namespace game;
 
-GlobalPass::GlobalPass(const GraphObject& object) : render::Pass(object) { 
+GlobalPass::GlobalPass(const GraphObject& object, Info& info) 
+    : Pass(object, info) 
+{ 
     pRenderTargetOut = out<RenderEdge>("render-target");
 }
 

@@ -24,7 +24,9 @@ namespace {
     }
 }
 
-ImGuiPass::ImGuiPass(const GraphObject& object, Info& info, input::Manager& manager): Pass(object), info(info), inputManager(manager) { 
+ImGuiPass::ImGuiPass(const GraphObject& object, Info& info)
+    : Pass(object, info)
+{ 
     pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 }
@@ -202,7 +204,7 @@ void ImGuiPass::drawInputInfo() {
     const float kTextWidth = ImGui::CalcTextSize("A").x;
 
     if (ImGui::Begin("Input")) {
-        const auto& state = inputManager.getState();
+        const auto& state = info.input.manager.getState();
         
         ImGui::Text("Current: %s", state.device == input::Device::eGamepad ? "Gamepad" : "Mouse & Keyboard");
 

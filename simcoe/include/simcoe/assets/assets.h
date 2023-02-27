@@ -55,5 +55,16 @@ namespace simcoe::assets {
         virtual float getProgress() const = 0;
     };
 
-    std::shared_ptr<IUpload> gltf(const fs::path& path, IScene& scene);
+    struct Manager {
+        Manager(fs::path root = fs::current_path())
+            : root(std::move(root))
+        { }
+
+        std::vector<std::byte> load(const fs::path& path);  
+
+        std::shared_ptr<IUpload> gltf(const fs::path& path, IScene& scene);
+    private:
+        fs::path root;  
+    };
+
 }

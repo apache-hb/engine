@@ -17,11 +17,6 @@ void game::uploadData(ID3D12Resource *pResource, size_t size, const void *pData)
     pResource->Unmap(0, nullptr);
 }
 
-ShaderBlob game::loadShader(std::string_view path) {
-    std::unique_ptr<Io> file{Io::open(path, Io::eRead)};
-    return file->read<std::byte>();
-}
-
 D3D12_SHADER_BYTECODE game::getShader(const ShaderBlob &blob) {
     return D3D12_SHADER_BYTECODE {blob.data(), blob.size()};
 }
@@ -220,16 +215,17 @@ D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_H
     }
 }
 
-Scene::Scene(render::Context& context, Info& info, input::Manager& input) : render::Graph(context) {
-    Display present = createLetterBoxDisplay(info.renderResolution, info.windowResolution);
-
-    pGlobalPass = addPass<GlobalPass>("global");
+Scene::Scene(render::Context& context, Info& info) 
+    : render::Graph(context) 
+    , info(info)
+{
+    pGlobalPass = newPass<GlobalPass>("global");
     
-    pScenePass = addPass<ScenePass>("scene", info);
-    pBlitPass = addPass<BlitPass>("blit", present);
+    pScenePass = newPass<ScenePass>("scene");
+    pBlitPass = newPass<BlitPass>("blit");
 
-    pImGuiPass = addPass<ImGuiPass>("imgui", info, input);
-    pPresentPass = addPass<PresentPass>("present");
+    pImGuiPass = newPass<ImGuiPass>("imgui");
+    pPresentPass = newPass<PresentPass>("present");
 
     connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
     connect(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
@@ -305,6 +301,6 @@ Scene::Scene(render::Context& context, Info& info, input::Manager& input) : rend
 }
 
 void Scene::load(const std::filesystem::path &path) {
-    ModelPass *pModel = addPass<ModelPass>(path.filename().string(), path);
+    ModelPass *pModel = newPass<ModelPass>(path.filename().string(), path);
     modelPasses.push_back(pModel);
 }

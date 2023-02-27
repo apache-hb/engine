@@ -15,13 +15,12 @@ namespace {
 }
 
 ScenePass::ScenePass(const GraphObject& object, Info& info)
-    : Pass(object)
-    , info(info)
+    : Pass(object, info)
 {
     pRenderTargetOut = out<IntermediateTargetEdge>("scene-target", info.renderResolution);
 
-    vs = loadShader("build\\game\\libgame.a.p\\scene.vs.cso");
-    ps = loadShader("build\\game\\libgame.a.p\\scene.ps.cso");
+    vs = info.assets.load("build\\game\\libgame.a.p\\scene.vs.cso");
+    ps = info.assets.load("build\\game\\libgame.a.p\\scene.ps.cso");
 }
 
 void ScenePass::start(ID3D12GraphicsCommandList*) {

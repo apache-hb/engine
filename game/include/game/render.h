@@ -45,7 +45,6 @@ namespace game {
 
     void uploadData(ID3D12Resource *pResource, size_t size, const void *pData);
 
-    ShaderBlob loadShader(std::string_view path);
     D3D12_SHADER_BYTECODE getShader(const ShaderBlob &blob);
 
     Display createDisplay(const system::Size& size);
@@ -94,17 +93,6 @@ namespace game {
         render::Heap::Index rtvIndex = render::Heap::Index::eInvalid;
     };
 
-    struct GlobalPass final : render::Pass {
-        GlobalPass(const GraphObject& object);
-
-        void start(ID3D12GraphicsCommandList*) override;
-        void stop() override;
-
-        void execute(ID3D12GraphicsCommandList*) override;
-
-        RenderEdge *pRenderTargetOut = nullptr;
-    };
-
     struct ScenePass;
 
     struct Mesh {
@@ -127,8 +115,28 @@ namespace game {
         render::Heap::Index handle = render::Heap::Index::eInvalid;
     };
 
-    struct ModelPass final : render::Pass, assets::IScene {
-        ModelPass(const GraphObject& object, const fs::path& path);
+    struct Pass : render::Pass {
+        Pass(const GraphObject& object, Info& info)
+            : render::Pass(object)
+            , info(info)
+        { }
+
+        Info& info;
+    };
+    
+    struct GlobalPass final : Pass {
+        GlobalPass(const GraphObject& object, Info& info);
+
+        void start(ID3D12GraphicsCommandList*) override;
+        void stop() override;
+
+        void execute(ID3D12GraphicsCommandList*) override;
+
+        RenderEdge *pRenderTargetOut = nullptr;
+    };
+
+    struct ModelPass final : Pass, assets::IScene {
+        ModelPass(const GraphObject& object, Info& info, const fs::path& path);
         
         enum State {
             ePending,
@@ -204,8 +212,8 @@ namespace game {
         size_t rootNode = SIZE_MAX;
     };
 
-    struct CubeMapPass final : render::Pass {
-        CubeMapPass(const GraphObject& object);
+    struct CubeMapPass final : Pass {
+        CubeMapPass(const GraphObject& object, Info& info);
 
         void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
@@ -220,7 +228,7 @@ namespace game {
         PipelineState cubeMapPSO;
     };
 
-    struct ScenePass final : render::Pass {
+    struct ScenePass final : Pass {
         ScenePass(const GraphObject& object, Info& info);
         void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
@@ -230,8 +238,6 @@ namespace game {
         IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
     private:
-        Info& info;
-
         ShaderBlob vs;
         ShaderBlob ps;
 
@@ -247,8 +253,8 @@ namespace game {
     };
 
     // copy resource to back buffer
-    struct BlitPass final : render::Pass {
-        BlitPass(const GraphObject& object, const Display& display);
+    struct BlitPass final : Pass {
+        BlitPass(const GraphObject& object, Info& info);
 
         void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
@@ -280,8 +286,8 @@ namespace game {
         std::unique_ptr<util::Entry> debug;
     };
 
-    struct PresentPass final : render::Pass {
-        PresentPass(const GraphObject& object) : Pass(object) { 
+    struct PresentPass final : Pass {
+        PresentPass(const GraphObject& object, Info& info) : Pass(object, info) { 
             pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
             pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_PRESENT);
         }
@@ -294,8 +300,8 @@ namespace game {
         render::InEdge *pRenderTargetIn = nullptr;
     };
 
-    struct ImGuiPass final : render::Pass {
-        ImGuiPass(const GraphObject& object, Info& info, input::Manager& manager);
+    struct ImGuiPass final : Pass {
+        ImGuiPass(const GraphObject& object, Info& info);
         
         void start(ID3D12GraphicsCommandList *pCommands) override;
         void stop() override;
@@ -306,8 +312,6 @@ namespace game {
         render::OutEdge *pRenderTargetOut = nullptr;
 
     private:
-        Info& info;
-        input::Manager& inputManager;
         render::Heap::Index fontHandle = render::Heap::Index::eInvalid;
         
         void enableDock();
@@ -318,7 +322,7 @@ namespace game {
     };
 
     struct Scene final : render::Graph {
-        Scene(render::Context& context, Info& info, input::Manager& input);
+        Scene(render::Context& context, Info& info);
 
         void execute() {
             Graph::execute(pPresentPass);
@@ -329,7 +333,13 @@ namespace game {
         ScenePass& getScenePass() { return *pScenePass; }
 
     private:
+        template<typename T, typename... A>
+        T *newPass(std::string name, A&&... args) {
+            return Graph::addPass<T>(name, info, std::forward<A>(args)...);
+        }
+
         std::unique_ptr<util::Entry> debug;
+        Info& info;
 
         GlobalPass *pGlobalPass;
 

@@ -11,10 +11,13 @@
 
 #include "simcoe/locale/locale.h"
 
+#include "simcoe/assets/assets.h"
+
 namespace game {
     namespace input = simcoe::input;
     namespace system = simcoe::system;
     namespace logging = simcoe::logging;
+    namespace assets = simcoe::assets;
 
     struct Input {
         Input() : gamepad(0), keyboard(), mouse(false, false) {
@@ -58,6 +61,9 @@ namespace game {
         system::Size renderResolution;
 
         simcoe::Locale locale;
+        assets::Manager assets;
+
+        Input input;
 
         GuiSink sink;
         game::ICamera *pCamera = nullptr;

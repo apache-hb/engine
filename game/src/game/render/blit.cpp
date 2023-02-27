@@ -19,9 +19,9 @@ namespace {
     };
 }
 
-BlitPass::BlitPass(const GraphObject& object, const Display& display) 
-    : Pass(object) 
-    , display(display)
+BlitPass::BlitPass(const GraphObject& object, Info& info) 
+    : Pass(object, info) 
+    , display(createLetterBoxDisplay(info.renderResolution, info.windowResolution))
 {
     // create wires
     pSceneTargetIn = in<render::InEdge>("scene-target", D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -31,8 +31,8 @@ BlitPass::BlitPass(const GraphObject& object, const Display& display)
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 
     // load shader objects
-    vs = loadShader("build\\game\\libgame.a.p\\post.vs.cso");
-    ps = loadShader("build\\game\\libgame.a.p\\post.ps.cso");
+    vs = info.assets.load("build\\game\\libgame.a.p\\blit.vs.cso");
+    ps = info.assets.load("build\\game\\libgame.a.p\\blit.ps.cso");
 }
 
 void BlitPass::start(ID3D12GraphicsCommandList*) {

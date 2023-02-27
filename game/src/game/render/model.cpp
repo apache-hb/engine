@@ -18,8 +18,8 @@ namespace {
     }
 }
 
-ModelPass::ModelPass(const GraphObject& object, const fs::path& path) 
-    : render::Pass(object)
+ModelPass::ModelPass(const GraphObject& object, Info& info, const fs::path& path) 
+    : Pass(object, info)
     , name(path.filename().string())
 {
     auto& ctx = getContext();
@@ -27,7 +27,7 @@ ModelPass::ModelPass(const GraphObject& object, const fs::path& path)
     copyCommands = ctx.newCommandBuffer(D3D12_COMMAND_LIST_TYPE_COPY);
     directCommands = ctx.newCommandBuffer(D3D12_COMMAND_LIST_TYPE_DIRECT);
 
-    upload = assets::gltf(path, *this);
+    upload = info.assets.gltf(path, *this);
 
     debug = game::debug.newEntry({ name.c_str() }, [this] {
         ImGui::Text("State: %s", stateToString(state));

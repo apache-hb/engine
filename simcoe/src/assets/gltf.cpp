@@ -5,6 +5,7 @@
 #include "simcoe/assets/assets.h"
 
 #include "simcoe/core/util.h"
+#include "simcoe/core/io.h"
 
 #include "simcoe/simcoe.h"
 
@@ -378,8 +379,13 @@ namespace {
     };
 }
 
-std::shared_ptr<IUpload> assets::gltf(const fs::path& path, IScene& scene) {
+std::shared_ptr<IUpload> Manager::gltf(const fs::path& path, IScene& scene) {
     auto result = std::make_shared<GltfUpload>(scene);
     result->detach(path);
     return result;
+}
+
+std::vector<std::byte> Manager::load(const fs::path& path) {
+    std::unique_ptr<Io> file{Io::open((root / path).string(), Io::eRead)};
+    return file->read<std::byte>();
 }
