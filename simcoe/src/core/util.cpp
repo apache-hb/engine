@@ -35,10 +35,14 @@ std::string util::join(std::string_view sep, std::span<const std::string> parts)
     return result;
 }
 
-Entry::Entry(EntrySet& set) : entries(set) {
-    entries.insert(this);
+Entry::Entry(RegistryBase& base) 
+    : base(base)
+{
+    std::lock_guard lock(base.mutex);
+    base.entries.insert(this);
 }
 
 Entry::~Entry() {
-    entries.erase(this);
+    std::lock_guard lock(base.mutex);
+    base.entries.erase(this);
 }

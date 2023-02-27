@@ -15,12 +15,12 @@ cbuffer NodeBuffer : register(b2) {
     float4x4 transform;
 };
 
+Texture2D gTextures[] : register(t0);
+SamplerState gSampler : register(s0);
+
 float4 perspective(float3 pos) {
     return mul(float4(pos, 1.0), mvp);
 }
-
-Texture2D gTextures[] : register(t0);
-SamplerState gSampler : register(s0);
 
 Vertex vsMain(float3 pos : POSITION, float2 uv : TEXCOORD) {
     Vertex vertex;

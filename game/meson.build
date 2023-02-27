@@ -37,7 +37,8 @@ imnodes = declare_dependency(
 
 shaders = [
     hlsl.process('../data/shaders/blit.hlsl'),
-    hlsl.process('../data/shaders/scene.hlsl')
+    hlsl.process('../data/shaders/scene.hlsl'),
+    hlsl.process('../data/shaders/cubemap.hlsl'),
 ]
 
 src = [

@@ -123,7 +123,7 @@ namespace game {
 
         Info& info;
     };
-    
+
     struct GlobalPass final : Pass {
         GlobalPass(const GraphObject& object, Info& info);
 
@@ -224,6 +224,9 @@ namespace game {
         render::OutEdge *pRenderTargetOut = nullptr;
 
     private:
+        ShaderBlob vs;
+        ShaderBlob ps;
+        
         Mesh cubeMapMesh;
         PipelineState cubeMapPSO;
     };

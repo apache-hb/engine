@@ -6,6 +6,7 @@
 #include <span>
 #include <unordered_map>
 #include <unordered_set>
+#include <mutex>
 
 namespace simcoe::util {
     std::string narrow(std::wstring_view wstr);
@@ -91,25 +92,30 @@ namespace simcoe::util {
         return Range { progress, size };
     }
 
-    using EntrySet = std::unordered_set<struct Entry*>;
+    struct RegistryBase;
 
     struct Entry {
-        Entry(EntrySet& set);
+        Entry(RegistryBase& base);
         virtual ~Entry();
 
         virtual void apply() = 0;
 
     private:
-        EntrySet& entries;
+        RegistryBase& base;
+    };
+
+    struct RegistryBase {
+        std::mutex mutex;
+        std::unordered_set<Entry*> entries = {};
     };
 
     template<typename T>
-    struct Registry {
+    struct Registry : RegistryBase {
         template<typename F>
         std::unique_ptr<Entry> newEntry(const T& data, F&& func) {
             struct EntryImpl : Entry {
-                EntryImpl(EntrySet& set, F&& func)
-                    : Entry(set)
+                EntryImpl(RegistryBase& base, F&& func)
+                    : Entry(base)
                     , func(std::move(func)) 
                 { }
 
@@ -118,7 +124,7 @@ namespace simcoe::util {
                 F func;
             };
 
-            Entry *pImpl = new EntryImpl(entries, std::move(func));
+            Entry *pImpl = new EntryImpl(*this, std::move(func));
             extra.emplace(pImpl, data);
             return std::unique_ptr<Entry>(pImpl);
         }
@@ -127,8 +133,6 @@ namespace simcoe::util {
             return extra.at(entry);
         }
         
-        // TODO: remove fungus
         std::unordered_map<const Entry*, T> extra;
-        EntrySet entries = {};
     };
 }
