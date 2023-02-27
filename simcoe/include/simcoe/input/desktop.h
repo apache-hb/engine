@@ -39,7 +39,7 @@ namespace simcoe::input {
         // the absolute position of the mouse
         math::float2 absolute = {};
 
-        /// is the mouse currently captured (hidden and locked to the center of the screen)
+        /// is the mouse currently captured (locked to the center of the screen)
         bool captured;
 
         /// is the mouse currently enabled (should it be read)

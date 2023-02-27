@@ -27,7 +27,7 @@ Window::Window(const char *pzTitle, const Size& size, WindowStyle style) {
         .style = CS_HREDRAW | CS_VREDRAW,
         .lpfnWndProc = Window::callback,
         .hInstance = khInstance,
-        .hCursor = LoadCursor(nullptr, IDC_ARROW),
+        .hCursor = NULL,
         .lpszClassName = kpzClassName
     };
     RegisterClassEx(&kClass);
@@ -59,6 +59,15 @@ void Window::restyle(WindowStyle style) {
     SetWindowLong(hWindow, GWL_STYLE, getStyle(style));
 }
 
+void Window::hideCursor(bool hide) {
+    bHideCursor = hide;
+    if (hide) {
+        SetCursor(nullptr);
+    } else {
+        SetCursor(LoadCursor(nullptr, IDC_ARROW));
+    }
+}
+
 LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     Window *pWindow = reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
@@ -78,6 +87,13 @@ LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpa
 
     case WM_ACTIVATE:
         pWindow->bHasFocus = (LOWORD(wparam) != WA_INACTIVE);
+        break;
+
+    case WM_SETCURSOR:
+        if (pWindow->bHideCursor) {
+            SetCursor(nullptr);
+            return 1;
+        }
         break;
 
     case WM_CLOSE:

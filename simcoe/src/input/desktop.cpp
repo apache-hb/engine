@@ -204,9 +204,7 @@ Mouse::Mouse(bool lockCursor, bool readCursor)
     : ISource(Device::eDesktop)
     , captured(lockCursor)
     , enabled(readCursor)
-{
-    system::showCursor(!captured);
-}
+{ }
 
 bool Mouse::poll(State& result) {
     result.axis[Axis::mouseHorizontal] = absolute.x - base.x;
@@ -217,7 +215,6 @@ bool Mouse::poll(State& result) {
 
 void Mouse::captureInput(bool capture) {
     captured = capture;
-    system::showCursor(!capture);
 }
 
 void Mouse::update(HWND hWnd) {

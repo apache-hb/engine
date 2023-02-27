@@ -17,7 +17,7 @@ namespace game {
     namespace logging = simcoe::logging;
 
     struct Input {
-        Input() : gamepad(0), keyboard(), mouse(false, true) {
+        Input() : gamepad(0), keyboard(), mouse(false, false) {
             manager.add(&gamepad);
             manager.add(&keyboard);
             manager.add(&mouse);

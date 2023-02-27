@@ -28,6 +28,8 @@ namespace simcoe::system {
 
         void restyle(WindowStyle style);
 
+        void hideCursor(bool hide);
+
         bool poll();
         Size size();
         float dpi();
@@ -39,6 +41,7 @@ namespace simcoe::system {
     private:
         static LRESULT CALLBACK callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
+        bool bHideCursor = false;
         bool bHasFocus = false;
         HWND hWindow;
     };
@@ -61,6 +64,4 @@ namespace simcoe::system {
     std::string hrString(HRESULT hr);
     std::string win32String(DWORD dw);
     std::string win32LastErrorString();
-
-    void showCursor(bool show);
 }
