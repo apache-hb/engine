@@ -8,6 +8,7 @@
 #include <comdef.h>
 
 using namespace simcoe;
+using namespace simcoe::system;
 
 namespace {
     std::mutex critical;
@@ -39,13 +40,12 @@ namespace {
     auto kFrequency = getPerfFrequency();
 }
 
-
-system::System::System() {
+System::System() {
     // enable stackwalker
     SymInitialize(GetCurrentProcess(), nullptr, true);
     
     // we want to be dpi aware
-    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
     
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
@@ -54,23 +54,23 @@ system::System::System() {
     HR_CHECK(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 }
 
-system::System::~System() {
+System::~System() {
     CoUninitialize();
     SymCleanup(GetCurrentProcess());
 }
 
-system::Timer::Timer() 
+Timer::Timer() 
     : last(getPerfCounter()) 
 { }
 
-float system::Timer::tick() {
+float Timer::tick() {
     size_t now = getPerfCounter();
     float elapsed = float(now - last) / kFrequency;
     last = now;
     return elapsed;
 }
 
-system::StackTrace system::backtrace() {
+StackTrace system::backtrace() {
     HANDLE hProcess = GetCurrentProcess();
     HANDLE hThread = GetCurrentThread();
 
