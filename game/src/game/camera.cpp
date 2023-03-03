@@ -2,6 +2,8 @@
 
 #include "simcoe/math/consts.h"
 
+#include <algorithm>
+
 using namespace game;
 
 namespace {
