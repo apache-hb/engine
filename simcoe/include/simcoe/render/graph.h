@@ -124,6 +124,8 @@ namespace simcoe::render {
     struct Graph {
         using PassMap = std::unordered_map<std::string, std::unique_ptr<Pass>>;
         using EdgeMap = std::unordered_map<InEdge*, OutEdge*>;
+        using PassSet = std::unordered_set<Pass*>;
+        using ControlMap = std::unordered_map<Pass*, PassSet>;
 
         Graph(Context& context);
 
@@ -135,10 +137,24 @@ namespace simcoe::render {
         const PassMap& getPasses() const { return passes; }
         const EdgeMap& getEdges() const { return edges; }
 
-    protected:
-        void connect(OutEdge *pSource, InEdge *pTarget);
+        template<typename F>
+        void applyToChildren(Pass *pPass, F&& func) const {
+            auto it = control.find(pPass);
+            if (it == control.end()) {
+                return;
+            }
 
-        void execute(Pass *pRoot);
+            for (Pass *pChild : it->second) {
+                func(pChild);
+            }
+        }
+
+    protected:
+        void wire(OutEdge *pSource, InEdge *pTarget);
+
+        void connect(Pass *pParent, Pass *pChild);
+
+        void execute(Pass *pStart);
 
         template<typename T> requires (std::is_base_of_v<Pass, T>)
         T *addPass(const std::string& name, auto&&... args) {
@@ -153,5 +169,6 @@ namespace simcoe::render {
 
         PassMap passes;
         EdgeMap edges;
+        ControlMap control;
     };
 }

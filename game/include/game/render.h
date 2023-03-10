@@ -328,7 +328,7 @@ namespace game {
         Scene(render::Context& context, Info& info);
 
         void execute() {
-            Graph::execute(pPresentPass);
+            Graph::execute(pGlobalPass);
         }
 
         void load(const std::filesystem::path& path);
@@ -347,7 +347,8 @@ namespace game {
         GlobalPass *pGlobalPass;
 
         ScenePass *pScenePass;
-        std::vector<ModelPass*> modelPasses;
+
+        // std::vector<ModelPass*> modelPasses;
 
         BlitPass *pBlitPass;
 

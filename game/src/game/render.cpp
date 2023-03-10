@@ -222,85 +222,144 @@ Scene::Scene(render::Context& context, Info& info)
     pGlobalPass = newPass<GlobalPass>("global");
     
     pScenePass = newPass<ScenePass>("scene");
+
+    // TODO: link cube map pass to scene pass
+
     pBlitPass = newPass<BlitPass>("blit");
 
     pImGuiPass = newPass<ImGuiPass>("imgui");
     pPresentPass = newPass<PresentPass>("present");
 
-    connect(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
-    connect(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
+    wire(pGlobalPass->pRenderTargetOut, pBlitPass->pRenderTargetIn);
+    wire(pScenePass->pRenderTargetOut, pBlitPass->pSceneTargetIn);
 
-    connect(pBlitPass->pRenderTargetOut, pImGuiPass->pRenderTargetIn);
+    wire(pBlitPass->pRenderTargetOut, pImGuiPass->pRenderTargetIn);
 
-    connect(pBlitPass->pSceneTargetOut, pPresentPass->pSceneTargetIn);
-    connect(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
+    wire(pBlitPass->pSceneTargetOut, pPresentPass->pSceneTargetIn);
+    wire(pImGuiPass->pRenderTargetOut, pPresentPass->pRenderTargetIn);
+
+    connect(pGlobalPass, pScenePass);
+    connect(pScenePass, pBlitPass);
+    connect(pBlitPass, pImGuiPass);
+    connect(pImGuiPass, pPresentPass);
+
+    struct RenderGraphDebug {
+        RenderGraphDebug(render::Graph& graph) {
+            int id = 0;
+            
+            for (auto& [name, pass] : graph.getPasses()) {
+                Edge input = { id++, "control", ImNodesPinShape_QuadFilled };
+                Edge output = { id++, "control", ImNodesPinShape_QuadFilled };
+
+                Node node = { id++, name.c_str(), { input }, { output } };
+                
+                for (auto& edge : pass->getInputs()) {
+                    Edge it = { id++, edge->getName(), ImNodesPinShape_CircleFilled };
+                    edges[edge.get()] = it;
+
+                    node.inputs.push_back(it);
+                }
+
+                for (auto& edge : pass->getOutputs()) {
+                    Edge it = { id++, edge->getName(), ImNodesPinShape_CircleFilled };
+                    edges[edge.get()] = it;
+
+                    node.outputs.push_back(it);
+                }
+
+                nodes[pass.get()] = node;
+            }
+
+            for (auto& [output, input] : graph.getEdges()) {
+                Link link = { id++, IM_COL32(61, 133, 224, 200), edges[output].id, edges[input].id };
+                links.push_back(link);
+            }
+
+            for (auto& [name, pParentPass] : graph.getPasses()) {
+                graph.applyToChildren(pParentPass.get(), [&](auto* pChildPass) {
+                    Node& parent = nodes[pParentPass.get()];
+                    Node& child = nodes[pChildPass];
+
+                    Link link = { id++, IM_COL32(225, 225, 225, 255), parent.outputs[0].id, child.inputs[0].id };
+
+                    links.push_back(link);
+                });
+            }
+        }
+
+        void draw() const {
+            for (auto& [pass, node] : nodes) {
+                ImNodes::BeginNode(node.id);
+
+                ImNodes::BeginNodeTitleBar();
+                ImGui::Text("%s", node.name);
+                ImNodes::EndNodeTitleBar();
+
+                for (auto& input : node.inputs) {
+                    ImNodes::BeginInputAttribute(input.id, input.shape);
+                    ImGui::Text("%s", input.name);
+                    ImNodes::EndInputAttribute();
+                }
+
+                for (auto& output : node.outputs) {
+                    ImNodes::BeginOutputAttribute(output.id, output.shape);
+                    ImGui::Text("%s", output.name);
+                    ImNodes::EndOutputAttribute();
+                }
+
+                ImNodes::EndNode();
+            }
+
+            for (auto& link : links) {
+                ImNodes::PushColorStyle(ImNodesCol_Link, link.colour);
+                ImNodes::Link(link.id, link.src, link.dst);
+                ImNodes::PopColorStyle();
+            }
+        }
+
+    private:
+        struct Link {
+            int id;
+            unsigned colour;
+
+            int src;
+            int dst;
+        };
+
+        struct Edge {
+            int id;
+            const char *name;
+            ImNodesPinShape shape;
+        };
+
+        struct Node {
+            int id;
+            const char *name;
+
+            std::vector<Edge> inputs;
+            std::vector<Edge> outputs;
+        };
+
+        std::vector<Link> links;
+        std::unordered_map<render::Edge*, Edge> edges;
+        std::unordered_map<render::Pass*, Node> nodes;
+    };
 
     ImNodes::CreateContext();
     ImNodes::LoadCurrentEditorStateFromIniFile("imnodes.ini");
 
-    struct Link {
-        int src;
-        int dst;
-    };
+    RenderGraphDebug graphDebug{*this};
 
-    std::unordered_map<render::Pass*, int> passIndices;
-    std::unordered_map<render::Edge*, int> edgeIndices;
-    std::unordered_map<int, Link> links;
-
-    int id = 0;
-    for (auto& [name, pass] : getPasses()) {
-        passIndices[pass.get()] = id++;
-        for (auto& in : pass->getInputs()) {
-            edgeIndices[in.get()] = id++;
-        }
-
-        for (auto& out : pass->getOutputs()) {
-            edgeIndices[out.get()] = id++;
-        }
-    }
-
-    int link = 0;
-    for (auto& [src, dst] : getEdges()) {
-        int srcId = edgeIndices[src];
-        int dstId = edgeIndices[dst];
-
-        links[link++] = { srcId, dstId };
-    }
-
-    debug = game::debug.newEntry({ "Render Graph" }, [=, this] {
+    debug = game::debug.newEntry({ "Render Graph" }, [graphDebug = std::move(graphDebug)] {
         ImNodes::BeginNodeEditor();
 
-        for (auto& [name, pass] : getPasses()) {
-            ImNodes::BeginNode(passIndices.at(pass.get()));
-
-            ImNodes::BeginNodeTitleBar();
-            ImGui::Text("%s", name.c_str());
-            ImNodes::EndNodeTitleBar();
-
-            for (auto& output : pass->getOutputs()) {
-                ImNodes::BeginOutputAttribute(edgeIndices.at(output.get()));
-                ImGui::Text("%s", output->getName());
-                ImNodes::EndOutputAttribute();
-            }
-
-            for (auto& input : pass->getInputs()) {
-                ImNodes::BeginInputAttribute(edgeIndices.at(input.get()));
-                ImGui::Text("%s", input->getName());
-                ImNodes::EndInputAttribute();
-            }
-
-            ImNodes::EndNode();
-        }
-
-        for (auto& [id, link] : links) {
-            ImNodes::Link(id, link.src, link.dst);
-        }
+        graphDebug.draw();
 
         ImNodes::EndNodeEditor();
     });
 }
 
-void Scene::load(const std::filesystem::path &path) {
-    ModelPass *pModel = newPass<ModelPass>(path.filename().string(), path);
-    modelPasses.push_back(pModel);
+void Scene::load(const std::filesystem::path &) {
+    //ModelPass *pModel = newPass<ModelPass>(path.filename().string(), path);
+    //modelPasses.push_back(pModel);
 }
