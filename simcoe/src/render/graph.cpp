@@ -41,7 +41,6 @@ void InEdge::updateEdge(OutEdge *pEdge) {
 }
 
 ID3D12Resource *InEdge::getResource() {
-    ASSERTF(pSource != nullptr, "null getResource on {}", edgeName(this));
     return pSource->getResource();
 }
 
@@ -85,12 +84,39 @@ Graph::Graph(Context& context)
     : context(context)
 { }
 
+struct PassTree final {
+    PassTree(Pass *pRoot)
+        : pPass(pRoot) 
+    { }
+
+    void add(PassTree&& child) { children.push_back(std::move(child)); }
+
+    Pass *pPass;
+    std::vector<PassTree> children;
+};
+
 struct GraphBuilder final {
-    GraphBuilder(Graph& graph, Pass *pStart, ID3D12GraphicsCommandList* pCommands) : graph(graph) { 
-        run(pStart, pCommands);
+    GraphBuilder(Graph& graph, Pass *pRoot, ID3D12GraphicsCommandList* pCommands) : graph(graph) { 
+        run(build(pRoot), pCommands);
     }
 
 private:
+    PassTree build(Pass *pRoot) {
+        ASSERT(pRoot != nullptr);
+        PassTree tree(pRoot);
+
+        auto edges = graph.getEdges();
+
+        for (auto& input : pRoot->getInputs()) {
+            ASSERTF(edges.contains(input.get()), "edge {} was not found", edgeName(input.get()));
+
+            auto& wire = edges.at(input.get());
+            tree.add(build(wire->getPass()));
+        }
+
+        return tree;
+    }
+
     void wireBarriers(Pass *pPass, ID3D12GraphicsCommandList *pCommands) {
         std::vector<D3D12_RESOURCE_BARRIER> barriers;
         
@@ -118,35 +144,30 @@ private:
         }
     }
 
-    void run(Pass *pPass, ID3D12GraphicsCommandList* pCommands) {
+    void run(const PassTree& tree, ID3D12GraphicsCommandList* pCommands) {
+        auto& [pPass, deps] = tree;
         if (visited[pPass].test_and_set()) {
             return;
         }
 
-        wireBarriers(pPass, pCommands);
-        pPass->execute(pCommands);
+        for (auto& dep : deps) {
+            run(dep, pCommands);
+        }
 
-        graph.applyToChildren(pPass, [&](Pass *pChild) {
-            run(pChild, pCommands);
-        });
+        wireBarriers(pPass, pCommands);
+
+        pPass->execute(pCommands);
     }
 
     std::unordered_map<Pass*, std::atomic_flag> visited;
     Graph& graph;
 };
 
-void Graph::wire(OutEdge *pSource, InEdge *pTarget) {
+void Graph::connect(OutEdge *pSource, InEdge *pTarget) {
     ASSERT(pSource != nullptr);
     ASSERT(pTarget != nullptr);
 
     edges[pTarget] = pSource;
-}
-
-void Graph::connect(Pass *pParent, Pass *pChild) {
-    ASSERT(pParent != nullptr);
-    ASSERT(pChild != nullptr);
-
-    control[pParent].insert(pChild);
 }
 
 void Graph::start() {
@@ -165,12 +186,12 @@ void Graph::stop() {
     }
 }
 
-void Graph::execute(Pass *pStart) {
+void Graph::execute(Pass *pRoot) {
     // TODO: track effects somehow
     ID3D12DescriptorHeap *ppHeaps[] = { context.getCbvHeap().getHeap() };
     commands.pCommandList->SetDescriptorHeaps(UINT(std::size(ppHeaps)), ppHeaps);
 
-    GraphBuilder graph{*this, pStart, commands.pCommandList};
+    GraphBuilder graph{*this, pRoot, commands.pCommandList};
     context.submitDirectCommands(commands);
     context.present();
 }
