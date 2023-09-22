@@ -24,7 +24,7 @@ stb_image = subproject('stb').get_variable('stb_image')
 agility = get_option('d3d12-agility').enabled()
 render_debug = get_option('render-debug').enabled()
 
-args = [ 
+args = [
     '-D_HAS_EXCEPTIONS=0', # msvc stl requires this
     '/wd4324', # warnings about padding
     '/wd4127' # warnings about if constexpr

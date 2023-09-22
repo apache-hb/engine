@@ -17,7 +17,7 @@
 using namespace simcoe;
 using namespace simcoe::input;
 
-struct ImGuiRuntime {
+struct ImGuiRuntime final {
     ImGuiRuntime() {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -33,10 +33,10 @@ struct ImGuiRuntime {
 };
 
 struct Camera final : input::ITarget {
-    Camera(game::Input& game, math::float3 position, float fov) 
-        : camera(position, { 0, 0, 1 }, fov) 
+    Camera(game::Input& game, math::float3 position, float fov)
+        : camera(position, { 0, 0, 1 }, fov)
         , input(game)
-    { 
+    {
         debug = game::debug.newEntry({ "Camera" }, [&] {
             ImGui::SliderFloat("FOV", &camera.fov, 45.f, 120.f);
             ImGui::InputFloat3("Position", &camera.position.x);

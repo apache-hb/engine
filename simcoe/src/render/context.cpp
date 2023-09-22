@@ -89,7 +89,7 @@ void CommandQueue::deleteCommandQueue() {
 void CommandBuffer::newCommandBuffer(ID3D12Device *pDevice, D3D12_COMMAND_LIST_TYPE type, const char *pzName) {
     HR_CHECK(pDevice->CreateCommandAllocator(type, IID_PPV_ARGS(&pAllocator)));
     HR_CHECK(pDevice->CreateCommandList(0, type, pAllocator, nullptr, IID_PPV_ARGS(&pCommandList)));
-    
+
     fence.newFence(pDevice, pzName);
 
     pCommandList->SetName(util::widen(std::format("{}-commands", pzName)).c_str());
@@ -115,11 +115,11 @@ void CommandBuffer::execute(CommandQueue& queue) {
 }
 
 ID3D12Resource *Context::newBuffer(
-    size_t size, 
-    const D3D12_HEAP_PROPERTIES *pProps, 
+    size_t size,
+    const D3D12_HEAP_PROPERTIES *pProps,
     D3D12_RESOURCE_STATES state,
     D3D12_HEAP_FLAGS flags
-) 
+)
 {
     D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(size);
     ID3D12Resource *pResource = nullptr;
@@ -149,7 +149,7 @@ void Context::submitCopyCommands(CommandBuffer& buffer) {
     buffer.execute(copyQueue);
 }
 
-Context::Context(system::Window &window, const Info& info) 
+Context::Context(system::Window &window, const Info& info)
     : window(window)
     , info(info)
     , rtvHeap(getRenderHeapSize())
@@ -280,7 +280,7 @@ void Context::selectAdapter(size_t index) {
             return;
         }
 
-        gRenderLog.warn("adapter #{} not found", index);
+        gRenderLog.warn("adapter #{} not found, falling back to default", index);
         info.adapter = kDefaultAdapter;
     }
 
@@ -305,7 +305,7 @@ void Context::deleteCommandQueues() {
 
 void Context::newSwapChain() {
     auto [width, height] = window.size();
-    
+
     if (!SUCCEEDED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(bTearingSupported)))) {
         bTearingSupported = FALSE;
     }

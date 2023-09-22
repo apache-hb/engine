@@ -21,6 +21,22 @@ namespace {
 
     XSystemAnalyticsInfo gInfo = {};
     std::array<char, 256> gConsoleId;
+
+    std::string gdkErrorString(HRESULT hr) {
+        if (HRESULT_FACILITY(hr) != FACILITY_GAME) {
+            return system::hrString(hr);
+        }
+
+        switch (hr) {
+        case E_GAMERUNTIME_NOT_INITIALIZED: return "gdk:not-initialized";
+        case E_GAMERUNTIME_DLL_NOT_FOUND: return "gdk:dll-not-found";
+        case E_GAMERUNTIME_VERSION_MISMATCH: return "gdk:version-mismatch";
+        case E_GAMERUNTIME_WINDOW_NOT_FOREGROUND: return "gdk:window-not-foreground";
+        case E_GAMERUNTIME_SUSPENDED: return "gdk:suspended";
+
+        default: return system::hrString(hr);
+        }
+    }
 }
 
 #define CHECK_FEATURE(key) \
@@ -30,7 +46,7 @@ namespace {
 
 void gdk::init() {
     if (HRESULT hr = XGameRuntimeInitialize(); FAILED(hr)) {
-        gLog.warn("XGameRuntimeInitialize() = {}", system::hrString(hr));
+        gLog.warn("XGameRuntimeInitialize() = {}", gdkErrorString(hr));
         return;
     }
 
@@ -78,9 +94,9 @@ gdk::FeatureMap& gdk::getFeatures() {
     return gFeatures;
 }
 
-gdk::Runtime::Runtime() { 
-    init(); 
-    
+gdk::Runtime::Runtime() {
+    init();
+
     debug = game::debug.newEntry({ "GDK", gdk::enabled() }, [] {
         ImGui::Text("Family: %s", gInfo.family);
         ImGui::Text("Model: %s", gInfo.form);
@@ -108,6 +124,6 @@ gdk::Runtime::Runtime() {
     });
 }
 
-gdk::Runtime::~Runtime() { 
-    deinit(); 
+gdk::Runtime::~Runtime() {
+    deinit();
 }

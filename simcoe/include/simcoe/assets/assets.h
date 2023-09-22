@@ -43,7 +43,7 @@ namespace simcoe::assets {
         virtual size_t addNode(const Node& node) = 0;
 
         virtual void setNodeChildren(size_t node, std::span<const size_t> children) = 0;
-        
+
         virtual void beginUpload() = 0;
         virtual void endUpload() = 0;
     };
@@ -57,14 +57,13 @@ namespace simcoe::assets {
 
     struct Manager {
         Manager(fs::path root = fs::current_path())
-            : root(std::move(root))
+            : root(root)
         { }
 
-        std::vector<std::byte> load(const fs::path& path);  
+        std::vector<std::byte> load(const fs::path& path);
 
         std::shared_ptr<IUpload> gltf(const fs::path& path, IScene& scene);
     private:
-        fs::path root;  
+        fs::path root;
     };
-
 }

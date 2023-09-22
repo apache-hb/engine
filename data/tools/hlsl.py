@@ -23,7 +23,7 @@ for target in targets.split(','):
     if debug:
         args += [ '-Zi', '-DDEBUG=1', '-Qembed_debug' ]
     args += [ file ]
-    
+
     print(' '.join(args))
 
     result = run(args)

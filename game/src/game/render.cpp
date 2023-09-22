@@ -82,7 +82,7 @@ D3D12_RESOURCE_STATES RenderEdge::getState() const {
 
 D3D12_CPU_DESCRIPTOR_HANDLE RenderEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
     ASSERT(type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    
+
     auto& ctx = getContext();
 
     auto& data = frameData[ctx.getCurrentFrame()];
@@ -93,7 +93,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE typ
     ASSERT(type == D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     auto& ctx = getContext();
-    
+
     auto& data = frameData[ctx.getCurrentFrame()];
     return ctx.getRtvHeap().gpuHandle(data.index);
 }
@@ -180,15 +180,15 @@ void IntermediateTargetEdge::stop() {
     ctx.getCbvHeap().release(cbvIndex);
 }
 
-ID3D12Resource *IntermediateTargetEdge::getResource() { 
-    return pResource; 
+ID3D12Resource *IntermediateTargetEdge::getResource() {
+    return pResource;
 }
 
-D3D12_RESOURCE_STATES IntermediateTargetEdge::getState() const { 
-    return state; 
+D3D12_RESOURCE_STATES IntermediateTargetEdge::getState() const {
+    return state;
 }
 
-D3D12_CPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) { 
+D3D12_CPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
     auto& ctx = getContext();
 
     switch (type) {
@@ -202,7 +202,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::cpuHandle(D3D12_DESCRIPTOR_H
     }
 }
 
-D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) { 
+D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) {
     auto& ctx = getContext();
     switch (type) {
     case D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV:
@@ -215,12 +215,12 @@ D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_H
     }
 }
 
-Scene::Scene(render::Context& context, Info& info) 
-    : render::Graph(context) 
+Scene::Scene(render::Context& context, Info& info)
+    : render::Graph(context)
     , info(info)
 {
     pGlobalPass = newPass<GlobalPass>("global");
-    
+
     pScenePass = newPass<ScenePass>("scene");
     pBlitPass = newPass<BlitPass>("blit");
 
@@ -266,7 +266,7 @@ Scene::Scene(render::Context& context, Info& info)
 
         links[link++] = { srcId, dstId };
     }
-
+/**
     debug = game::debug.newEntry({ "Render Graph" }, [=, this] {
         ImNodes::BeginNodeEditor();
 
@@ -297,7 +297,7 @@ Scene::Scene(render::Context& context, Info& info)
         }
 
         ImNodes::EndNodeEditor();
-    });
+    });*/
 }
 
 void Scene::load(const std::filesystem::path &path) {
