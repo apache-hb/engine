@@ -16,7 +16,7 @@ namespace simcoe::input {
     private:
         void setKey(WORD key, size_t value);
         void setXButton(WORD key, size_t value);
-        
+
         KeyState keys = {};
 
         size_t index = 1;

@@ -7,10 +7,8 @@ functional if not pretty
     * include/imnodes - dear imgui node editor widget
     * include/simcoe - engine code
         * async - c++20 couroutine helper library
-        * audio - xaudio utils
         * core - core platform abstractions
         * input - user input handling
-        * locale - internationalization
         * math - linear algebra library
         * memory - allocators and other memory management utils
         * render - d3d12 render impl
@@ -28,7 +26,7 @@ functional if not pretty
 * make our own asset pipeline, meson is lacking sadly
 
 
-## render graph 
+## render graph
 * graph contains directed graph of passes connected via edges
 * passes are possibly statefull objects that have a list of input and output edges
 * edges are stateless and describe required states of resources that must be met to begin a pass

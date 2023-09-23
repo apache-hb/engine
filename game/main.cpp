@@ -75,7 +75,7 @@ struct Camera final : input::ITarget {
     game::ICamera *getCamera() { return &camera; }
 
 private:
-    float getAxis(const input::State& state, Key low, Key high) {
+    constexpr float getAxis(const input::State& state, Key low, Key high) {
         if (state.key[low] == 0 && state.key[high] == 0) { return 0.f; }
 
         return state.key[low] > state.key[high] ? -1.f : 1.f;

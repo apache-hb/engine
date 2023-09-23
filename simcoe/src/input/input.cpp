@@ -43,15 +43,15 @@ bool Toggle::update(size_t key) {
     return false;
 }
 
-Toggle::operator bool() const { 
-    return enabled; 
+Toggle::operator bool() const {
+    return enabled;
 }
 
-bool Toggle::get() const { 
-    return enabled; 
+bool Toggle::get() const {
+    return enabled;
 }
 
-void Toggle::set(bool value) { 
+void Toggle::set(bool value) {
     last = 0;
-    enabled = value; 
+    enabled = value;
 }

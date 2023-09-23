@@ -1,18 +1,18 @@
 #pragma once
 
-#include "simcoe/async/generator.h"
 #include "simcoe/math/math.h"
 #include "simcoe/core/win32.h"
+
+#include <vector>
 
 #define HR_CHECK(expr) \
     do { \
         if (HRESULT err = (expr); FAILED(err)) { \
             PANIC("{} = {}", #expr, simcoe::system::hrString(err)); \
         } \
-    } while (false) 
+    } while (false)
 
 namespace simcoe::system {
-    using StackTrace = async::Generator<std::string>;
     using Size = math::Resolution<size_t>;
 
     enum struct WindowStyle {
@@ -59,7 +59,7 @@ namespace simcoe::system {
         size_t last;
     };
 
-    StackTrace backtrace();
+    std::vector<std::string> backtrace();
 
     std::string hrString(HRESULT hr);
     std::string win32String(DWORD dw);

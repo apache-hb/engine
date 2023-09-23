@@ -18,7 +18,8 @@ namespace {
         auto release = [](IMAGEHLP_SYMBOL *pSymbol) {
             free(pSymbol);
         };
-        return std::unique_ptr<IMAGEHLP_SYMBOL, decltype(release)>( 
+
+        return std::unique_ptr<IMAGEHLP_SYMBOL, decltype(release)>(
             (IMAGEHLP_SYMBOL*)malloc(sizeof(IMAGEHLP_SYMBOL) + kSymbolSize),
             release
         );
@@ -43,10 +44,10 @@ namespace {
 System::System() {
     // enable stackwalker
     SymInitialize(GetCurrentProcess(), nullptr, true);
-    
+
     // we want to be dpi aware
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
-    
+
     // shut up abort
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
 
@@ -59,8 +60,8 @@ System::~System() {
     SymCleanup(GetCurrentProcess());
 }
 
-Timer::Timer() 
-    : last(getPerfCounter()) 
+Timer::Timer()
+    : last(getPerfCounter())
 { }
 
 float Timer::tick() {
@@ -70,7 +71,7 @@ float Timer::tick() {
     return elapsed;
 }
 
-StackTrace system::backtrace() {
+std::vector<std::string> system::backtrace() {
     HANDLE hProcess = GetCurrentProcess();
     HANDLE hThread = GetCurrentThread();
 
@@ -118,6 +119,8 @@ StackTrace system::backtrace() {
         }
     };
 
+    std::vector<std::string> result;
+
     while (getFrame(&frame, &ctx)) {
         pSymbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL);
         pSymbol->MaxNameLength = kSymbolSize;
@@ -126,18 +129,20 @@ StackTrace system::backtrace() {
 
         BOOL hasSym = SymGetSymFromAddr(hProcess, frame.AddrPC.Offset, &disp, pSymbol.get());
         if (hasSym == FALSE) {
-            co_yield std::format("frame@[{:#016x}]", frame.AddrPC.Offset);
+            result.push_back(std::format("frame@[{:#016x}]", frame.AddrPC.Offset));
             continue;
         }
 
         DWORD len = UnDecorateSymbolName(pSymbol->Name, name, kSymbolSize, UNDNAME_COMPLETE);
         if (len == 0) {
-            co_yield std::format("frame@[{:#016x}]", frame.AddrPC.Offset);
+            result.push_back(std::format("frame@[{:#016x}]", frame.AddrPC.Offset));
             continue;
         }
 
-        co_yield name;
+        result.push_back(name);
     }
+
+    return result;
 }
 
 std::string system::hrString(HRESULT hr) {

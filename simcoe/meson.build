@@ -23,22 +23,6 @@ core = declare_dependency(
 )
 
 src = [
-    'src/audio/audio.cpp'
-]
-
-libaudio = library('audio', src,
-    include_directories : 'include',
-    cpp_args : args,
-    dependencies : [ core ]
-)
-
-audio = declare_dependency(
-    include_directories : 'include',
-    link_with : libaudio,
-    dependencies : [ core ]
-)
-
-src = [ 
     'src/input/input.cpp',
     'src/input/desktop.cpp',
     'src/input/gamepad.cpp'
@@ -79,7 +63,7 @@ src = [
     'src/render/heap.cpp',
     'src/render/graph.cpp',
     'src/render/queue.cpp',
-    
+
     'src/render/vendor/vendor.cpp'
 ]
 
@@ -102,22 +86,6 @@ render = declare_dependency(
     link_with : librender,
     link_args : [ 'd3d12.lib', 'dxgi.lib', 'dxguid.lib' ],
     dependencies : [ core, memory, d3d12, queue ]
-)
-
-src = [
-    'src/locale/locale.cpp'
-]
-
-liblocale = library('locale', src,
-    include_directories : 'include',
-    cpp_args : args,
-    dependencies : [ core, input ]
-)
-
-locale = declare_dependency(
-    include_directories : 'include',
-    link_with : liblocale,
-    dependencies : [ core, input ]
 )
 
 src = [

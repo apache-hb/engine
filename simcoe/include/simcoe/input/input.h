@@ -71,7 +71,7 @@ namespace simcoe::input {
         State state = {};
     };
 
-    struct Toggle {
+    struct Toggle final {
         Toggle(bool initial);
         bool update(size_t key);
 

@@ -1,5 +1,7 @@
 #include "simcoe/input/desktop.h"
 #include "simcoe/core/system.h"
+#include "simcoe/core/util.h"
+
 #include "simcoe/simcoe.h"
 
 #include "common.h"
@@ -91,7 +93,7 @@ namespace {
 
         { VK_ESCAPE, Key::keyEsc },
         { VK_LSHIFT, Key::keyLeftShift },
-        
+
         { VK_RSHIFT, Key::keyRightShift },
         { VK_LCONTROL, Key::keyLeftControl },
         { VK_RCONTROL, Key::keyRightControl },
@@ -112,8 +114,8 @@ namespace {
     };
 }
 
-Keyboard::Keyboard() 
-    : ISource(Device::eDesktop) 
+Keyboard::Keyboard()
+    : ISource(Device::eDesktop)
 { }
 
 bool Keyboard::poll(State& result) {
@@ -175,13 +177,17 @@ void Keyboard::update(UINT msg, WPARAM wparam, LPARAM lparam) {
     }
 }
 
+namespace {
+    std::unordered_map<WORD, util::DoOnce> unknownButton;
+}
+
 void Keyboard::setKey(WORD key, size_t value) {
     auto it = kDesktopKeys.find(key);
     if (it == kDesktopKeys.end()) {
-        gInputLog.warn("Unknown key: {}", key);
+        unknownButton[key]([&] { gInputLog.warn("Unknown key: {}", key); });
         return;
     }
-    
+
     keys[it->second] = value;
 }
 
@@ -194,7 +200,7 @@ void Keyboard::setXButton(WORD key, size_t value) {
         setKey(VK_XBUTTON2, value);
         break;
     default:
-        gInputLog.warn("Unknown XButton: {}", key);
+        unknownButton[key]([&] { gInputLog.warn("Unknown XButton: {}", key); });
         setKey(key, value);
         break;
     }

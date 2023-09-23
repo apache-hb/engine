@@ -6,7 +6,7 @@ namespace simcoe::memory {
     namespace detail {
         template<typename T, T Empty>
         struct Storage {
-            constexpr Storage(size_t bits): size(bits), pSlots(new T[wordCount()]) { 
+            constexpr Storage(size_t bits): size(bits), pSlots(new T[wordCount()]) {
                 reset();
             }
 
@@ -16,7 +16,7 @@ namespace simcoe::memory {
             constexpr void reset() {
                 std::fill_n(pSlots.get(), getSize(), Empty);
             }
-            
+
             size_t size;
             std::unique_ptr<T[]> pSlots;
         };

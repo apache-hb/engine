@@ -26,7 +26,7 @@ namespace {
 
 ImGuiPass::ImGuiPass(const GraphObject& object, Info& info)
     : Pass(object, info)
-{ 
+{
     pRenderTargetIn = in<render::InEdge>("render-target", D3D12_RESOURCE_STATE_RENDER_TARGET);
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 }
@@ -85,7 +85,7 @@ void ImGuiPass::execute(ID3D12GraphicsCommandList *pCommands) {
     }
 
     ImGui::ShowDemoWindow();
-    
+
     ImGui::Render();
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), pCommands);
 }
@@ -93,17 +93,17 @@ void ImGuiPass::execute(ID3D12GraphicsCommandList *pCommands) {
 void ImGuiPass::enableDock() {
     constexpr auto kDockFlags = ImGuiDockNodeFlags_PassthruCentralNode;
 
-    constexpr auto kWindowFlags = 
+    constexpr auto kWindowFlags =
         ImGuiWindowFlags_MenuBar |
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoBackground |
-        ImGuiWindowFlags_NoBringToFrontOnFocus | 
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
         ImGuiWindowFlags_NoNavFocus |
         ImGuiWindowFlags_NoDocking;
-        
+
     const auto *viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -118,7 +118,7 @@ void ImGuiPass::enableDock() {
 
     ImGuiID id = ImGui::GetID("EditorDock");
     ImGui::DockSpace(id, ImVec2(0.f, 0.f), kDockFlags);
-    
+
     if (ImGui::BeginMenuBar()) {
         ImGui::Text("Editor");
         ImGui::Separator();
@@ -182,7 +182,7 @@ void ImGuiPass::drawInfo() {
 
         ImGui::Separator();
         ImGui::Text("Logs");
-        
+
         if (ImGui::BeginChild("Scrolling", ImVec2(0.f, 0.f), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar)) {
             ImGuiListClipper clipper;
             clipper.Begin(int(info.sink.entries.size()));
@@ -200,12 +200,13 @@ void ImGuiPass::drawInfo() {
 }
 
 void ImGuiPass::drawInputInfo() {
-    constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
-    const float kTextWidth = ImGui::CalcTextSize("A").x;
+    //constexpr auto kTableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoHostExtendX;
+    //const float kTextWidth = ImGui::CalcTextSize("A").x;
 
+#if 0
     if (ImGui::Begin("Input")) {
         const auto& state = info.input.manager.getState();
-        
+
         ImGui::Text("Current: %s", state.device == input::Device::eGamepad ? "Gamepad" : "Mouse & Keyboard");
 
         if (ImGui::BeginTable("keys", 2, kTableFlags, ImVec2(kTextWidth * 40, 0.0f))) {
@@ -216,7 +217,7 @@ void ImGuiPass::drawInputInfo() {
             for (size_t i = 0; i < state.key.size(); i++) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", info.locale.get(input::Key(i)));
+                ImGui::Text("%s", input::getKeyString(input::Key(i)));
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%zu", state.key[i]);
             }
@@ -233,7 +234,7 @@ void ImGuiPass::drawInputInfo() {
             for (size_t i = 0; i < state.axis.size(); i++) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", info.locale.get(input::Axis(i)));
+                ImGui::Text("%s", );
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%f", state.axis[i]);
             }
@@ -241,4 +242,5 @@ void ImGuiPass::drawInputInfo() {
         }
     }
     ImGui::End();
+#endif
 }

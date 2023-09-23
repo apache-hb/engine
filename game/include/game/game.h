@@ -9,8 +9,6 @@
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
 
-#include "simcoe/locale/locale.h"
-
 #include "simcoe/assets/assets.h"
 
 namespace game {
@@ -45,7 +43,7 @@ namespace game {
         GuiSink() : logging::ISink("gui") {}
 
         void send(logging::Category &category, logging::Level level, const char *pzMessage) override;
-    
+
         struct Entry {
             logging::Level level;
             const char *pzCategory;
@@ -60,7 +58,6 @@ namespace game {
         system::Size windowResolution;
         system::Size renderResolution;
 
-        simcoe::Locale locale;
         assets::Manager assets;
 
         Input input;

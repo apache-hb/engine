@@ -50,7 +50,7 @@ struct std::equal_to<assets::Vertex> {
 };
 namespace {
     constexpr fastgltf::Options kOptions = fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
-    
+
     constexpr const char *gltfErrorToString(fastgltf::Error err) {
 #define ERROR_CASE(x) case fastgltf::Error::x: return #x
         switch (err) {
@@ -60,7 +60,7 @@ namespace {
         ERROR_CASE(UnknownRequiredExtension);
         ERROR_CASE(InvalidJson);
         ERROR_CASE(InvalidGltf);
-        case fastgltf::Error::InvalidOrMissingAssetField: 
+        case fastgltf::Error::InvalidOrMissingAssetField:
             return "InvalidOrMissingAssetField/InvalidGLB";
         ERROR_CASE(MissingField);
         ERROR_CASE(MissingExternalBuffer);
@@ -148,6 +148,8 @@ namespace {
         void load() {
             const auto& images = asset->images;
 
+            scene.beginUpload();
+
             for (size_t i : util::progress(texProgress, images.size())) {
                 loadTexture(i, images[i]);
             }
@@ -173,6 +175,8 @@ namespace {
 
                 scene.setNodeChildren(nodeMap[i], children);
             }
+
+            scene.endUpload();
         }
 
     private:
@@ -223,8 +227,8 @@ namespace {
                 ? primitiveMap[node.meshIndex.value()]
                 : std::vector<size_t>();
 
-            nodeMap[index] = scene.addNode({ 
-                .transform = transform, 
+            nodeMap[index] = scene.addNode({
+                .transform = transform,
                 .primitives = primitives
             });
         }
@@ -241,7 +245,7 @@ namespace {
                 BufferData bufferData = getBufferData(buffer.data, buffer.name);
                 if (bufferData.empty()) { return AttributeData(); }
 
-                size_t stride = bufferView.byteStride.has_value() 
+                size_t stride = bufferView.byteStride.has_value()
                     ?  bufferView.byteStride.value()
                     : fastgltf::getElementByteSize(accessor.type, accessor.componentType);
 
@@ -315,7 +319,7 @@ namespace {
             for (size_t i = 0; i < vertexCount; i++) {
                 float3 position = zup(reinterpret_cast<const float*>(vertexData.data() + i * vertexStride));
                 float2 uv = float2::from(reinterpret_cast<const float*>(uvData.data() + i * uvStride));
-            
+
                 Vertex vertex = { .position = position, .uv = uv };
 
                 if (bHasIndices) {
@@ -345,7 +349,7 @@ namespace {
             for (const auto& primitive : mesh.primitives) {
                 auto [texture, vertices, indices] = loadPrimitive(primitive, mesh.name);
                 if (texture == SIZE_MAX || vertices == SIZE_MAX || indices == SIZE_MAX) { continue; }
-            
+
                 primitiveMap[index].push_back(scene.addPrimitive({
                     .vertexBuffer = vertices,
                     .indexBuffer = indices,

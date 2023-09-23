@@ -58,16 +58,14 @@ src = [
 ]
 
 libgame = library('game', src + shaders,
-    dependencies : [ core, input, locale, imnodes, render, gdk, assets ],
+    dependencies : [ core, input, imnodes, render, gdk, assets ],
     include_directories : 'include',
-    cpp_args : args,
-    install : true,
-    install_dir : get_option('prefix')
+    cpp_args : args
 )
 
 game = declare_dependency(
     link_with : libgame,
-    dependencies : [ core, input, locale, imnodes, render, gdk, assets ],
+    dependencies : [ core, input, imnodes, render, gdk, assets ],
     include_directories : 'include'
 )
 
@@ -76,6 +74,7 @@ executable('game', 'main.cpp',
     cpp_args : args,
     include_directories : 'include',
     win_subsystem : 'console',
+    export_dynamic : true,
     install : true,
     install_dir : get_option('prefix')
 )
