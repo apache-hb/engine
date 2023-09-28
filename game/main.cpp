@@ -101,9 +101,24 @@ std::vector<rhi::IAdapter*> getAdapters(rhi::IContext *ctx) {
     }
 }
 
+rhi::IContext *getRenderLibrary(const char *path) {
+    HMODULE hModule = LoadLibrary(path);
+    if (!hModule) {
+        PANIC("failed to load render library: {}", path);
+    }
+
+    rhi::CreateContext pCreateContext = (rhi::CreateContext)GetProcAddress(hModule, "rhiGetContext");
+    if (!pCreateContext) {
+        PANIC("failed to find rhiGetContext in render library: {}", path);
+    }
+
+    return (rhi::IContext*)pCreateContext();
+}
+
 struct RenderContext {
     static constexpr size_t kFrames = 2;
     static constexpr math::float4 kClear = { 0.0f, 0.2f, 0.4f, 1.0f };
+
     RenderContext(rhi::IContext *ctx, os::Window& window) : pContext(ctx) {
         getAdapters();
 
@@ -213,7 +228,9 @@ void commonMain(os::System& system, int nCmdShow) {
     auto window = system.openWindow(nCmdShow, info);
     window.hideCursor(false);
 
-    RenderContext ctx{rhi::createContext(), window};
+    ASSERT(SetDllDirectoryA("build") != 0);
+
+    RenderContext ctx{getRenderLibrary("rhi-d3d12.dll"), window};
 
     while (system.poll()) {
         mouseInput.update(window.getHandle());

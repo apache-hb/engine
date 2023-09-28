@@ -75,7 +75,6 @@ links = [
     # input
     'xinput.lib',
 
-    # render
     'd3d12.lib',
     'dxgi.lib',
     'dxguid.lib'
@@ -104,6 +103,42 @@ engine = declare_dependency(
     include_directories : [ 'engine/include', 'vendor/include' ],
     link_with : [ libengine ],
     dependencies :deps,
+    link_args : links
+)
+
+###
+### d3d rhi
+###
+
+src = [ 'engine/src/rhi/dx/rhi.cpp' ]
+
+links = [
+    'd3d12.lib',
+    'dxgi.lib',
+    'dxguid.lib'
+]
+
+librhid3d = shared_library('rhi-d3d12', src,
+    include_directories : [ 'engine/include', 'vendor/include' ],
+    dependencies : [ engine ],
+    cpp_args : args,
+    link_args : links
+)
+
+###
+### vk rhi
+###
+
+src = [ 'engine/src/rhi/vk/rhi.cpp' ]
+
+links = [
+
+]
+
+librhivk = shared_library('rhi-vk', src,
+    include_directories : [ 'engine/include', 'vendor/include' ],
+    dependencies : [ engine ],
+    cpp_args : args,
     link_args : links
 )
 

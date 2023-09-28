@@ -158,5 +158,5 @@ namespace simcoe::rhi {
         virtual ~ISurface() = default;
     };
 
-    IContext *createContext();
+    using CreateContext = rhi::IContext*(*)(void);
 }
