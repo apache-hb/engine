@@ -1,32 +1,47 @@
 #pragma once
 
-#include "simcoe/core/macros.h"
-
 #include <format>
+#include <string_view>
 
 namespace simcoe {
     struct PanicInfo {
-        const char *pzFile;
-        const char *pzFunction;
+        std::string_view file;
+        std::string_view fn;
         size_t line;
     };
 
-    NORETURN panic(const PanicInfo& info, const char *pzMessage);
-
-    NORETURN panic(const PanicInfo& info, const char *pzMessage, auto&&... args) {
-        panic(info, std::vformat(pzMessage, std::make_format_args(args...)).c_str());
-    }
+    [[noreturn]] void panic(const PanicInfo& info, std::string_view msg);
 }
 
-#define PANIC(...) simcoe::panic({ .pzFile = __FILE__, .pzFunction = FUNCNAME, .line = __LINE__}, __VA_ARGS__)
+#define PANIC(...)                                                     \
+    do {                                                               \
+        const simcoe::PanicInfo panicData = {__FILE__, __func__, __LINE__}; \
+        simcoe::panic(panicData, std::format(__VA_ARGS__));                 \
+    } while (false)
 
-#define ASSERTF(expr, ...) \
-    do { \
-        if (!(expr)) { \
-            const simcoe::PanicInfo panicInfo { .pzFile = __FILE__, .pzFunction = FUNCNAME, .line = __LINE__}; \
-            simcoe::panic(panicInfo, __VA_ARGS__); \
-        } \
-    } while (0)
+#define ASSERTF(expr, ...)      \
+    do {                        \
+        bool panicResult = (expr);      \
+        if (!panicResult) {             \
+            PANIC(__VA_ARGS__); \
+        }                       \
+    } while (false)
 
-#define ASSERTM(expr, msg) ASSERTF(expr, "{}", msg)
-#define ASSERT(expr) ASSERTM(expr, #expr)
+#define ASSERT(expr)                              \
+    do {                                          \
+        bool panicResult = (expr);                        \
+        if (!panicResult) {                               \
+            PANIC("assertion failed: {}", #expr); \
+        }                                         \
+    } while (false)
+
+#define ONCE(...)                 \
+    do {                          \
+        static bool panicNext = false; \
+        if (!panicNext) {              \
+            panicNext = true;          \
+            __VA_ARGS__;          \
+        }                         \
+    } while (false)
+
+#define NEVER(...) PANIC(__VA_ARGS__)

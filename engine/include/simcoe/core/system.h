@@ -22,33 +22,58 @@ namespace simcoe::system {
         eTotal
     };
 
-    struct Window {
-        Window(const char *pzTitle, const Size& size, WindowStyle style = WindowStyle::eBorderless);
-        virtual ~Window();
+    struct IWindowEvents {
+        virtual ~IWindowEvents() = default;
+
+        virtual LRESULT onEvent(HWND, UINT, WPARAM, LPARAM) { return 0; }
+
+        virtual void onClose() { }
+        virtual void onOpen() { }
+
+        virtual void onGainFocus() { }
+        virtual void onLoseFocus() { }
+    };
+
+    struct WindowInfo {
+        std::string_view title;
+        Size size;
+        WindowStyle style;
+        IWindowEvents *pEvents;
+    };
+
+    struct Window final {
+        friend struct System;
+
+        ~Window();
 
         void restyle(WindowStyle style);
-
         void hideCursor(bool hide);
 
-        bool poll();
-        Size size();
-        float dpi();
-
-        HWND getHandle() const { return hWindow; }
-
-        virtual LRESULT onEvent(HWND, UINT, WPARAM, LPARAM) { return false; }
+        float getDpi() const;
+        Size getSize() const;
+        HWND getHandle() const;
+        IWindowEvents* getEvents() const;
 
     private:
+        Window(HINSTANCE hInstance, int nCmdShow, const WindowInfo& info);
+
         static LRESULT CALLBACK callback(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
         bool bHideCursor = false;
-        bool bHasFocus = false;
+
         HWND hWindow;
+        IWindowEvents* events;
     };
 
-    struct System {
-        System();
+    struct System final {
+        System(HINSTANCE hInstance);
         ~System();
+
+        Window openWindow(int nCmdShow, const WindowInfo& info);
+        bool poll();
+
+    private:
+        HINSTANCE hInstance;
     };
 
     struct Timer {

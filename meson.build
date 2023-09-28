@@ -32,7 +32,6 @@ src = [
     # core
     'engine/src/core/system.cpp',
     'engine/src/core/logging.cpp',
-    'engine/src/core/window.cpp',
     'engine/src/core/panic.cpp',
     'engine/src/core/util.cpp',
     'engine/src/core/io.cpp',

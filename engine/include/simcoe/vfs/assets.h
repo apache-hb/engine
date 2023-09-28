@@ -1,5 +1,7 @@
 #pragma once
 
+#include "simcoe/simcoe.h"
+
 #include <filesystem>
 #include <fstream>
 
@@ -11,6 +13,7 @@ namespace simcoe::assets {
         std::vector<T> loadBlob(const std::filesystem::path& path) {
             std::ifstream file(root / path, std::ios::binary);
             if (!file.is_open()) {
+                gInputLog.warn("Failed to open file: {}", path.string());
                 return {};
             }
 
@@ -28,6 +31,7 @@ namespace simcoe::assets {
         std::string loadText(const std::filesystem::path& path) {
             std::ifstream file(root / path);
             if (!file.is_open()) {
+                gInputLog.warn("Failed to open file: {}", path.string());
                 return {};
             }
 

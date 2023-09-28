@@ -4,7 +4,6 @@
 #include "game/game.h"
 #include "game/registry.h"
 #include "game/render.h"
-#include "game/window.h"
 
 #include "simcoe/math/math.h"
 #include "simcoe/simcoe.h"
@@ -90,23 +89,34 @@ private:
     std::unique_ptr<util::Entry> debug;
 };
 
-int commonMain() {
+void commonMain(system::System& system, int nCmdShow) {
+    input::Mouse mouseInput = { false, true };
+    input::Keyboard keyboardInput;
+    game::GameEvents events = { keyboardInput };
+
+    const system::WindowInfo info = {
+        .title = "Game",
+        .size = { 1920, 1080 },
+        .style = system::WindowStyle::eBorderless,
+        .pEvents = &events
+    };
+
+    auto window = system.openWindow(nCmdShow, info);
+    window.hideCursor(false);
+
     game::Info detail = {
+        .input = { keyboardInput, mouseInput },
         .assets = { "build\\game\\libgame.a.p" }
     };
 
     simcoe::addSink(&detail.sink);
     gLog.info("cwd: {}", std::filesystem::current_path().string());
 
-    system::System system;
     ImGuiRuntime imgui;
     vendor::microsoft::gdk::Runtime gdk;
     Camera camera { detail.input, { 0, 0, 50 }, 90.f };
 
-    game::Window window { detail.input.mouse, detail.input.keyboard };
-    window.hideCursor(false);
-
-    detail.windowResolution = window.size();
+    detail.windowResolution = window.getSize();
     detail.renderResolution = { 1920, 1080 };
     detail.pCamera = camera.getCamera();
 
@@ -118,7 +128,8 @@ int commonMain() {
 
     scene.start();
 
-    while (window.poll()) {
+    while (system.poll()) {
+        mouseInput.update(window.getHandle());
         detail.input.poll();
         scene.execute();
     }
@@ -128,14 +139,23 @@ int commonMain() {
     ImGui_ImplWin32_Shutdown();
 
     gLog.info("bye bye");
+}
 
+int outerMain(system::System& system, int nCmdShow) {
+    gLog.info("cwd: {}", std::filesystem::current_path().string());
+
+    commonMain(system, nCmdShow);
+
+    gLog.info("exiting main");
     return 0;
 }
 
-int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    return commonMain();
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
+    system::System system = { hInstance };
+    return outerMain(system, nCmdShow);
 }
 
 int main(int, const char **) {
-    return commonMain();
+    system::System system = { GetModuleHandle(nullptr) };
+    return outerMain(system, SW_SHOWDEFAULT);
 }

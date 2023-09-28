@@ -198,7 +198,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::cpuHandle(D3D12_DESCRIPTOR_H
         return ctx.getRtvHeap().cpuHandle(rtvIndex);
 
     default:
-        ASSERT(false);
+        NEVER("Invalid descriptor heap type");
     }
 }
 
@@ -211,7 +211,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE IntermediateTargetEdge::gpuHandle(D3D12_DESCRIPTOR_H
         return ctx.getRtvHeap().gpuHandle(rtvIndex);
 
     default:
-        ASSERT(false);
+        NEVER("Invalid descriptor heap type");
     }
 }
 

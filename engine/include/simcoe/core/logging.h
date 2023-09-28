@@ -15,7 +15,7 @@ namespace simcoe::logging {
 
     struct Category final {
         using SinkSet = std::unordered_set<ISink*>;
-        
+
         Category(Level level, const char *pzName)
             : logLevel(level)
             , pzName(pzName)
@@ -75,7 +75,7 @@ namespace simcoe::logging {
 
     struct ConsoleSink final : IFilterSink {
         ConsoleSink(const char *pzName = "console");
-        
+
         void accept(Category &category, Level level, const char *pzMessage) override;
     };
 

@@ -8,13 +8,14 @@
 namespace game {
     namespace input = simcoe::input;
     namespace system = simcoe::system;
-    
-    struct Window final : system::Window {
-        Window(input::Mouse& mouse, input::Keyboard& keyboard);
-        bool poll();
+
+    struct GameEvents final : system::IWindowEvents {
+        GameEvents(input::Keyboard& keyboard)
+            : keyboard(keyboard)
+        { }
+
         LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override;
 
-        input::Mouse& mouse;
         input::Keyboard& keyboard;
     };
 }

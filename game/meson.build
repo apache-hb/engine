@@ -44,7 +44,7 @@ shaders = [
 src = [
     'src/game/game.cpp',
     'src/game/camera.cpp',
-    'src/game/window.cpp',
+    'src/game/events.cpp',
     'src/game/render.cpp',
     'src/game/registry.cpp',
 

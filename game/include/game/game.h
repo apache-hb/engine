@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/camera.h"
+#include "game/events.h"
 
 #include "simcoe/core/system.h"
 
@@ -18,7 +19,11 @@ namespace game {
     namespace assets = simcoe::assets;
 
     struct Input {
-        Input() : gamepad(0), keyboard(), mouse(false, false) {
+        Input(input::Keyboard& keyboard, input::Mouse& mouse)
+            : gamepad(0),
+            keyboard(keyboard),
+            mouse(mouse)
+        {
             manager.add(&gamepad);
             manager.add(&keyboard);
             manager.add(&mouse);
@@ -33,8 +38,8 @@ namespace game {
         }
 
         input::Gamepad gamepad;
-        input::Keyboard keyboard;
-        input::Mouse mouse;
+        input::Keyboard& keyboard;
+        input::Mouse& mouse;
 
         input::Manager manager;
     };

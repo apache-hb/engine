@@ -304,7 +304,7 @@ void Context::deleteCommandQueues() {
 }
 
 void Context::newSwapChain() {
-    auto [width, height] = window.size();
+    auto [width, height] = window.getSize();
 
     if (!SUCCEEDED(pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &bTearingSupported, sizeof(bTearingSupported)))) {
         bTearingSupported = FALSE;

@@ -23,7 +23,7 @@ namespace simcoe::render {
     struct Fence {
         void newFence(ID3D12Device *pDevice, const char *pzName);
         void deleteFence();
-        
+
         void wait(CommandQueue& queue);
 
         ID3D12Fence *pFence = nullptr;
@@ -50,7 +50,7 @@ namespace simcoe::render {
         struct Info {
             size_t adapter = kDefaultAdapter; // which adapter to use
             size_t frames = 2; // number of back buffers
-        
+
             size_t heapSize = 1024;
             size_t queueSize = 1024;
             size_t workerThreads = 2;
@@ -68,7 +68,7 @@ namespace simcoe::render {
 
         ID3D12Device *getDevice() const { return pDevice; }
         IDXGISwapChain *getSwapChain() const { return pSwapChain; }
-        
+
         size_t getFrames() const { return info.frames; }
         size_t getCurrentFrame() const { return frameIndex; }
 
@@ -77,14 +77,14 @@ namespace simcoe::render {
         Heap& getDsvHeap() { return dsvHeap; }
 
         ID3D12Resource *newBuffer(
-            size_t size, 
-            const D3D12_HEAP_PROPERTIES *pProps, 
+            size_t size,
+            const D3D12_HEAP_PROPERTIES *pProps,
             D3D12_RESOURCE_STATES state,
             D3D12_HEAP_FLAGS flags = D3D12_HEAP_FLAG_CREATE_NOT_ZEROED
         );
 
         CommandBuffer newCommandBuffer(D3D12_COMMAND_LIST_TYPE type, const char *pzName = "command-buffer");
-        
+
         void submitDirectCommands(CommandBuffer& buffer);
         void submitCopyCommands(CommandBuffer& buffer);
 

@@ -1,13 +1,16 @@
 #include "simcoe/core/panic.h"
 #include "simcoe/core/system.h"
 
+#include <iostream>
+
 using namespace simcoe;
 
-NORETURN simcoe::panic(const simcoe::PanicInfo& info, const char *pzMessage) {
-    printf("[%s:%s@%zu]: %s\n", info.pzFile, info.pzFunction, info.line, pzMessage);
+void simcoe::panic(const PanicInfo& info, std::string_view msg) {
+    auto it = std::format("[{}:{}@{}]: {}", info.file, info.fn, info.line, msg);
+    std::cerr << it << std::endl;
     for (auto& trace : system::backtrace()) {
-        printf("%s\n", trace.c_str());
+        std::cerr << trace << std::endl;
     }
 
-    std::exit(0);
+    std::exit(1);
 }
