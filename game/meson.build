@@ -11,13 +11,13 @@ src = [
 inc = [ 'include', 'include/imgui', 'include/imgui/backends' ]
 
 libimgui = library('imgui', src,
-    dependencies : [ core ],
+    dependencies : [ engine ],
     include_directories : inc
 )
 
 imgui = declare_dependency(
     link_with : libimgui,
-    dependencies : [ core ],
+    dependencies : [ engine ],
     include_directories : inc
 )
 
@@ -43,7 +43,6 @@ shaders = [
 
 src = [
     'src/game/game.cpp',
-    'src/game/gdk.cpp',
     'src/game/camera.cpp',
     'src/game/window.cpp',
     'src/game/render.cpp',
@@ -52,20 +51,19 @@ src = [
     'src/game/render/global.cpp',
     'src/game/render/imgui.cpp',
     'src/game/render/scene.cpp',
-    'src/game/render/model.cpp',
     'src/game/render/cubemap.cpp',
     'src/game/render/blit.cpp'
 ]
 
 libgame = library('game', src + shaders,
-    dependencies : [ core, input, imnodes, render, gdk, assets ],
+    dependencies : [ engine, imnodes ],
     include_directories : 'include',
     cpp_args : args
 )
 
 game = declare_dependency(
     link_with : libgame,
-    dependencies : [ core, input, imnodes, render, gdk, assets ],
+    dependencies : [ engine, imnodes ],
     include_directories : 'include'
 )
 
@@ -74,7 +72,5 @@ executable('game', 'main.cpp',
     cpp_args : args,
     include_directories : 'include',
     win_subsystem : 'console',
-    export_dynamic : true,
-    install : true,
-    install_dir : get_option('prefix')
+    export_dynamic : true
 )

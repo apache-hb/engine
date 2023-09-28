@@ -19,8 +19,8 @@ namespace {
     };
 }
 
-BlitPass::BlitPass(const GraphObject& object, Info& info) 
-    : Pass(object, info) 
+BlitPass::BlitPass(const GraphObject& object, Info& info)
+    : Pass(object, info)
     , display(createLetterBoxDisplay(info.renderResolution, info.windowResolution))
 {
     // create wires
@@ -31,8 +31,8 @@ BlitPass::BlitPass(const GraphObject& object, Info& info)
     pRenderTargetOut = out<render::RelayEdge>("render-target", pRenderTargetIn);
 
     // load shader objects
-    vs = info.assets.load("build\\game\\libgame.a.p\\blit.vs.cso");
-    ps = info.assets.load("build\\game\\libgame.a.p\\blit.ps.cso");
+    vs = info.assets.loadBlob<std::byte>("blit.vs.cso");
+    ps = info.assets.loadBlob<std::byte>("blit.ps.cso");
 }
 
 void BlitPass::start(ID3D12GraphicsCommandList*) {
@@ -51,8 +51,8 @@ void BlitPass::start(ID3D12GraphicsCommandList*) {
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(
-        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters, 
-        UINT(std::size(samplers)), samplers, 
+        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters,
+        UINT(std::size(samplers)), samplers,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     );
 
@@ -91,7 +91,7 @@ void BlitPass::start(ID3D12GraphicsCommandList*) {
     D3D12_HEAP_PROPERTIES props = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 
     pVertexBuffer = ctx.newBuffer(
-        sizeof(kScreenQuadVertices), 
+        sizeof(kScreenQuadVertices),
         &props,
         D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER
     );
@@ -124,10 +124,10 @@ void BlitPass::stop() {
 
 void BlitPass::execute(ID3D12GraphicsCommandList *pCommands) {
     auto rtv = pRenderTargetIn->cpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    
+
     pCommands->RSSetViewports(1, &display.viewport);
     pCommands->RSSetScissorRects(1, &display.scissor);
-    
+
     pCommands->OMSetRenderTargets(1, &rtv, false, nullptr);
     pCommands->ClearRenderTargetView(rtv, kClearColor, 0, nullptr);
 

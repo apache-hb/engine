@@ -1,5 +1,4 @@
-#include "game/gdk.h"
-#include "game/registry.h"
+#include "microsoft/gdk.h"
 
 #include "simcoe/core/system.h"
 
@@ -8,26 +7,24 @@
 #include "XGameRuntime.h"
 #include "XGameRuntimeFeature.h"
 
-#include "imgui/imgui.h"
-
 #include <array>
 
-using namespace game;
 using namespace simcoe;
+
+namespace gdk = vendor::microsoft::gdk;
+
+#define E_GAME_MISSING_GAME_CONFIG ((HRESULT)0x87E5001FL)
 
 namespace {
     bool gEnabled = false;
-    gdk::FeatureMap gFeatures;
+    gdk::FeatureArray gFeatures;
 
     XSystemAnalyticsInfo gInfo = {};
     std::array<char, 256> gConsoleId;
 
     std::string gdkErrorString(HRESULT hr) {
-        if (HRESULT_FACILITY(hr) != FACILITY_GAME) {
-            return system::hrString(hr);
-        }
-
         switch (hr) {
+        case E_GAME_MISSING_GAME_CONFIG: return "gdk:config-missing";
         case E_GAMERUNTIME_NOT_INITIALIZED: return "gdk:not-initialized";
         case E_GAMERUNTIME_DLL_NOT_FOUND: return "gdk:dll-not-found";
         case E_GAMERUNTIME_VERSION_MISMATCH: return "gdk:version-mismatch";
@@ -41,7 +38,7 @@ namespace {
 
 #define CHECK_FEATURE(key) \
     do { \
-        gFeatures[XGameRuntimeFeature::key] = { .name = #key, .enabled = XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature::key) }; \
+        gFeatures[size_t(XGameRuntimeFeature::key)] = { .name = #key, .enabled = XGameRuntimeIsFeatureAvailable(XGameRuntimeFeature::key) }; \
     } while (false)
 
 void gdk::init() {
@@ -90,38 +87,20 @@ bool gdk::enabled() {
     return gEnabled;
 }
 
-gdk::FeatureMap& gdk::getFeatures() {
+XSystemAnalyticsInfo& gdk::getAnalyticsInfo() {
+    return gInfo;
+}
+
+gdk::FeatureArray& gdk::getFeatures() {
     return gFeatures;
+}
+
+std::string_view gdk::getConsoleId() {
+    return gConsoleId.data();
 }
 
 gdk::Runtime::Runtime() {
     init();
-
-    debug = game::debug.newEntry({ "GDK", gdk::enabled() }, [] {
-        ImGui::Text("Family: %s", gInfo.family);
-        ImGui::Text("Model: %s", gInfo.form);
-
-        auto [major, minor, build, revision] = gInfo.osVersion;
-        ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
-        ImGui::Text("ID: %s", gConsoleId.data());
-
-        if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
-            ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
-            ImGui::TableHeadersRow();
-            for (const auto& [feature, detail] : gdk::getFeatures()) {
-                const auto& [name, available] = detail;
-
-                ImGui::TableNextRow();
-                ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", name);
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s", available ? "enabled" : "disabled");
-            }
-            ImGui::EndTable();
-        }
-    });
 }
 
 gdk::Runtime::~Runtime() {

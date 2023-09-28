@@ -9,7 +9,7 @@
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
 
-#include "simcoe/assets/assets.h"
+#include "simcoe/vfs/assets.h"
 
 namespace game {
     namespace input = simcoe::input;
@@ -58,9 +58,8 @@ namespace game {
         system::Size windowResolution;
         system::Size renderResolution;
 
-        assets::Manager assets;
-
         Input input;
+        assets::Manager assets;
 
         GuiSink sink;
         game::ICamera *pCamera = nullptr;

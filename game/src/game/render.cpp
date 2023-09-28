@@ -300,7 +300,6 @@ Scene::Scene(render::Context& context, Info& info)
     });*/
 }
 
-void Scene::load(const std::filesystem::path &path) {
-    ModelPass *pModel = newPass<ModelPass>(path.filename().string(), path);
-    modelPasses.push_back(pModel);
+void Scene::load(const std::filesystem::path&) {
+
 }

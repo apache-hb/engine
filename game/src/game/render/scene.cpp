@@ -19,8 +19,8 @@ ScenePass::ScenePass(const GraphObject& object, Info& info)
 {
     pRenderTargetOut = out<IntermediateTargetEdge>("scene-target", info.renderResolution);
 
-    vs = info.assets.load("build\\game\\libgame.a.p\\scene.vs.cso");
-    ps = info.assets.load("build\\game\\libgame.a.p\\scene.ps.cso");
+    vs = info.assets.loadBlob<std::byte>("scene.vs.cso");
+    ps = info.assets.loadBlob<std::byte>("scene.ps.cso");
 }
 
 void ScenePass::start(ID3D12GraphicsCommandList*) {
@@ -51,8 +51,8 @@ void ScenePass::start(ID3D12GraphicsCommandList*) {
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(
-        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters, 
-        UINT(std::size(samplers)), samplers, 
+        UINT(std::size(rootParameters)), (D3D12_ROOT_PARAMETER*)rootParameters,
+        UINT(std::size(samplers)), samplers,
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
     );
 
@@ -107,7 +107,7 @@ void ScenePass::start(ID3D12GraphicsCommandList*) {
         1, 0, 1, 0,
         D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
     );
-    
+
     D3D12_CLEAR_VALUE clearValue = {
         .Format = DXGI_FORMAT_D32_FLOAT,
         .DepthStencil = { 1.0f, 0 }

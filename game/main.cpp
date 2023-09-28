@@ -1,5 +1,5 @@
 #include "game/camera.h"
-#include "game/gdk.h"
+#include "microsoft/gdk.h"
 
 #include "game/game.h"
 #include "game/registry.h"
@@ -91,14 +91,16 @@ private:
 };
 
 int commonMain() {
-    game::Info detail;
+    game::Info detail = {
+        .assets = { "build\\game\\libgame.a.p" }
+    };
 
     simcoe::addSink(&detail.sink);
     gLog.info("cwd: {}", std::filesystem::current_path().string());
 
     system::System system;
     ImGuiRuntime imgui;
-    game::gdk::Runtime gdk;
+    vendor::microsoft::gdk::Runtime gdk;
     Camera camera { detail.input, { 0, 0, 50 }, 90.f };
 
     game::Window window { detail.input.mouse, detail.input.keyboard };

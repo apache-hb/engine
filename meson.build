@@ -18,8 +18,6 @@ project('engine', [ 'cpp', 'c' ],
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gdk = subproject('gdk').get_variable('gdk')
 queue = subproject('atomic-queue').get_variable('queue')
-gltf = subproject('fastgltf').get_variable('gltf')
-stb_image = subproject('stb').get_variable('stb_image')
 
 agility = get_option('d3d12-agility').enabled()
 render_debug = get_option('render-debug').enabled()
@@ -30,19 +28,84 @@ args = [
     '/wd4127' # warnings about if constexpr
 ]
 
-subdir('simcoe')
+src = [
+    # core
+    'engine/src/core/system.cpp',
+    'engine/src/core/logging.cpp',
+    'engine/src/core/window.cpp',
+    'engine/src/core/panic.cpp',
+    'engine/src/core/util.cpp',
+    'engine/src/core/io.cpp',
+    'engine/src/core/units.cpp',
+    'engine/src/core/simcoe.cpp',
+
+    # input
+    'engine/src/input/input.cpp',
+    'engine/src/input/desktop.cpp',
+    'engine/src/input/gamepad.cpp',
+
+    # memory
+    'engine/src/memory/bitmap.cpp',
+
+    # render
+    'engine/src/render/context.cpp',
+    'engine/src/render/heap.cpp',
+    'engine/src/render/graph.cpp',
+    'engine/src/render/queue.cpp',
+
+    ###
+    ### vendor code
+    ###
+
+    # gdk
+    'vendor/src/microsoft/gdk.cpp',
+
+    # agility
+    'vendor/src/microsoft/agility.cpp',
+
+    # gpu vendor code
+    'vendor/src/gpu/gpu.cpp'
+]
+
+links = [
+    # core
+    'dbghelp.lib',
+
+    # input
+    'xinput.lib',
+
+    # render
+    'd3d12.lib',
+    'dxgi.lib',
+    'dxguid.lib'
+]
+
+deps = [
+    # render
+    d3d12, queue,
+
+    ###
+    ### vendor deps
+    ###
+
+    # gdk
+    gdk
+]
+
+libengine = library('engine', src,
+    include_directories : [ 'engine/include', 'vendor/include' ],
+    dependencies : deps,
+    cpp_args : args,
+    link_args : links
+)
+
+engine = declare_dependency(
+    include_directories : [ 'engine/include', 'vendor/include' ],
+    link_with : [ libengine ],
+    dependencies :deps,
+    link_args : links
+)
+
 subdir('data')
 
 subdir('game')
-
-#gltf = subproject('tinygltf').get_variable('gltf')
-#queue = subproject('atomic-queue').get_variable('queue')
-
-# compile libraries that are shared between game and editor
-# subdir('common')
-
-# compile game specific libraries
-# subdir('game')
-
-# compile editor specific libraries
-# subdir('editor')

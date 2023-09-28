@@ -1,6 +1,6 @@
 #include "game/render.h"
 
-#include "game/gdk.h"
+#include "microsoft/gdk.h"
 #include "game/registry.h"
 
 #include "imgui/imgui.h"
@@ -11,6 +11,7 @@
 #include "imnodes/imnodes.h"
 
 using namespace simcoe;
+using namespace vendor;
 using namespace game;
 
 namespace {
@@ -178,7 +179,7 @@ void ImGuiPass::drawInfo() {
         auto [renderWidth, renderHeight] = info.renderResolution;
         ImGui::Text("Render: %zu x %zu", renderWidth, renderHeight);
 
-        ImGui::Text("GDK: %s", gdk::enabled() ? "Enabled" : "Disabled");
+        ImGui::Text("GDK: %s", microsoft::gdk::enabled() ? "Enabled" : "Disabled");
 
         ImGui::Separator();
         ImGui::Text("Logs");
@@ -195,6 +196,39 @@ void ImGuiPass::drawInfo() {
             clipper.End();
         }
         ImGui::EndChild();
+    }
+    ImGui::End();
+
+    if (ImGui::Begin("GDK")) {
+        if (!microsoft::gdk::enabled()) {
+            ImGui::Text("GDK is disabled");
+        } else {
+            auto gdkInfo = microsoft::gdk::getAnalyticsInfo();
+            auto gdkFeatures = microsoft::gdk::getFeatures();
+            auto gdkConsoleId = microsoft::gdk::getConsoleId();
+
+            ImGui::Text("Family: %s", gdkInfo.family);
+            ImGui::Text("Model: %s", gdkInfo.form);
+
+            auto [major, minor, build, revision] = gdkInfo.osVersion;
+            ImGui::Text("OS: %u.%u.%u.%u", major, minor, build, revision);
+            ImGui::Text("ID: %s", gdkConsoleId.data());
+
+            if (ImGui::BeginTable("features", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY)) {
+                ImGui::TableSetupScrollFreeze(0, 1);
+                ImGui::TableSetupColumn("Feature", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableSetupColumn("Available", ImGuiTableColumnFlags_WidthFixed);
+                ImGui::TableHeadersRow();
+                for (const auto& [featureName, featureEnabled] : gdkFeatures) {
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", featureName.data());
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%s", featureEnabled ? "Enabled" : "Disabled");
+                }
+                ImGui::EndTable();
+            }
+        }
     }
     ImGui::End();
 }
