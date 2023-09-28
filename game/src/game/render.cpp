@@ -21,7 +21,7 @@ D3D12_SHADER_BYTECODE game::getShader(const ShaderBlob &blob) {
     return D3D12_SHADER_BYTECODE {blob.data(), blob.size()};
 }
 
-Display game::createDisplay(const system::Size& size) {
+Display game::createDisplay(const os::Size& size) {
     auto [width, height] = size;
 
     Display display = {
@@ -32,7 +32,7 @@ Display game::createDisplay(const system::Size& size) {
     return display;
 }
 
-Display game::createLetterBoxDisplay(const system::Size& render, const system::Size& present) {
+Display game::createLetterBoxDisplay(const os::Size& render, const os::Size& present) {
     auto [renderWidth, renderHeight] = render;
     auto [presentWidth, presentHeight] = present;
 
@@ -126,7 +126,7 @@ void RenderEdge::stop() {
     }
 }
 
-IntermediateTargetEdge::IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const system::Size& size)
+IntermediateTargetEdge::IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const os::Size& size)
     : OutEdge(self, pPass)
     , size(size)
 { }

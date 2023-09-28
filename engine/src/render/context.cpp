@@ -149,7 +149,7 @@ void Context::submitCopyCommands(CommandBuffer& buffer) {
     buffer.execute(copyQueue);
 }
 
-Context::Context(system::Window &window, const Info& info)
+Context::Context(os::Window &window, const Info& info)
     : window(window)
     , info(info)
     , rtvHeap(getRenderHeapSize())
@@ -200,7 +200,7 @@ void Context::deleteFactory() {
         pDebug1->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         RELEASE(pDebug1);
     } else {
-        gRenderLog.warn("DXGIGetDebugInterface1() = {}", system::hrString(hr));
+        gRenderLog.warn("DXGIGetDebugInterface1() = {}", os::hrString(hr));
     }
 }
 
@@ -252,7 +252,7 @@ void Context::newInfoQueue() {
 
         gRenderLog.info("ID3D12InfoQueue::RegisterMessageCallback() = {}", cookie);
     } else {
-        gRenderLog.warn("ID3D12Device::QueryInterface(IID_PPV_ARGS(&pInfoQueue)) = {}", system::hrString(hr));
+        gRenderLog.warn("ID3D12Device::QueryInterface(IID_PPV_ARGS(&pInfoQueue)) = {}", os::hrString(hr));
     }
 }
 

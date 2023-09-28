@@ -7,9 +7,9 @@
 
 namespace game {
     namespace input = simcoe::input;
-    namespace system = simcoe::system;
+    namespace os = simcoe::os;
 
-    struct GameEvents final : system::IWindowEvents {
+    struct GameEvents final : os::IWindowEvents {
         GameEvents(input::Keyboard& keyboard)
             : keyboard(keyboard)
         { }

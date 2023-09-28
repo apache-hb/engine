@@ -56,7 +56,7 @@ namespace simcoe::render {
             size_t workerThreads = 2;
         };
 
-        Context(system::Window& window, const Info& info);
+        Context(os::Window& window, const Info& info);
         ~Context();
 
         void update(const Info& info);
@@ -122,7 +122,7 @@ namespace simcoe::render {
 
         using DoOnceGroup = util::DoOnceGroup<D3D12_MESSAGE_ID>;
 
-        system::Window& window;
+        os::Window& window;
         Info info;
 
         DoOnceGroup reportOnce;

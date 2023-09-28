@@ -14,7 +14,7 @@
 
 namespace game {
     namespace input = simcoe::input;
-    namespace system = simcoe::system;
+    namespace os = simcoe::os;
     namespace logging = simcoe::logging;
     namespace assets = simcoe::assets;
 
@@ -60,8 +60,8 @@ namespace game {
     };
 
     struct Info {
-        system::Size windowResolution;
-        system::Size renderResolution;
+        os::Size windowResolution;
+        os::Size renderResolution;
 
         Input input;
         assets::Manager assets;

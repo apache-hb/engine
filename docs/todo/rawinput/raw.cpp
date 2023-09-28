@@ -9,12 +9,12 @@ using namespace simcoe;
 using namespace simcoe::input;
 
 namespace {
-    constexpr Key kMouseKeys[] = { 
-        Key::keyLeftMouse, 
-        Key::keyRightMouse, 
-        Key::keyMiddleMouse, 
-        Key::keyMouseButton1, 
-        Key::keyMouseButton2 
+    constexpr Key kMouseKeys[] = {
+        Key::keyLeftMouse,
+        Key::keyRightMouse,
+        Key::keyMiddleMouse,
+        Key::keyMouseButton1,
+        Key::keyMouseButton2
     };
 
     const std::unordered_map<WPARAM, const char*> kDeviceChange = {
@@ -43,9 +43,9 @@ namespace {
         UINT size = sizeof(RID_DEVICE_INFO);
 
         UINT err = GetRawInputDeviceInfo(hDevice, RIDI_DEVICEINFO, &info, &size);
-        if (err == UINT_MAX) { 
-            gInputLog.warn("GetRawInputDeviceInfo() = {}", system::win32LastErrorString());
-            return "unknown"; 
+        if (err == UINT_MAX) {
+            gInputLog.warn("GetRawInputDeviceInfo() = {}", os::win32LastErrorString());
+            return "unknown";
         }
 
         switch (info.dwType) {
@@ -103,9 +103,9 @@ void RawDevicePool::update(UINT msg, WPARAM wparam, LPARAM lparam) {
     HRAWINPUT hInput = HRAWINPUT(lparam);
     UINT size = 0;
     UINT err = GetRawInputData(hInput, RID_INPUT, nullptr, &size, sizeof(RAWINPUTHEADER));
-    if (err == UINT_MAX || size == 0) { 
-        noInput([&] { gInputLog.warn("GetRawInputData() = {} (size = {})", system::win32LastErrorString(), size); });
-        return; 
+    if (err == UINT_MAX || size == 0) {
+        noInput([&] { gInputLog.warn("GetRawInputData() = {} (size = {})", os::win32LastErrorString(), size); });
+        return;
     }
     noInput.reset();
 
@@ -115,7 +115,7 @@ void RawDevicePool::update(UINT msg, WPARAM wparam, LPARAM lparam) {
     UINT expectedSize = size;
     err = GetRawInputData(hInput, RID_INPUT, buffer.data(), &expectedSize, sizeof(RAWINPUTHEADER));
     if (err == UINT_MAX || expectedSize != size) {
-        dataSize([&] { gInputLog.warn("GetRawInputData() = {} (size = {}, expected = {})", system::win32LastErrorString(), size, expectedSize); });
+        dataSize([&] { gInputLog.warn("GetRawInputData() = {} (size = {}, expected = {})", os::win32LastErrorString(), size, expectedSize); });
         return;
     }
     dataSize.reset();
@@ -144,7 +144,7 @@ void RawDevicePool::onEvent(DWORD type, PRAWINPUT pInput) {
 
 bool RawDevicePool::sendEvent(DWORD type, HANDLE hDevice, PRAWINPUT pInput) {
     for (auto& pDevice : devices[type]) {
-        if (pDevice->getHandle() == hDevice) { 
+        if (pDevice->getHandle() == hDevice) {
             pDevice->update(pInput);
             return true;
         }
@@ -171,8 +171,8 @@ void RawDevicePool::addKeyboard(HANDLE hDevice) {
     devices[RIM_TYPEKEYBOARD].emplace(pDevice);
 }
 
-RawMouse::RawMouse(HANDLE hDevice) 
-    : IRawDevice(Device::eDesktop, hDevice) 
+RawMouse::RawMouse(HANDLE hDevice)
+    : IRawDevice(Device::eDesktop, hDevice)
 { }
 
 bool RawMouse::poll(State& state) {
@@ -222,8 +222,8 @@ void RawMouse::update(PRAWINPUT pInput) {
     }
 }
 
-RawKeyboard::RawKeyboard(HANDLE hDevice) 
-    : IRawDevice(Device::eDesktop, hDevice) 
+RawKeyboard::RawKeyboard(HANDLE hDevice)
+    : IRawDevice(Device::eDesktop, hDevice)
 { }
 
 bool RawKeyboard::poll(State&) {

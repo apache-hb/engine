@@ -13,7 +13,7 @@
 
 namespace game {
     namespace render = simcoe::render;
-    namespace system = simcoe::system;
+    namespace os = simcoe::os;
     namespace math = simcoe::math;
     namespace util = simcoe::util;
 
@@ -43,8 +43,8 @@ namespace game {
 
     D3D12_SHADER_BYTECODE getShader(const ShaderBlob &blob);
 
-    Display createDisplay(const system::Size& size);
-    Display createLetterBoxDisplay(const system::Size& render, const system::Size& present);
+    Display createDisplay(const os::Size& size);
+    Display createLetterBoxDisplay(const os::Size& render, const os::Size& present);
 
     struct RenderEdge final : render::OutEdge {
         RenderEdge(const GraphObject& self, render::Pass *pPass);
@@ -69,7 +69,7 @@ namespace game {
     };
 
     struct IntermediateTargetEdge final : render::OutEdge {
-        IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const system::Size& size);
+        IntermediateTargetEdge(const GraphObject& self, render::Pass *pPass, const os::Size& size);
 
         void start();
         void stop();
@@ -80,7 +80,7 @@ namespace game {
         D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(D3D12_DESCRIPTOR_HEAP_TYPE type) override;
 
     private:
-        system::Size size;
+        os::Size size;
 
         D3D12_RESOURCE_STATES state;
         ID3D12Resource *pResource;

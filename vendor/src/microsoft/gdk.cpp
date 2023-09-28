@@ -31,7 +31,7 @@ namespace {
         case E_GAMERUNTIME_WINDOW_NOT_FOREGROUND: return "gdk:window-not-foreground";
         case E_GAMERUNTIME_SUSPENDED: return "gdk:suspended";
 
-        default: return system::hrString(hr);
+        default: return os::hrString(hr);
         }
     }
 }

@@ -1,11 +1,3 @@
-option('stacktrace', type : 'feature', value : 'auto',
-    description : 'enable platform backtrace support'
-)
-
 option('render-debug', type : 'feature', value : 'auto',
     description : 'enable render debug layers'
-)
-
-option('d3d12-agility', type : 'feature', value : 'auto',
-    description : 'enable agility sdk support'
 )

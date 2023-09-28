@@ -56,8 +56,8 @@ namespace {
 
 Gamepad::Gamepad(DWORD dwIndex)
     : ISource(Device::eGamepad)
-    , dwIndex(dwIndex) 
-{ 
+    , dwIndex(dwIndex)
+{
     gInputLog.info("creating xinput gamepad for user {}", dwIndex);
 }
 
@@ -66,10 +66,10 @@ bool Gamepad::poll(State& result) {
     XINPUT_STATE state;
 
     if (DWORD err = XInputGetState(dwIndex, &state); err != ERROR_SUCCESS) {
-        reportNotConnected([&] { gInputLog.warn("XInputGetState({}) = {}", dwIndex, system::win32String(err)); });
+        reportNotConnected([&] { gInputLog.warn("XInputGetState({}) = {}", dwIndex, os::win32String(err)); });
         return false;
     }
-    
+
     reportNotConnected.reset();
 
     const auto& [buttons, leftTrigger, rightTrigger, thumbLX, thumbLY, thumbRX, thumbRY] = state.Gamepad;

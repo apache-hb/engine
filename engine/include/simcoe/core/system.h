@@ -8,11 +8,11 @@
 #define HR_CHECK(expr) \
     do { \
         if (HRESULT err = (expr); FAILED(err)) { \
-            PANIC("{} = {}", #expr, simcoe::system::hrString(err)); \
+            PANIC("{} = {}", #expr, simcoe::os::hrString(err)); \
         } \
     } while (false)
 
-namespace simcoe::system {
+namespace simcoe::os {
     using Size = math::Resolution<size_t>;
 
     enum struct WindowStyle {
@@ -86,8 +86,6 @@ namespace simcoe::system {
     private:
         size_t last;
     };
-
-    std::vector<std::string> backtrace();
 
     std::string hrString(HRESULT hr);
     std::string win32String(DWORD dw);
