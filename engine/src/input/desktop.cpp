@@ -178,13 +178,13 @@ void Keyboard::update(UINT msg, WPARAM wparam, LPARAM lparam) {
 }
 
 namespace {
-    std::unordered_map<WORD, util::DoOnce> unknownButton;
+    util::DoOnceGroup<DWORD> unknownButton;
 }
 
 void Keyboard::setKey(WORD key, size_t value) {
     auto it = kDesktopKeys.find(key);
     if (it == kDesktopKeys.end()) {
-        unknownButton[key]([&] { gInputLog.warn("Unknown key: {}", key); });
+        unknownButton(key, [&] { gInputLog.warn("Unknown key: {}", key); });
         return;
     }
 
@@ -200,7 +200,7 @@ void Keyboard::setXButton(WORD key, size_t value) {
         setKey(VK_XBUTTON2, value);
         break;
     default:
-        unknownButton[key]([&] { gInputLog.warn("Unknown XButton: {}", key); });
+        unknownButton(key, [&] { gInputLog.warn("Unknown XButton: {}", key); });
         setKey(key, value);
         break;
     }
