@@ -22,62 +22,6 @@ namespace {
     Window *getWindowPtr(HWND hwnd) {
         return reinterpret_cast<Window*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
     }
-}
-
-// callback
-
-LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-        Window *pWindow = getWindowPtr(hwnd);
-
-        switch (msg) {
-        case WM_DESTROY: {
-            if (pWindow == nullptr) break;
-            IWindowEvents *events = pWindow->getEvents();
-
-            events->onClose();
-            return 0;
-        }
-
-        case WM_CREATE: {
-            auto *pCreateStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
-            SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
-
-            Window *pIncomingWindow = getWindowPtr(hwnd);
-            IWindowEvents *events = pIncomingWindow->getEvents();
-
-            events->onOpen();
-            break;
-        }
-
-        case WM_ACTIVATE: {
-            if (pWindow == nullptr) break;
-            IWindowEvents *events = pWindow->getEvents();
-
-            switch (LOWORD(wParam)) {
-            case WA_ACTIVE:
-            case WA_CLICKACTIVE:
-                events->onGainFocus();
-                break;
-
-            default:
-                events->onLoseFocus();
-                break;
-            }
-
-            return 0;
-        }
-
-        default:
-            break;
-        }
-
-        if (pWindow != nullptr) {
-            IWindowEvents *events = pWindow->getEvents();
-            return events->onEvent(hwnd, msg, wParam, lParam);
-        }
-
-        return DefWindowProcA(hwnd, msg, wParam, lParam);
-    }
 
     DWORD getStyle(WindowStyle style) {
         switch (style) {
@@ -86,6 +30,64 @@ LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
         default: NEVER("invalid window style");
         }
     }
+}
+
+// callback
+
+LRESULT CALLBACK Window::callback(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    Window *pWindow = getWindowPtr(hwnd);
+
+    switch (msg) {
+    case WM_DESTROY: {
+        if (pWindow == nullptr) break;
+        IWindowEvents *events = pWindow->getEvents();
+
+        events->onClose();
+        return 0;
+    }
+
+    case WM_CREATE: {
+        auto *pCreateStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
+
+        Window *pIncomingWindow = getWindowPtr(hwnd);
+        IWindowEvents *events = pIncomingWindow->getEvents();
+
+        events->onOpen();
+        break;
+    }
+
+    case WM_ACTIVATE: {
+        if (pWindow == nullptr) break;
+        IWindowEvents *events = pWindow->getEvents();
+
+        switch (LOWORD(wParam)) {
+        case WA_ACTIVE:
+        case WA_CLICKACTIVE:
+            events->onGainFocus();
+            break;
+
+        default:
+            events->onLoseFocus();
+            break;
+        }
+
+        return 0;
+    }
+
+    default:
+        break;
+    }
+
+    if (pWindow != nullptr) {
+        IWindowEvents *events = pWindow->getEvents();
+        if (events->onEvent(hwnd, msg, wParam, lParam)) {
+            return 0;
+        }
+    }
+
+    return DefWindowProcA(hwnd, msg, wParam, lParam);
+}
 
 Window::Window(HINSTANCE hInstance, int nCmdShow, const WindowInfo& info) {
     events = info.pEvents;

@@ -137,8 +137,6 @@ void commonMain(system::System& system, int nCmdShow) {
     scene.stop();
 
     ImGui_ImplWin32_Shutdown();
-
-    gLog.info("bye bye");
 }
 
 int outerMain(system::System& system, int nCmdShow) {

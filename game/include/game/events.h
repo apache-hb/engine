@@ -14,7 +14,7 @@ namespace game {
             : keyboard(keyboard)
         { }
 
-        LRESULT onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override;
+        bool onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) override;
 
         input::Keyboard& keyboard;
     };

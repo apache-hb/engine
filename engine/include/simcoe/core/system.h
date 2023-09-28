@@ -25,7 +25,10 @@ namespace simcoe::system {
     struct IWindowEvents {
         virtual ~IWindowEvents() = default;
 
-        virtual LRESULT onEvent(HWND, UINT, WPARAM, LPARAM) { return 0; }
+        /**
+         * return true if the event was handled
+         */
+        virtual bool onEvent(HWND, UINT, WPARAM, LPARAM) = 0;
 
         virtual void onClose() { }
         virtual void onOpen() { }

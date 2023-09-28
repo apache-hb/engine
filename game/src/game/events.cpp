@@ -9,7 +9,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 
 using namespace game;
 
-LRESULT GameEvents::onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+bool GameEvents::onEvent(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
     keyboard.update(msg, wparam, lparam);
 
     return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
