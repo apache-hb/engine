@@ -80,6 +80,20 @@ namespace simcoe::rhi {
         } data;
     };
 
+    struct Viewport {
+        math::float2 topLeft;
+        math::float2 size;
+        float minDepth;
+        float maxDepth;
+    };
+
+    struct Rect {
+        int left;
+        int top;
+        int right;
+        int bottom;
+    };
+
     Barrier transition(rhi::ISurface *pResource, ResourceState from, ResourceState to);
 
     // interface types

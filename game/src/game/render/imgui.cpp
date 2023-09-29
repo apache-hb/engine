@@ -1,7 +1,7 @@
 #include "game/render.h"
+#include "game/registry.h"
 
 #include "microsoft/gdk.h"
-#include "game/registry.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_internal.h"
