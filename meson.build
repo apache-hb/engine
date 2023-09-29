@@ -15,6 +15,7 @@ project('engine', [ 'cpp', 'c' ],
     ]
 )
 
+vk = dependency('vulkan')
 d3d12 = subproject('d3d12').get_variable('d3d12')
 gdk = subproject('gdk').get_variable('gdk')
 queue = subproject('atomic-queue').get_variable('queue')
@@ -129,18 +130,16 @@ librhid3d = shared_library('rhi-d3d12', src,
 ### vk rhi
 ###
 
-src = [ 'engine/src/rhi/vk/rhi.cpp' ]
+# TODO: vulkan and d3d12 have some big differences
 
-links = [
+# src = [ 'engine/src/rhi/vk/rhi.cpp' ]
 
-]
-
-librhivk = shared_library('rhi-vk', src,
-    include_directories : [ 'engine/include', 'vendor/include' ],
-    dependencies : [ engine ],
-    cpp_args : args,
-    link_args : links
-)
+# librhivk = shared_library('rhi-vk', src,
+#     include_directories : [ 'engine/include', 'vendor/include' ],
+#     dependencies : [ engine, vk ],
+#     cpp_args : args,
+#     link_args : links
+# )
 
 subdir('data')
 

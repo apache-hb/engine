@@ -148,7 +148,6 @@ void DxCommandList::end() {
     HR_CHECK(get()->Close());
 }
 
-
 void DxCommandList::clearRenderTarget(rhi::CpuHandle handle, math::float4 colour) {
     get()->ClearRenderTargetView(getCpuHandle(handle), &colour.x, 0, nullptr);
 }
@@ -175,6 +174,40 @@ DxCommandList *DxCommandList::create(d3d::Device *pDevice, D3D12_COMMAND_LIST_TY
 }
 
 // command queue
+
+rhi::IDisplayQueue *DxCommandQueue::createDisplayQueue(rhi::IContext *ctx, const rhi::DisplayQueueInfo& info) {
+    DxContext *pDxContext = static_cast<DxContext*>(ctx);
+    dxgi::Factory *pFactory = pDxContext->get();
+
+    BOOL tearingSupport = FALSE;
+    if (HRESULT hr = pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearingSupport, sizeof(tearingSupport)); FAILED(hr)) {
+        tearingSupport = FALSE;
+        simcoe::gRenderLog.warn("failed to check tearing support: {}", simcoe::os::hrString(hr));
+    }
+
+    auto [width, height] = info.size.as<UINT>();
+    auto handle = info.window.getHandle();
+
+    DXGI_SWAP_CHAIN_DESC1 desc = {
+        .Width = width,
+        .Height = height,
+        .Format = getColour(info.format),
+        .SampleDesc = { .Count = 1 },
+        .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        .BufferCount = UINT(info.frames),
+        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        .Flags = tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u
+    };
+
+    IDXGISwapChain1 *pChain1 = nullptr;
+    HR_CHECK(pFactory->CreateSwapChainForHwnd(get(), handle, &desc, nullptr, nullptr, &pChain1));
+    HR_CHECK(pFactory->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER));
+
+    IDXGISwapChain4 *pChain = nullptr;
+    HR_CHECK(pChain1->QueryInterface(IID_PPV_ARGS(&pChain)));
+
+    return DxDisplayQueue::create(pChain, tearingSupport);
+}
 
 void DxCommandQueue::execute(std::span<rhi::ICommandList*> lists) {
     std::vector<ID3D12CommandList*> dxLists{lists.size()};
@@ -220,35 +253,8 @@ rhi::ISurface *DxDisplayQueue::getSurface(size_t index) {
     return DxSurface::create(pResource);
 }
 
-DxDisplayQueue *DxDisplayQueue::create(dxgi::Factory *pFactory, d3d::Queue *pQueue, const rhi::DisplayQueueInfo& info) {
-    BOOL tearingSupport = FALSE;
-    if (HRESULT hr = pFactory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearingSupport, sizeof(tearingSupport)); FAILED(hr)) {
-        tearingSupport = FALSE;
-        simcoe::gRenderLog.warn("failed to check tearing support: {}", simcoe::os::hrString(hr));
-    }
-
-    auto [width, height] = info.size.as<UINT>();
-    auto handle = info.window.getHandle();
-
-    DXGI_SWAP_CHAIN_DESC1 desc = {
-        .Width = width,
-        .Height = height,
-        .Format = getColour(info.format),
-        .SampleDesc = { .Count = 1 },
-        .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        .BufferCount = UINT(info.frames),
-        .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
-        .Flags = tearingSupport ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0u
-    };
-
-    IDXGISwapChain1 *pChain1 = nullptr;
-    HR_CHECK(pFactory->CreateSwapChainForHwnd(pQueue, handle, &desc, nullptr, nullptr, &pChain1));
-    HR_CHECK(pFactory->MakeWindowAssociation(handle, DXGI_MWA_NO_ALT_ENTER));
-
-    IDXGISwapChain4 *pChain = nullptr;
-    HR_CHECK(pChain1->QueryInterface(IID_PPV_ARGS(&pChain)));
-
-    return new DxDisplayQueue(pChain, tearingSupport);
+DxDisplayQueue *DxDisplayQueue::create(IDXGISwapChain4 *pSwapChain, BOOL tearing) {
+    return new DxDisplayQueue(pSwapChain, tearing);
 }
 
 // device
@@ -259,11 +265,6 @@ rhi::ICommandQueue *DxDevice::createCommandQueue(rhi::CommandType type) {
 
 rhi::ICommandList *DxDevice::createCommandList(rhi::CommandType type) {
     return DxCommandList::create(get(), getCommandType(type));
-}
-
-rhi::IDisplayQueue *DxDevice::createDisplayQueue(rhi::ICommandQueue *pQueue, const rhi::DisplayQueueInfo& info) {
-    DxCommandQueue *pDxQueue = static_cast<DxCommandQueue*>(pQueue);
-    return DxDisplayQueue::create(pFactory, pDxQueue->get(), info);
 }
 
 rhi::IFence *DxDevice::createFence() {

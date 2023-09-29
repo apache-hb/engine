@@ -91,16 +91,7 @@ private:
     std::unique_ptr<util::Entry> debug;
 };
 
-std::vector<rhi::IAdapter*> getAdapters(rhi::IContext *ctx) {
-    std::vector<rhi::IAdapter*> result;
-    for (size_t i = 0;;) {
-        rhi::IAdapter *pAdapter = ctx->getAdapter(i++);
-        if (!pAdapter) { return result; }
-
-        result.push_back(pAdapter);
-    }
-}
-
+#if 0
 rhi::IContext *getRenderLibrary(const char *path) {
     HMODULE hModule = LoadLibrary(path);
     if (!hModule) {
@@ -134,7 +125,7 @@ struct RenderContext {
 
         pQueue = pDevice->createCommandQueue(rhi::CommandType::eDirect);
 
-        pDisplay = pDevice->createDisplayQueue(pQueue, {
+        pDisplay = pQueue->createDisplayQueue(pContext, {
             .window = window,
             .size = { 1920, 1080 },
             .format = rhi::ColourFormat::eRGBA8,
@@ -212,8 +203,13 @@ private:
     rhi::IFence *pFence;
     size_t fenceValue = 1;
 };
+#endif
 
 void commonMain(os::System& system, int nCmdShow) {
+    game::GuiSink guiSink{};
+    simcoe::addSink(&guiSink);
+
+    assets::Manager assets = { "build\\game\\libgame.a.p" };
     input::Mouse mouseInput = { false, true };
     input::Keyboard keyboardInput;
     game::GameEvents events = { keyboardInput };
@@ -228,6 +224,9 @@ void commonMain(os::System& system, int nCmdShow) {
     auto window = system.openWindow(nCmdShow, info);
     window.hideCursor(false);
 
+    game::Input input { keyboardInput, mouseInput };
+
+#if 0
     ASSERT(SetDllDirectoryA("build") != 0);
 
     RenderContext ctx{getRenderLibrary("rhi-d3d12.dll"), window};
@@ -236,13 +235,21 @@ void commonMain(os::System& system, int nCmdShow) {
         mouseInput.update(window.getHandle());
         ctx.present();
     }
-#if 0
-    ImGuiRuntime imgui;
-    Camera camera { detail.input, { 0, 0, 50 }, 90.f };
+#endif
 
-    detail.windowResolution = window.getSize();
-    detail.renderResolution = { 1920, 1080 };
-    detail.pCamera = camera.getCamera();
+    ImGuiRuntime imgui;
+    Camera camera { input, { 0, 0, 50 }, 90.f };
+
+    game::Info detail = {
+        .windowResolution = window.getSize(),
+        .renderResolution = { 1920, 1080 },
+
+        .input = input,
+        .assets = assets,
+
+        .sink = guiSink,
+        .pCamera = camera.getCamera()
+    };
 
     render::Context context { window, { } };
     game::Scene scene { context, detail };
@@ -261,7 +268,6 @@ void commonMain(os::System& system, int nCmdShow) {
     scene.stop();
 
     ImGui_ImplWin32_Shutdown();
-#endif
 }
 
 int outerMain(os::System& system, int nCmdShow) {

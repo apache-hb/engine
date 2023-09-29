@@ -107,7 +107,6 @@ namespace simcoe::rhi {
 
         virtual ICommandQueue *createCommandQueue(CommandType type) = 0;
         virtual ICommandList *createCommandList(CommandType type) = 0;
-        virtual IDisplayQueue *createDisplayQueue(ICommandQueue *pQueue, const DisplayQueueInfo& info) = 0;
         virtual IHeap *createHeap(HeapType type, size_t size) = 0;
         virtual IFence *createFence() = 0;
 
@@ -131,6 +130,8 @@ namespace simcoe::rhi {
 
     struct ICommandQueue {
         virtual ~ICommandQueue() = default;
+
+        virtual IDisplayQueue *createDisplayQueue(IContext *context, const DisplayQueueInfo& info) = 0;
 
         virtual void execute(std::span<ICommandList*> lists) = 0;
         virtual void signal(IFence *pFence, size_t value) = 0;

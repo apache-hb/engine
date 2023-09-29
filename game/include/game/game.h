@@ -63,10 +63,10 @@ namespace game {
         os::Size windowResolution;
         os::Size renderResolution;
 
-        Input input;
-        assets::Manager assets;
+        Input& input;
+        assets::Manager& assets;
 
-        GuiSink sink;
+        GuiSink& sink;
         game::ICamera *pCamera = nullptr;
     };
 }

@@ -118,7 +118,7 @@ struct DxDisplayQueue final : RenderObject<IDXGISwapChain4, rhi::IDisplayQueue> 
 
     // module interface
 
-    static DxDisplayQueue *create(dxgi::Factory *pFactory, d3d::Queue *pQueue, const rhi::DisplayQueueInfo& info);
+    static DxDisplayQueue *create(IDXGISwapChain4 *pSwapChain, BOOL tearing);
 
 private:
     DxDisplayQueue(IDXGISwapChain4 *pObject, BOOL tearing)
@@ -161,6 +161,8 @@ struct DxCommandQueue final : RenderObject<d3d::Queue, rhi::ICommandQueue> {
 
     // public interface
 
+    rhi::IDisplayQueue *createDisplayQueue(rhi::IContext *ctx, const rhi::DisplayQueueInfo& info) override;
+
     void execute(std::span<rhi::ICommandList*> lists) override;
     void signal(rhi::IFence *pFence, size_t value) override;
 
@@ -177,7 +179,6 @@ struct DxDevice final : RenderObject<d3d::Device, rhi::IDevice> {
 
     rhi::ICommandQueue *createCommandQueue(rhi::CommandType type) override;
     rhi::ICommandList *createCommandList(rhi::CommandType type) override;
-    rhi::IDisplayQueue *createDisplayQueue(rhi::ICommandQueue *pQueue, const rhi::DisplayQueueInfo& info) override;
     rhi::IHeap *createHeap(rhi::HeapType type, size_t size) override;
     rhi::IFence *createFence() override;
 
