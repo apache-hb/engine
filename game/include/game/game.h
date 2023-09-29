@@ -10,7 +10,7 @@
 #include "simcoe/input/desktop.h"
 #include "simcoe/input/gamepad.h"
 
-#include "simcoe/vfs/assets.h"
+#include "simcoe/assets/assets.h"
 
 namespace game {
     namespace input = simcoe::input;

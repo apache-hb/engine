@@ -185,4 +185,8 @@ void ScenePass::execute(ID3D12GraphicsCommandList *pCommands) {
     pCommands->SetGraphicsRootConstantBufferView(1, pSceneBuffer->GetGPUVirtualAddress());
 
     pCommands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    for (ModelPass *pPass : modelPasses) {
+        pPass->execute(pCommands);
+    }
 }

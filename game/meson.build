@@ -39,6 +39,7 @@ shaders = [
     hlsl.process('../data/shaders/blit.hlsl'),
     hlsl.process('../data/shaders/scene.hlsl'),
     hlsl.process('../data/shaders/cubemap.hlsl'),
+    hlsl.process('../data/shaders/perlin.hlsl')
 ]
 
 src = [
@@ -52,7 +53,8 @@ src = [
     'src/game/render/imgui.cpp',
     'src/game/render/scene.cpp',
     'src/game/render/cubemap.cpp',
-    'src/game/render/blit.cpp'
+    'src/game/render/blit.cpp',
+    'src/game/render/model.cpp'
 ]
 
 libgame = library('game', src + shaders,

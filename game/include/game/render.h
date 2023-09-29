@@ -143,6 +143,90 @@ namespace game {
         PipelineState cubeMapPSO;
     };
 
+    struct ModelPass final : Pass, assets::IScene {
+        ModelPass(const GraphObject& object, Info& info, const std::filesystem::path& path);
+
+        enum State {
+            ePending,
+            eWorking,
+            eReady,
+        };
+
+        // render::Pass
+        void start(ID3D12GraphicsCommandList *pCommands) override;
+        void stop() override;
+
+        void execute(ID3D12GraphicsCommandList *pCommands) override;
+
+        // assets::IScene
+        size_t getDefaultTexture() override;
+        size_t addVertexBuffer(std::span<const assets::Vertex> data) override;
+        size_t addIndexBuffer(std::span<const uint32_t> data) override;
+        size_t addTexture(const assets::Texture& texture) override;
+        size_t addPrimitive(const assets::Primitive& mesh) override;
+        size_t addNode(const assets::Node& node) override;
+        void setNodeChildren(size_t idx, std::span<const size_t> children) override;
+
+        void beginUpload() override {
+            ASSERT(state == ePending);
+            state = eWorking;
+        }
+
+        void endUpload() override {
+            ASSERT(state == eWorking);
+            state = eReady;
+        }
+
+        render::InEdge *pRenderTargetIn = nullptr;
+        render::InEdge *pRenderTargetOut = nullptr;
+
+    private:
+        void renderNode(ID3D12GraphicsCommandList* cmd, size_t idx, const float4x4& parent);
+
+        struct TextureHandle {
+            std::string name;
+            math::size2 size;
+            ID3D12Resource *pResource = nullptr;
+            render::Heap::Index handle = render::Heap::Index::eInvalid;
+        };
+
+        struct IndexBuffer {
+            ID3D12Resource *pResource = nullptr;
+            D3D12_INDEX_BUFFER_VIEW view;
+            UINT size;
+        };
+
+        struct VertexBuffer {
+            ID3D12Resource *pResource = nullptr;
+            D3D12_VERTEX_BUFFER_VIEW view;
+        };
+
+        struct Node {
+            assets::Node asset;
+            ID3D12Resource *pResource = nullptr;
+            NodeBuffer *pNodeData = nullptr;
+            render::Heap::Index handle = render::Heap::Index::eInvalid;
+        };
+
+        std::atomic<State> state = ePending;
+
+        std::string name;
+        std::shared_ptr<assets::IUpload> upload;
+        std::unique_ptr<util::Entry> debug;
+
+        render::CommandBuffer copyCommands;
+        render::CommandBuffer directCommands;
+
+        std::vector<assets::Primitive> primitives;
+        std::vector<Node> nodes;
+
+        std::vector<TextureHandle> textures;
+        std::vector<IndexBuffer> indices;
+        std::vector<VertexBuffer> vertices;
+
+        size_t rootNode = SIZE_MAX;
+    };
+
     struct ScenePass final : Pass {
         ScenePass(const GraphObject& object, Info& info);
         void start(ID3D12GraphicsCommandList *pCommands) override;
@@ -152,6 +236,7 @@ namespace game {
 
         IntermediateTargetEdge *pRenderTargetOut = nullptr;
 
+        std::vector<ModelPass*> modelPasses;
     private:
         ShaderBlob vs;
         ShaderBlob ps;

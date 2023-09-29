@@ -261,7 +261,7 @@ void commonMain(os::System& system, int nCmdShow) {
 
     while (system.poll()) {
         mouseInput.update(window.getHandle());
-        detail.input.poll();
+        input.poll();
         scene.execute();
     }
 
